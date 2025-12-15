@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { MOCK_ENTRIES } from "@/lib/mockData";
 import { format, isSameDay, startOfWeek, addDays } from "date-fns";
+import { ja } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Printer, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getTimeSlotColor, getGlucoseStatusColor, DEFAULT_SETTINGS } from "@/lib/types";
 
 export default function Logbook() {
-  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
+  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   
   const nextWeek = () => setCurrentWeekStart(addDays(currentWeekStart, 7));
   const prevWeek = () => setCurrentWeekStart(addDays(currentWeekStart, -7));
@@ -21,23 +22,30 @@ export default function Logbook() {
     return MOCK_ENTRIES.find(e => isSameDay(e.timestamp, date) && e.timeSlot === slot);
   };
 
+  const timeSlotMap: Record<string, string> = {
+    'Morning': '朝',
+    'Noon': '昼',
+    'Evening': '夕',
+    'Night': '眠前'
+  };
+
   return (
     <AppLayout>
       <div className="pt-12 px-4 pb-6">
         <div className="flex justify-between items-end mb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Logbook</h1>
-            <p className="text-muted-foreground text-sm">Review your history</p>
+            <h1 className="text-2xl font-bold tracking-tight">記録ノート</h1>
+            <p className="text-muted-foreground text-sm">履歴を確認</p>
           </div>
-          <Button variant="outline" size="icon" className="rounded-full shadow-sm" title="Export PDF">
+          <Button variant="outline" size="icon" className="rounded-full shadow-sm" title="PDF出力">
             <Printer className="w-4 h-4" />
           </Button>
         </div>
 
         <Tabs defaultValue="list" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="list">List View</TabsTrigger>
-            <TabsTrigger value="book">Book View</TabsTrigger>
+            <TabsTrigger value="list">リスト表示</TabsTrigger>
+            <TabsTrigger value="book">手帳表示</TabsTrigger>
           </TabsList>
 
           <TabsContent value="list" className="space-y-4">
@@ -48,7 +56,7 @@ export default function Logbook() {
                return (
                  <div key={day.toISOString()} className="space-y-2">
                    <h3 className="text-sm font-semibold text-muted-foreground ml-1 sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
-                     {format(day, "EEEE, MMM d")}
+                     {format(day, "M月d日 (EE)", { locale: ja })}
                    </h3>
                    {dayEntries.map(entry => (
                      <Card key={entry.id} className="overflow-hidden border-l-4" style={{ borderLeftColor: `hsl(var(--time-${entry.timeSlot.toLowerCase() === 'night' ? 'night' : entry.timeSlot.toLowerCase() === 'evening' ? 'evening' : entry.timeSlot.toLowerCase() === 'noon' ? 'noon' : 'morning'}))` }}>
@@ -56,9 +64,9 @@ export default function Logbook() {
                          <div className="flex flex-col gap-1">
                            <div className="flex items-center gap-2">
                              <span className={`text-xs px-1.5 py-0.5 rounded text-white ${getTimeSlotColor(entry.timeSlot)}`}>
-                               {entry.timeSlot}
+                               {timeSlotMap[entry.timeSlot]}
                              </span>
-                             <span className="text-xs text-muted-foreground">{format(entry.timestamp, "h:mm a")}</span>
+                             <span className="text-xs text-muted-foreground">{format(entry.timestamp, "H:mm")}</span>
                            </div>
                            <span className={`text-xl font-bold ${getGlucoseStatusColor(entry.glucoseLevel, DEFAULT_SETTINGS)}`}>
                              {entry.glucoseLevel} <span className="text-xs font-normal text-muted-foreground">mg/dL</span>
@@ -67,8 +75,8 @@ export default function Logbook() {
                          <div className="text-right">
                            {entry.insulinUnits && (
                              <div className="flex flex-col items-end">
-                               <span className="font-bold text-lg">{entry.insulinUnits}u</span>
-                               <span className="text-[10px] uppercase text-muted-foreground">{entry.type}</span>
+                               <span className="font-bold text-lg">{entry.insulinUnits}単位</span>
+                               <span className="text-[10px] uppercase text-muted-foreground">{entry.type === 'Meal' ? '食事' : '補正'}</span>
                              </div>
                            )}
                          </div>
@@ -84,18 +92,18 @@ export default function Logbook() {
             <div className="flex justify-between items-center mb-4 bg-muted/30 p-2 rounded-lg">
               <Button variant="ghost" size="sm" onClick={prevWeek}><ChevronLeft className="w-4 h-4" /></Button>
               <span className="text-sm font-medium">
-                {format(currentWeekStart, "MMM d")} - {format(addDays(currentWeekStart, 13), "MMM d")}
+                {format(currentWeekStart, "M/d")} - {format(addDays(currentWeekStart, 13), "M/d")}
               </span>
               <Button variant="ghost" size="sm" onClick={nextWeek}><ChevronRight className="w-4 h-4" /></Button>
             </div>
 
             <div className="bg-card border rounded-lg overflow-hidden shadow-sm">
               <div className="grid grid-cols-[3rem_1fr_1fr_1fr_1fr] bg-muted/50 border-b text-[10px] font-bold text-center py-2">
-                <div>Date</div>
-                <div className="text-time-morning">Morn</div>
-                <div className="text-time-noon">Noon</div>
-                <div className="text-time-evening">Eve</div>
-                <div className="text-time-night">Night</div>
+                <div>日付</div>
+                <div className="text-time-morning">朝</div>
+                <div className="text-time-noon">昼</div>
+                <div className="text-time-evening">夕</div>
+                <div className="text-time-night">眠前</div>
               </div>
               
               <div className="divide-y text-xs">
@@ -103,7 +111,7 @@ export default function Logbook() {
                   <div key={day.toISOString()} className="grid grid-cols-[3rem_1fr_1fr_1fr_1fr] min-h-[3rem]">
                     <div className="p-1 flex flex-col justify-center items-center bg-muted/10 border-r font-medium text-muted-foreground text-[10px]">
                       <span>{format(day, "d")}</span>
-                      <span>{format(day, "EE")}</span>
+                      <span>{format(day, "EE", { locale: ja })}</span>
                     </div>
                     {['Morning', 'Noon', 'Evening', 'Night'].map(slot => {
                       const entry = getEntryForSlot(day, slot);
@@ -116,7 +124,7 @@ export default function Logbook() {
                               </span>
                               {entry.insulinUnits && (
                                 <span className="text-[10px] text-primary bg-primary/10 px-1 rounded mt-0.5">
-                                  {entry.insulinUnits}u
+                                  {entry.insulinUnits}
                                 </span>
                               )}
                             </>
@@ -132,7 +140,7 @@ export default function Logbook() {
             </div>
             
             <p className="text-xs text-muted-foreground text-center mt-4">
-              Tip: Rotate device for easier viewing
+              ヒント: 画面を横にすると見やすくなります
             </p>
           </TabsContent>
         </Tabs>

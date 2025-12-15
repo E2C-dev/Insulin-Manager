@@ -10,11 +10,11 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [location] = useLocation();
 
   const navItems = [
-    { icon: Home, label: "Home", href: "/" },
-    { icon: NotebookPen, label: "Logbook", href: "/logbook" },
-    { icon: PlusCircle, label: "Entry", href: "/entry", isPrimary: true },
+    { icon: Home, label: "ホーム", href: "/" },
+    { icon: NotebookPen, label: "記録ノート", href: "/logbook" },
+    { icon: PlusCircle, label: "入力", href: "/entry", isPrimary: true },
     // { icon: Activity, label: "Stats", href: "/stats" }, // Simplified for now
-    { icon: Settings, label: "Settings", href: "/settings" },
+    { icon: Settings, label: "設定", href: "/settings" },
   ];
 
   return (

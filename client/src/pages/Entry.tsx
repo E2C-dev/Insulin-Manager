@@ -66,6 +66,13 @@ export default function Entry() {
     setLocation("/");
   };
 
+  const timeSlotMap: Record<string, string> = {
+    'Morning': '朝',
+    'Noon': '昼',
+    'Evening': '夕',
+    'Night': '眠前'
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans max-w-md mx-auto">
       {/* Header */}
@@ -73,10 +80,10 @@ export default function Entry() {
         <Button variant="ghost" size="icon" onClick={() => setLocation("/")}>
           <ArrowLeft className="w-6 h-6" />
         </Button>
-        <h1 className="text-xl font-bold">New Entry</h1>
+        <h1 className="text-xl font-bold">新規入力</h1>
         <div className="ml-auto">
           <Button variant="ghost" className="text-primary font-bold" onClick={handleSave}>
-            Save
+            保存
           </Button>
         </div>
       </div>
@@ -96,14 +103,14 @@ export default function Entry() {
                   : "border-transparent bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
-              {slot}
+              {timeSlotMap[slot]}
             </button>
           ))}
         </div>
 
         {/* Glucose Input */}
         <div className="space-y-4">
-          <Label className="text-lg font-semibold">Glucose Level (mg/dL)</Label>
+          <Label className="text-lg font-semibold">血糖値 (mg/dL)</Label>
           <div className="relative">
             <Input 
               type="number" 
@@ -134,16 +141,16 @@ export default function Entry() {
               </div>
               <div className="flex-1">
                 <div className="flex justify-between items-center mb-1">
-                  <h3 className="font-semibold text-primary">AI Suggestion</h3>
-                  <span className="text-2xl font-bold text-primary">{suggestedDose.total}u</span>
+                  <h3 className="font-semibold text-primary">AI提案</h3>
+                  <span className="text-2xl font-bold text-primary">{suggestedDose.total}単位</span>
                 </div>
                 <div className="text-xs text-muted-foreground flex gap-3">
-                  <span>Base: {suggestedDose.basal}u</span>
+                  <span>基本: {suggestedDose.basal}</span>
                   <span>+</span>
-                  <span>Correction: {suggestedDose.correction}u</span>
+                  <span>補正: {suggestedDose.correction}</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-2 italic">
-                  Tap to apply. Calculated based on ISF 1:{DEFAULT_SETTINGS.insulinSensitivityFactor}
+                  タップして適用。ISF 1:{DEFAULT_SETTINGS.insulinSensitivityFactor} に基づき計算
                 </p>
               </div>
             </div>
@@ -152,7 +159,7 @@ export default function Entry() {
 
         {/* Insulin Input */}
         <div className="space-y-4">
-          <Label className="text-lg font-semibold">Insulin Dose (Units)</Label>
+          <Label className="text-lg font-semibold">インスリン投与量 (単位)</Label>
           <div className="flex items-center gap-4">
             <Button 
               variant="outline" 
@@ -183,9 +190,9 @@ export default function Entry() {
 
         {/* Notes */}
         <div className="space-y-2">
-          <Label>Notes</Label>
+          <Label>メモ</Label>
           <Textarea 
-            placeholder="Add a note (e.g. Pizza for lunch)..." 
+            placeholder="メモを追加 (例: 昼食ピザ)..." 
             className="bg-muted/30 border-transparent resize-none h-24 rounded-xl"
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -197,7 +204,7 @@ export default function Entry() {
 
       <div className="p-4 bg-background border-t fixed bottom-0 w-full max-w-md safe-area-bottom">
         <Button size="lg" className="w-full text-lg h-14 rounded-xl shadow-lg shadow-primary/20" onClick={handleSave}>
-          <Save className="w-5 h-5 mr-2" /> Save Entry
+          <Save className="w-5 h-5 mr-2" /> 保存する
         </Button>
       </div>
     </div>
