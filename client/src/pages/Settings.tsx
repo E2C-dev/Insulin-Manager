@@ -5,10 +5,21 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Camera, User, Settings as SettingsIcon, LogOut, ChevronRight, UploadCloud } from "lucide-react";
-import { DEFAULT_SETTINGS } from "@/lib/types";
+import { Camera, User, Settings as SettingsIcon, LogOut, ChevronRight, Clock } from "lucide-react";
+import { DEFAULT_SETTINGS, TIME_SLOTS, TIME_SLOT_LABELS } from "@/lib/types";
+import { useState } from "react";
 
 export default function Settings() {
+  const [enabledSlots, setEnabledSlots] = useState(DEFAULT_SETTINGS.enabledTimeSlots);
+
+  const toggleSlot = (slot: string) => {
+    setEnabledSlots(prev => 
+      prev.includes(slot as any) 
+        ? prev.filter(s => s !== slot)
+        : [...prev, slot as any]
+    );
+  };
+
   return (
     <AppLayout>
       <div className="pt-12 px-6 pb-6 space-y-8">
@@ -59,29 +70,54 @@ export default function Settings() {
           <h3 className="font-bold text-lg flex items-center gap-2">
             治療設定
           </h3>
+
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-primary" />
+                <div>
+                  <CardTitle className="text-base">記録タイミング</CardTitle>
+                  <CardDescription>測定・記録するタイミングを選択</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2 space-y-2">
+              {TIME_SLOTS.map(slot => (
+                <div key={slot} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                  <Label htmlFor={slot} className="text-sm font-medium cursor-pointer flex-1">
+                    {TIME_SLOT_LABELS[slot]}
+                  </Label>
+                  <Switch 
+                    id={slot}
+                    checked={enabledSlots.includes(slot)}
+                    onCheckedChange={() => toggleSlot(slot)}
+                  />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
           
           <Card>
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-base">基礎インスリン (単位)</CardTitle>
               <CardDescription>時間帯ごとの基準量</CardDescription>
             </CardHeader>
-            <CardContent className="p-4 pt-2 grid grid-cols-4 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">朝</Label>
-                <Input type="number" defaultValue={DEFAULT_SETTINGS.basalRates.Morning} className="h-9 text-center" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">昼</Label>
-                <Input type="number" defaultValue={DEFAULT_SETTINGS.basalRates.Noon} className="h-9 text-center" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">夕</Label>
-                <Input type="number" defaultValue={DEFAULT_SETTINGS.basalRates.Evening} className="h-9 text-center" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">眠前</Label>
-                <Input type="number" defaultValue={DEFAULT_SETTINGS.basalRates.Night} className="h-9 text-center" />
-              </div>
+            <CardContent className="p-4 pt-2 space-y-2">
+              {TIME_SLOTS.filter(slot => enabledSlots.includes(slot)).map(slot => (
+                <div key={slot} className="flex items-center justify-between">
+                  <Label className="text-sm text-muted-foreground">
+                    {TIME_SLOT_LABELS[slot]}
+                  </Label>
+                  <div className="flex items-center gap-2 w-20">
+                    <Input 
+                      type="number" 
+                      defaultValue={DEFAULT_SETTINGS.basalRates[slot]} 
+                      className="h-8 text-center" 
+                    />
+                    <span className="text-xs text-muted-foreground">単位</span>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
 

@@ -8,43 +8,76 @@ const generateEntries = (): GlucoseEntry[] => {
   for (let i = 0; i < 14; i++) {
     const date = subDays(now, i);
     
-    // Morning
+    // Breakfast Before
     entries.push({
-      id: `morning-${i}`,
-      timestamp: setMinutes(setHours(date, 7), 30),
-      glucoseLevel: Math.floor(Math.random() * (140 - 80) + 80),
+      id: `breakfast-before-${i}`,
+      timestamp: setMinutes(setHours(date, 7), 0),
+      glucoseLevel: Math.floor(Math.random() * (130 - 80) + 80),
       insulinUnits: 4,
-      timeSlot: 'Morning',
+      timeSlot: 'BreakfastBefore',
       type: 'Meal',
     });
 
-    // Noon
+    // Breakfast After
+    if (Math.random() > 0.3) {
+      entries.push({
+        id: `breakfast-after-${i}`,
+        timestamp: setMinutes(setHours(date, 9), 0),
+        glucoseLevel: Math.floor(Math.random() * (160 - 100) + 100),
+        timeSlot: 'BreakfastAfter',
+        type: 'Other',
+      });
+    }
+
+    // Lunch Before
     entries.push({
-      id: `noon-${i}`,
-      timestamp: setMinutes(setHours(date, 12), 30),
-      glucoseLevel: Math.floor(Math.random() * (160 - 90) + 90),
+      id: `lunch-before-${i}`,
+      timestamp: setMinutes(setHours(date, 12), 0),
+      glucoseLevel: Math.floor(Math.random() * (150 - 90) + 90),
+      insulinUnits: 5,
+      timeSlot: 'LunchBefore',
+      type: 'Meal',
+    });
+
+    // Lunch After
+    if (Math.random() > 0.3) {
+      entries.push({
+        id: `lunch-after-${i}`,
+        timestamp: setMinutes(setHours(date, 14), 0),
+        glucoseLevel: Math.floor(Math.random() * (170 - 100) + 100),
+        timeSlot: 'LunchAfter',
+        type: 'Other',
+      });
+    }
+
+    // Dinner Before
+    entries.push({
+      id: `dinner-before-${i}`,
+      timestamp: setMinutes(setHours(date, 18), 0),
+      glucoseLevel: Math.floor(Math.random() * (200 - 100) + 100),
       insulinUnits: 6,
-      timeSlot: 'Noon',
+      timeSlot: 'DinnerBefore',
       type: 'Meal',
     });
 
-    // Evening
-    entries.push({
-      id: `evening-${i}`,
-      timestamp: setMinutes(setHours(date, 18), 30),
-      glucoseLevel: Math.floor(Math.random() * (200 - 100) + 100), // Sometimes high
-      insulinUnits: 8,
-      timeSlot: 'Evening',
-      type: 'Meal',
-    });
+    // Dinner After
+    if (Math.random() > 0.3) {
+      entries.push({
+        id: `dinner-after-${i}`,
+        timestamp: setMinutes(setHours(date, 20), 0),
+        glucoseLevel: Math.floor(Math.random() * (180 - 110) + 110),
+        timeSlot: 'DinnerAfter',
+        type: 'Other',
+      });
+    }
 
-    // Night
+    // Bedtime
     entries.push({
-      id: `night-${i}`,
+      id: `bedtime-${i}`,
       timestamp: setMinutes(setHours(date, 22), 0),
-      glucoseLevel: Math.floor(Math.random() * (130 - 90) + 90),
-      insulinUnits: 12, // Basal
-      timeSlot: 'Night',
+      glucoseLevel: Math.floor(Math.random() * (140 - 90) + 90),
+      insulinUnits: 12,
+      timeSlot: 'Bedtime',
       type: 'Basal',
     });
   }
@@ -55,7 +88,7 @@ const generateEntries = (): GlucoseEntry[] => {
     timestamp: addHours(now, -1),
     glucoseLevel: 240,
     insulinUnits: 2,
-    timeSlot: 'Noon',
+    timeSlot: 'LunchAfter',
     type: 'Correction',
     note: 'Forgot pre-meal bolus',
   });

@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MOCK_ENTRIES } from "@/lib/mockData";
-import { DEFAULT_SETTINGS, getGlucoseStatusColor, getTimeSlotColor, TIME_SLOT_LABELS } from "@/lib/types";
+import { DEFAULT_SETTINGS, getGlucoseStatusColor, getTimeSlotColor, TIME_SLOT_LABELS, TimeSlot } from "@/lib/types";
 import { ArrowRight, Droplets, Plus, Activity, Clock, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
@@ -15,25 +15,29 @@ export default function Dashboard() {
 
   // Determine current timeslot for Smart Action
   const currentHour = new Date().getHours();
-  let currentSlot = "Morning";
-  let currentSlotLabel = "朝";
-  let nextAction = "Lunch";
+  let currentSlot: TimeSlot = "BreakfastBefore";
   let slotColor = "text-time-morning";
   
-  if (currentHour >= 11 && currentHour < 17) {
-    currentSlot = "Noon";
-    currentSlotLabel = "昼";
-    nextAction = "Dinner";
+  if (currentHour >= 6 && currentHour < 8) {
+    currentSlot = "BreakfastBefore";
+    slotColor = "text-time-morning";
+  } else if (currentHour >= 8 && currentHour < 11) {
+    currentSlot = "BreakfastAfter";
+    slotColor = "text-time-morning";
+  } else if (currentHour >= 11 && currentHour < 13) {
+    currentSlot = "LunchBefore";
     slotColor = "text-time-noon";
-  } else if (currentHour >= 17 && currentHour < 21) {
-    currentSlot = "Evening";
-    currentSlotLabel = "夕";
-    nextAction = "Bedtime";
+  } else if (currentHour >= 13 && currentHour < 17) {
+    currentSlot = "LunchAfter";
+    slotColor = "text-time-noon";
+  } else if (currentHour >= 17 && currentHour < 19) {
+    currentSlot = "DinnerBefore";
     slotColor = "text-time-evening";
-  } else if (currentHour >= 21 || currentHour < 5) {
-    currentSlot = "Night";
-    currentSlotLabel = "眠前";
-    nextAction = "Breakfast";
+  } else if (currentHour >= 19 && currentHour < 21) {
+    currentSlot = "DinnerAfter";
+    slotColor = "text-time-evening";
+  } else {
+    currentSlot = "Bedtime";
     slotColor = "text-time-night";
   }
 
@@ -72,7 +76,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="px-6 -mt-8 relative z-20 space-y-6">
+      <div className="px-6 -mt-8 relative z-20 space-y-6 pt-4">
         
         {/* Smart Action Card */}
         <Card className="shadow-lg border-0 overflow-hidden">
@@ -83,7 +87,7 @@ export default function Dashboard() {
                   次のアクション
                 </p>
                 <h3 className="text-xl font-bold flex items-center gap-2">
-                  <span className={slotColor}>●</span> {currentSlotLabel}の測定
+                  <span className={slotColor}>●</span> {TIME_SLOT_LABELS[currentSlot]}の測定
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   目標: {settings.targetGlucoseLow}-{settings.targetGlucoseHigh} mg/dL
@@ -99,7 +103,7 @@ export default function Dashboard() {
             </div>
             <div className="bg-muted/30 px-5 py-3 border-t border-border flex justify-between items-center text-sm">
               <span className="text-muted-foreground">基準量 (ベース)</span>
-              <span className="font-bold text-foreground">{settings.basalRates[currentSlot as keyof typeof settings.basalRates]}単位</span>
+              <span className="font-bold text-foreground">{settings.basalRates[currentSlot]}単位</span>
             </div>
           </CardContent>
         </Card>

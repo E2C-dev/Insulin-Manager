@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { ArrowLeft, Save, Sparkles, AlertTriangle } from "lucide-react";
-import { DEFAULT_SETTINGS, TimeSlot, TIME_SLOT_LABELS } from "@/lib/types";
+import { DEFAULT_SETTINGS, TimeSlot, TIME_SLOT_SHORT_LABELS, getTimeSlotColor } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function Entry() {
@@ -16,23 +16,28 @@ export default function Entry() {
   const [glucose, setGlucose] = useState<string>("");
   const [insulin, setInsulin] = useState<string>("");
   const [note, setNote] = useState("");
-  const [timeSlot, setTimeSlot] = useState<TimeSlot>("Morning");
+  const [timeSlot, setTimeSlot] = useState<TimeSlot>("BreakfastBefore");
   const [suggestedDose, setSuggestedDose] = useState<{ total: number, correction: number, basal: number } | null>(null);
+
+  const settings = DEFAULT_SETTINGS;
+  const enabledSlots = settings.enabledTimeSlots;
 
   // Auto-detect time slot
   useEffect(() => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 11) setTimeSlot("Morning");
-    else if (hour >= 11 && hour < 17) setTimeSlot("Noon");
-    else if (hour >= 17 && hour < 21) setTimeSlot("Evening");
-    else setTimeSlot("Night");
+    if (hour >= 6 && hour < 8) setTimeSlot("BreakfastBefore");
+    else if (hour >= 8 && hour < 11) setTimeSlot("BreakfastAfter");
+    else if (hour >= 11 && hour < 13) setTimeSlot("LunchBefore");
+    else if (hour >= 13 && hour < 17) setTimeSlot("LunchAfter");
+    else if (hour >= 17 && hour < 19) setTimeSlot("DinnerBefore");
+    else if (hour >= 19 && hour < 21) setTimeSlot("DinnerAfter");
+    else setTimeSlot("Bedtime");
   }, []);
 
   // Simple Sliding Scale Calculation Simulation
   useEffect(() => {
     const gVal = parseInt(glucose);
     if (!isNaN(gVal) && gVal > 0) {
-      const settings = DEFAULT_SETTINGS;
       const basal = settings.basalRates[timeSlot];
       
       let correction = 0;
@@ -45,15 +50,10 @@ export default function Entry() {
         correction,
         basal
       });
-      
-      // Auto-fill insulin if empty (UX convenience)
-      if (insulin === "") {
-        // Don't auto-set immediately to let user type, but show suggestion clearly
-      }
     } else {
       setSuggestedDose(null);
     }
-  }, [glucose, timeSlot]);
+  }, [glucose, timeSlot, settings]);
 
   const applySuggestion = () => {
     if (suggestedDose) {
@@ -84,21 +84,24 @@ export default function Entry() {
       <div className="flex-1 overflow-y-auto p-6 space-y-8 safe-area-bottom">
         
         {/* Time Selection */}
-        <div className="grid grid-cols-4 gap-2">
-          {(["Morning", "Noon", "Evening", "Night"] as TimeSlot[]).map((slot) => (
-            <button
-              key={slot}
-              onClick={() => setTimeSlot(slot)}
-              className={cn(
-                "py-2 rounded-lg text-xs font-semibold transition-all border-2",
-                timeSlot === slot 
-                  ? `border-time-${slot.toLowerCase()} bg-time-${slot.toLowerCase()}/10 text-time-${slot.toLowerCase()}` 
-                  : "border-transparent bg-muted text-muted-foreground hover:bg-muted/80"
-              )}
-            >
-              {TIME_SLOT_LABELS[slot]}
-            </button>
-          ))}
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">測定タイミング</Label>
+          <div className="grid grid-cols-4 gap-2">
+            {enabledSlots.map((slot) => (
+              <button
+                key={slot}
+                onClick={() => setTimeSlot(slot)}
+                className={cn(
+                  "py-2 px-1 rounded-lg text-[11px] font-semibold transition-all border-2",
+                  timeSlot === slot 
+                    ? `${getTimeSlotColor(slot)} border-current` 
+                    : "border-transparent bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {TIME_SLOT_SHORT_LABELS[slot]}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Glucose Input */}
@@ -143,7 +146,7 @@ export default function Entry() {
                   <span>補正: {suggestedDose.correction}</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-2 italic">
-                  タップして適用。ISF 1:{DEFAULT_SETTINGS.insulinSensitivityFactor} に基づき計算
+                  タップして適用。ISF 1:{settings.insulinSensitivityFactor} に基づき計算
                 </p>
               </div>
             </div>

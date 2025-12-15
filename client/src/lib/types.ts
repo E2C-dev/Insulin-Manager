@@ -1,4 +1,4 @@
-export type TimeSlot = 'Morning' | 'Noon' | 'Evening' | 'Night';
+export type TimeSlot = 'BreakfastBefore' | 'BreakfastAfter' | 'LunchBefore' | 'LunchAfter' | 'DinnerBefore' | 'DinnerAfter' | 'Bedtime';
 
 export interface GlucoseEntry {
   id: string;
@@ -16,11 +16,15 @@ export interface UserSettings {
   insulinSensitivityFactor: number; // ISF: How much 1 unit drops glucose
   carbRatio: number; // I:C Ratio: Grams of carbs per 1 unit
   basalRates: {
-    Morning: number;
-    Noon: number;
-    Evening: number;
-    Night: number;
+    BreakfastBefore: number;
+    BreakfastAfter: number;
+    LunchBefore: number;
+    LunchAfter: number;
+    DinnerBefore: number;
+    DinnerAfter: number;
+    Bedtime: number;
   };
+  enabledTimeSlots: TimeSlot[];
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -29,39 +33,72 @@ export const DEFAULT_SETTINGS: UserSettings = {
   insulinSensitivityFactor: 40,
   carbRatio: 10,
   basalRates: {
-    Morning: 4,
-    Noon: 5,
-    Evening: 6,
-    Night: 8,
+    BreakfastBefore: 4,
+    BreakfastAfter: 0,
+    LunchBefore: 5,
+    LunchAfter: 0,
+    DinnerBefore: 6,
+    DinnerAfter: 0,
+    Bedtime: 8,
   },
+  enabledTimeSlots: ['BreakfastBefore', 'BreakfastAfter', 'LunchBefore', 'LunchAfter', 'DinnerBefore', 'DinnerAfter', 'Bedtime'],
 };
 
-export const TIME_SLOTS: TimeSlot[] = ['Morning', 'Noon', 'Evening', 'Night'];
+export const TIME_SLOTS: TimeSlot[] = ['BreakfastBefore', 'BreakfastAfter', 'LunchBefore', 'LunchAfter', 'DinnerBefore', 'DinnerAfter', 'Bedtime'];
 
 export const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
-  Morning: '朝',
-  Noon: '昼',
-  Evening: '夕',
-  Night: '眠前'
+  BreakfastBefore: '朝食前',
+  BreakfastAfter: '朝食後',
+  LunchBefore: '昼食前',
+  LunchAfter: '昼食後',
+  DinnerBefore: '夕食前',
+  DinnerAfter: '夕食後',
+  Bedtime: '眠前',
+};
+
+export const TIME_SLOT_SHORT_LABELS: Record<TimeSlot, string> = {
+  BreakfastBefore: '朝前',
+  BreakfastAfter: '朝後',
+  LunchBefore: '昼前',
+  LunchAfter: '昼後',
+  DinnerBefore: '夕前',
+  DinnerAfter: '夕後',
+  Bedtime: '眠前',
 };
 
 export const getTimeSlotColor = (slot: TimeSlot) => {
   switch (slot) {
-    case 'Morning': return 'bg-time-morning text-white';
-    case 'Noon': return 'bg-time-noon text-white';
-    case 'Evening': return 'bg-time-evening text-white';
-    case 'Night': return 'bg-time-night text-white';
-    default: return 'bg-gray-500 text-white';
+    case 'BreakfastBefore':
+    case 'BreakfastAfter':
+      return 'bg-time-morning text-white';
+    case 'LunchBefore':
+    case 'LunchAfter':
+      return 'bg-time-noon text-white';
+    case 'DinnerBefore':
+    case 'DinnerAfter':
+      return 'bg-time-evening text-white';
+    case 'Bedtime':
+      return 'bg-time-night text-white';
+    default:
+      return 'bg-gray-500 text-white';
   }
 };
 
 export const getTimeSlotBorderColor = (slot: TimeSlot) => {
   switch (slot) {
-    case 'Morning': return 'border-time-morning';
-    case 'Noon': return 'border-time-noon';
-    case 'Evening': return 'border-time-evening';
-    case 'Night': return 'border-time-night';
-    default: return 'border-gray-500';
+    case 'BreakfastBefore':
+    case 'BreakfastAfter':
+      return 'border-time-morning';
+    case 'LunchBefore':
+    case 'LunchAfter':
+      return 'border-time-noon';
+    case 'DinnerBefore':
+    case 'DinnerAfter':
+      return 'border-time-evening';
+    case 'Bedtime':
+      return 'border-time-night';
+    default:
+      return 'border-gray-500';
   }
 };
 
