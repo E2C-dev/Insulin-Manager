@@ -41,20 +41,13 @@ export default function Dashboard() {
     slotColor = "text-time-night";
   }
 
-  // Define simplified time slots for the header display
-  const displaySlots: TimeSlot[] = ['BreakfastBefore', 'LunchBefore', 'DinnerBefore', 'Bedtime'];
-
-  const headerLabels: Partial<Record<TimeSlot, string>> = {
-    BreakfastBefore: '朝',
-    LunchBefore: '昼',
-    DinnerBefore: '夕',
-    Bedtime: '眠',
-  };
+  // Use all enabled time slots from settings
+  const displaySlots = settings.enabledTimeSlots;
 
   return (
     <AppLayout>
       {/* Header - Compact Redesign */}
-      <header className="bg-primary pt-8 pb-10 px-6 rounded-b-[2rem] shadow-lg relative overflow-hidden">
+      <header className="bg-primary pt-8 pb-6 px-6 rounded-b-[2rem] shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none" />
         <div className="relative z-10 text-primary-foreground">
           
@@ -79,18 +72,15 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Basal Rates Overview */}
+          {/* Basal Rates Overview - Scrollable for 7 items */}
           <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/10">
-            <div className="flex justify-between items-center">
+            <div className="flex overflow-x-auto gap-3 pb-1 no-scrollbar justify-between">
               {displaySlots.map((slot) => {
-                const isCurrent = slot === currentSlot || 
-                                  (slot === 'BreakfastBefore' && currentSlot === 'BreakfastAfter') ||
-                                  (slot === 'LunchBefore' && currentSlot === 'LunchAfter') ||
-                                  (slot === 'DinnerBefore' && currentSlot === 'DinnerAfter');
+                const isCurrent = slot === currentSlot;
                 
                 return (
-                  <div key={slot} className={`flex flex-col items-center gap-1 ${isCurrent ? 'opacity-100' : 'opacity-60'}`}>
-                    <span className="text-[10px] font-medium">{headerLabels[slot]}</span>
+                  <div key={slot} className={`flex flex-col items-center gap-1 flex-shrink-0 ${isCurrent ? 'opacity-100' : 'opacity-60'}`}>
+                    <span className="text-[10px] font-medium whitespace-nowrap">{TIME_SLOT_SHORT_LABELS[slot]}</span>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isCurrent ? 'bg-white text-primary shadow-sm' : 'bg-primary-foreground/10'}`}>
                       {settings.basalRates[slot]}
                     </div>
@@ -103,7 +93,8 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="px-6 -mt-6 relative z-20 space-y-5">
+      {/* Removed negative margin to prevent overlap */}
+      <div className="px-6 mt-4 relative z-20 space-y-5">
         
         {/* Next Action Card */}
         <Card className="shadow-md border-0 overflow-hidden">
@@ -130,25 +121,27 @@ export default function Dashboard() {
            </CardContent>
         </Card>
 
-        {/* Quick Stats Grid */}
+        {/* Quick Stats Grid with clearer labels */}
         <div className="grid grid-cols-2 gap-3">
           <Card className="border-0 shadow-sm bg-blue-50/50 dark:bg-blue-950/20">
             <CardContent className="p-3 flex flex-col items-center justify-center text-center">
+              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">本日のインスリン</span>
               <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-full mb-2 text-blue-600 dark:text-blue-400">
                 <Droplets className="w-4 h-4" />
               </div>
               <span className="text-xl font-bold text-foreground">12単位</span>
-              <span className="text-[10px] text-muted-foreground mt-0.5">本日のインスリン</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5">合計投与量</span>
             </CardContent>
           </Card>
           
           <Card className="border-0 shadow-sm bg-orange-50/50 dark:bg-orange-950/20">
             <CardContent className="p-3 flex flex-col items-center justify-center text-center">
+              <span className="text-xs font-semibold text-orange-600 dark:text-orange-400 mb-1">平均血糖 (7日)</span>
               <div className="bg-orange-100 dark:bg-orange-900/50 p-2 rounded-full mb-2 text-orange-600 dark:text-orange-400">
                 <Activity className="w-4 h-4" />
               </div>
               <span className="text-xl font-bold text-foreground">118</span>
-              <span className="text-[10px] text-muted-foreground mt-0.5">平均血糖 (7日)</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5">mg/dL</span>
             </CardContent>
           </Card>
         </div>
