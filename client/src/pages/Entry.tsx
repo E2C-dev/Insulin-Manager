@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { ArrowLeft, Save, Sparkles, AlertTriangle } from "lucide-react";
-import { DEFAULT_SETTINGS, TimeSlot } from "@/lib/types";
+import { DEFAULT_SETTINGS, TimeSlot, TIME_SLOT_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function Entry() {
@@ -66,13 +66,6 @@ export default function Entry() {
     setLocation("/");
   };
 
-  const timeSlotMap: Record<string, string> = {
-    'Morning': '朝',
-    'Noon': '昼',
-    'Evening': '夕',
-    'Night': '眠前'
-  };
-
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans max-w-md mx-auto">
       {/* Header */}
@@ -103,7 +96,7 @@ export default function Entry() {
                   : "border-transparent bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
-              {timeSlotMap[slot]}
+              {TIME_SLOT_LABELS[slot]}
             </button>
           ))}
         </div>

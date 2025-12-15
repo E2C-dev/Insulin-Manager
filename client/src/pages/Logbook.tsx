@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Printer, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { getTimeSlotColor, getGlucoseStatusColor, DEFAULT_SETTINGS } from "@/lib/types";
+import { getTimeSlotColor, getGlucoseStatusColor, DEFAULT_SETTINGS, TIME_SLOT_LABELS } from "@/lib/types";
 
 export default function Logbook() {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -20,13 +20,6 @@ export default function Logbook() {
 
   const getEntryForSlot = (date: Date, slot: string) => {
     return MOCK_ENTRIES.find(e => isSameDay(e.timestamp, date) && e.timeSlot === slot);
-  };
-
-  const timeSlotMap: Record<string, string> = {
-    'Morning': '朝',
-    'Noon': '昼',
-    'Evening': '夕',
-    'Night': '眠前'
   };
 
   return (
@@ -64,7 +57,7 @@ export default function Logbook() {
                          <div className="flex flex-col gap-1">
                            <div className="flex items-center gap-2">
                              <span className={`text-xs px-1.5 py-0.5 rounded text-white ${getTimeSlotColor(entry.timeSlot)}`}>
-                               {timeSlotMap[entry.timeSlot]}
+                               {TIME_SLOT_LABELS[entry.timeSlot]}
                              </span>
                              <span className="text-xs text-muted-foreground">{format(entry.timestamp, "H:mm")}</span>
                            </div>

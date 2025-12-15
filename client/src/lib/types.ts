@@ -38,6 +38,13 @@ export const DEFAULT_SETTINGS: UserSettings = {
 
 export const TIME_SLOTS: TimeSlot[] = ['Morning', 'Noon', 'Evening', 'Night'];
 
+export const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
+  Morning: '朝',
+  Noon: '昼',
+  Evening: '夕',
+  Night: '眠前'
+};
+
 export const getTimeSlotColor = (slot: TimeSlot) => {
   switch (slot) {
     case 'Morning': return 'bg-time-morning text-white';

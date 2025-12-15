@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MOCK_ENTRIES } from "@/lib/mockData";
-import { DEFAULT_SETTINGS, getGlucoseStatusColor, getTimeSlotColor } from "@/lib/types";
+import { DEFAULT_SETTINGS, getGlucoseStatusColor, getTimeSlotColor, TIME_SLOT_LABELS } from "@/lib/types";
 import { ArrowRight, Droplets, Plus, Activity, Clock, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
@@ -36,13 +36,6 @@ export default function Dashboard() {
     nextAction = "Breakfast";
     slotColor = "text-time-night";
   }
-
-  const timeSlotMap: Record<string, string> = {
-    'Morning': '朝',
-    'Noon': '昼',
-    'Evening': '夕',
-    'Night': '眠前'
-  };
 
   return (
     <AppLayout>
@@ -156,7 +149,7 @@ export default function Dashboard() {
                       {entry.glucoseLevel} <span className="text-xs text-muted-foreground font-normal">mg/dL</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {format(entry.timestamp, 'M/d H:mm')} • {timeSlotMap[entry.timeSlot]}
+                      {format(entry.timestamp, 'M/d H:mm')} • {TIME_SLOT_LABELS[entry.timeSlot]}
                     </p>
                   </div>
                 </div>
