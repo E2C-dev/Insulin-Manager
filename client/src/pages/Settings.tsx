@@ -5,12 +5,21 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Camera, User, Settings as SettingsIcon, LogOut, ChevronRight, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Camera, User, Settings as SettingsIcon, LogOut, ChevronRight, Clock, X, Check, RotateCcw, Image as ImageIcon } from "lucide-react";
 import { DEFAULT_SETTINGS, TIME_SLOTS, TIME_SLOT_LABELS } from "@/lib/types";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Settings() {
+  const { user, logout, isLoggingOut } = useAuth();
   const [enabledSlots, setEnabledSlots] = useState(DEFAULT_SETTINGS.enabledTimeSlots);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleSlot = (slot: string) => {
     setEnabledSlots(prev => 
@@ -19,6 +28,125 @@ export default function Settings() {
         : [...prev, slot as any]
     );
   };
+
+  // カメラを起動
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment', // 背面カメラを優先
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        } 
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+      }
+      setIsCameraOpen(true);
+    } catch (error) {
+      console.error('カメラの起動に失敗しました:', error);
+      alert('カメラにアクセスできませんでした。ブラウザの設定を確認してください。');
+    }
+  };
+
+  // カメラを停止
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  // 写真を撮影
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0);
+        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+        setCapturedImage(imageData);
+        stopCamera();
+      }
+    }
+  };
+
+  // 撮り直し
+  const retakePhoto = () => {
+    setCapturedImage(null);
+    startCamera();
+  };
+
+  // 画像を確定して処理
+  const confirmImage = async () => {
+    setIsProcessing(true);
+    
+    // ここでOCR処理やAPIへの送信を行う
+    // 今回はシミュレーション
+    setTimeout(() => {
+      setIsProcessing(false);
+      setCapturedImage(null);
+      setIsCameraOpen(false);
+      alert('画像を取り込みました！\n（実際の実装では、ここでOCR処理を行い、データを自動入力します）');
+    }, 2000);
+  };
+
+  // 画像ファイルを選択
+  const selectImage = () => {
+    fileInputRef.current?.click();
+  };
+
+  // ファイルが選択された時の処理
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // 画像ファイルかチェック
+      if (!file.type.startsWith('image/')) {
+        alert('画像ファイルを選択してください');
+        return;
+      }
+
+      // ファイルサイズチェック（10MB以下）
+      if (file.size > 10 * 1024 * 1024) {
+        alert('ファイルサイズが大きすぎます（10MB以下）');
+        return;
+      }
+
+      // ファイルを読み込み
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageData = e.target?.result as string;
+        setCapturedImage(imageData);
+        setIsCameraOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // input をリセット（同じファイルを再選択可能にする）
+    event.target.value = '';
+  };
+
+  // ダイアログを閉じる
+  const closeCamera = () => {
+    stopCamera();
+    setCapturedImage(null);
+    setIsCameraOpen(false);
+  };
+
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   return (
     <AppLayout>
@@ -35,7 +163,7 @@ export default function Settings() {
               <User className="w-8 h-8" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-lg">Alex Doe</h3>
+              <h3 className="font-bold text-lg">{user?.username || "ユーザー"}</h3>
               <p className="text-sm text-muted-foreground">1型糖尿病 • 2018年から</p>
             </div>
             <Button variant="ghost" size="icon">
@@ -56,12 +184,35 @@ export default function Settings() {
           <CardContent className="p-4">
             <div className="text-center py-4 space-y-3">
               <p className="text-sm text-muted-foreground">
-                紙の自己管理ノートを撮影して、履歴を自動的に取り込みます。
+                紙の自己管理ノートを撮影または画像から取り込んで、履歴を自動的にデジタル化します。
               </p>
-              <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 border-0">
-                <Camera className="w-4 h-4 mr-2" /> カメラを起動
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 border-0"
+                  onClick={startCamera}
+                >
+                  <Camera className="w-4 h-4 mr-2" /> カメラ
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="w-full border-blue-600 text-blue-600 hover:bg-blue-50"
+                  onClick={selectImage}
+                >
+                  <ImageIcon className="w-4 h-4 mr-2" /> 画像選択
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                カメラで撮影、またはギャラリーから画像を選択できます
+              </p>
             </div>
+            {/* 隠しファイル入力 */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
           </CardContent>
         </Card>
 
@@ -161,11 +312,103 @@ export default function Settings() {
             <span className="text-sm font-medium">データ出力 (PDF)</span>
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </div>
-          <Button variant="destructive" className="w-full mt-6" size="lg">
-            <LogOut className="w-4 h-4 mr-2" /> ログアウト
+          <Button 
+            variant="destructive" 
+            className="w-full mt-6" 
+            size="lg"
+            onClick={logout}
+            disabled={isLoggingOut}
+          >
+            <LogOut className="w-4 h-4 mr-2" /> 
+            {isLoggingOut ? "ログアウト中..." : "ログアウト"}
           </Button>
         </div>
       </div>
+
+      {/* カメラダイアログ */}
+      <Dialog open={isCameraOpen} onOpenChange={closeCamera}>
+        <DialogContent className="max-w-lg p-0 gap-0">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="w-5 h-5" />
+              手書きノート取込
+            </DialogTitle>
+            <DialogDescription>
+              {capturedImage ? '撮影した画像を確認してください' : 'ノートを撮影してください'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative bg-black">
+            {!capturedImage ? (
+              // カメラビュー
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full aspect-[4/3] object-cover"
+              />
+            ) : (
+              // 撮影画像プレビュー
+              <img
+                src={capturedImage}
+                alt="撮影画像"
+                className="w-full aspect-[4/3] object-cover"
+              />
+            )}
+
+            {/* 閉じるボタン */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 bg-black/50 text-white hover:bg-black/70"
+              onClick={closeCamera}
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+
+          <div className="p-4 space-y-3">
+            {!capturedImage ? (
+              // 撮影ボタン
+              <Button
+                size="lg"
+                className="w-full"
+                onClick={capturePhoto}
+              >
+                <Camera className="w-5 h-5 mr-2" />
+                撮影する
+              </Button>
+            ) : (
+              // 撮影後のアクション
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={retakePhoto}
+                  disabled={isProcessing}
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  撮り直す
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={confirmImage}
+                  disabled={isProcessing}
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  {isProcessing ? '処理中...' : '確定'}
+                </Button>
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground text-center">
+              {!capturedImage 
+                ? 'ノート全体が画面に収まるように撮影してください'
+                : 'AIがデータを読み取り、自動で記録します'}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
