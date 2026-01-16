@@ -58,6 +58,16 @@ app.use((req, res, next) => {
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
+  // APIリクエストの受信ログ
+  if (path.startsWith("/api")) {
+    console.log(`\n>>> 受信: ${req.method} ${path}`);
+    console.log(`    時刻: ${new Date().toISOString()}`);
+    console.log(`    Content-Type: ${req.headers['content-type']}`);
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log(`    Body:`, req.body);
+    }
+  }
+
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;
@@ -67,12 +77,12 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      let logLine = `<<< レスポンス: ${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
-      log(logLine);
+      console.log(logLine + "\n");
     }
   });
 
@@ -80,10 +90,19 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  console.log("\n");
+  console.log("╔════════════════════════════════════════╗");
+  console.log("║     サーバー起動プロセス開始           ║");
+  console.log("╚════════════════════════════════════════╝");
+  console.log("");
+  
   // データベース初期化
+  console.log("📦 データベース初期化中...");
   const { initDb } = await import("./db");
   await initDb();
+  console.log("✅ データベース初期化完了\n");
 
+  console.log("🛣️  ルート登録中...");
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -116,7 +135,16 @@ app.use((req, res, next) => {
       reusePort: true,
     },
     () => {
-      log(`serving on port ${port}`);
+      console.log("");
+      console.log("╔════════════════════════════════════════╗");
+      console.log("║  🚀 サーバー起動成功！                 ║");
+      console.log("╚════════════════════════════════════════╝");
+      console.log(`📍 ポート: ${port}`);
+      console.log(`📍 ホスト: 0.0.0.0`);
+      console.log(`📍 環境: ${process.env.NODE_ENV || "development"}`);
+      console.log("");
+      console.log("準備完了！リクエストを待機中...");
+      console.log("=====================================\n");
     },
   );
 })();

@@ -9,7 +9,12 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  console.log("\n===========================================");
+  console.log("🚀 APIルート登録開始");
+  console.log("===========================================");
+  
   // 登録エンドポイント
+  console.log("✅ POST /api/auth/register");
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     const timestamp = new Date().toISOString();
     console.log("\n===========================================");
@@ -94,6 +99,7 @@ export async function registerRoutes(
   });
 
   // ログインエンドポイント
+  console.log("✅ POST /api/auth/login");
   app.post("/api/auth/login", (req: Request, res: Response, next) => {
     const timestamp = new Date().toISOString();
     console.log("\n===========================================");
@@ -164,6 +170,7 @@ export async function registerRoutes(
   });
 
   // 現在のユーザー情報を取得
+  console.log("✅ GET /api/auth/me");
   app.get("/api/auth/me", (req: Request, res: Response) => {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] ユーザー情報取得リクエスト`);
@@ -185,13 +192,16 @@ export async function registerRoutes(
   });
 
   // 保護されたエンドポイントの例
+  console.log("✅ GET /api/protected");
   app.get("/api/protected", isAuthenticated, (req: Request, res: Response) => {
     res.json({ message: "認証されたユーザーのみアクセス可能です" });
   });
 
   // ===== 調整ルールのエンドポイント =====
+  console.log("\n--- 調整ルールのエンドポイント ---");
   
   // ルール一覧取得
+  console.log("✅ GET /api/adjustment-rules");
   app.get("/api/adjustment-rules", isAuthenticated, async (req: Request, res: Response) => {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] 調整ルール一覧取得リクエスト`);
@@ -234,6 +244,7 @@ export async function registerRoutes(
   });
 
   // ルール作成
+  console.log("✅ POST /api/adjustment-rules");
   app.post("/api/adjustment-rules", isAuthenticated, async (req: Request, res: Response) => {
     const timestamp = new Date().toISOString();
     console.log("\n===========================================");
@@ -281,6 +292,7 @@ export async function registerRoutes(
   });
 
   // ルール更新
+  console.log("✅ PUT /api/adjustment-rules/:id");
   app.put("/api/adjustment-rules/:id", isAuthenticated, async (req: Request, res: Response) => {
     const timestamp = new Date().toISOString();
     console.log("\n===========================================");
@@ -360,6 +372,13 @@ export async function registerRoutes(
       return res.status(500).json({ message: "ルールの削除に失敗しました" });
     }
   });
+
+  console.log("===========================================");
+  console.log("🎉 すべてのAPIルート登録完了");
+  console.log("   - 認証: 4エンドポイント");
+  console.log("   - 調整ルール: 5エンドポイント");
+  console.log("   - その他: 1エンドポイント");
+  console.log("===========================================\n");
 
   return httpServer;
 }

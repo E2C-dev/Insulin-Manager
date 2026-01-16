@@ -54,15 +54,42 @@ export default function Login() {
         }
 
         if (!response.ok) {
-          const errorMessage = data.message || `ログインに失敗しました (ステータス: ${response.status})`;
-          console.error("❌ ログイン失敗:", errorMessage);
+          let errorMessage = data.message || "ログインに失敗しました";
+          
+          // ステータスコード別の詳細メッセージ
+          if (response.status === 404) {
+            errorMessage = "ログインAPIが見つかりません。サーバーが正しく起動しているか確認してください。";
+            console.error("❌ 404エラー: /api/auth/login エンドポイントが見つかりません");
+          } else if (response.status === 401) {
+            errorMessage = data.message || "ユーザー名またはパスワードが正しくありません";
+          } else if (response.status === 500) {
+            errorMessage = data.message || "サーバーエラーが発生しました";
+          } else {
+            errorMessage = `${errorMessage} (HTTPステータス: ${response.status} ${response.statusText})`;
+          }
+          
+          console.error("❌ ログイン失敗:");
+          console.error("  ステータス:", response.status, response.statusText);
+          console.error("  メッセージ:", errorMessage);
+          console.error("  URL:", response.url);
           throw new Error(errorMessage);
         }
 
         console.log("✅ ログイン成功:", data);
         return data;
       } catch (error) {
-        console.error("❌ ネットワークエラーまたは予期しないエラー:", error);
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          console.error("❌ ネットワークエラー: サーバーに接続できません");
+          console.error("  サーバーが起動しているか確認してください");
+          console.error("  URL: /api/auth/login");
+          throw new Error("サーバーに接続できません。サーバーが起動しているか確認してください。");
+        }
+        console.error("❌ 予期しないエラー:", error);
+        console.error("  エラータイプ:", error instanceof Error ? error.constructor.name : typeof error);
+        if (error instanceof Error) {
+          console.error("  エラーメッセージ:", error.message);
+          console.error("  スタックトレース:", error.stack);
+        }
         throw error;
       }
     },

@@ -55,10 +55,26 @@ export default function Register() {
         }
 
         if (!response.ok) {
-          const errorMessage = data.message || `登録に失敗しました (ステータス: ${response.status})`;
-          console.error("❌ 登録失敗:", errorMessage);
+          let errorMessage = data.message || "登録に失敗しました";
+          
+          // ステータスコード別の詳細メッセージ
+          if (response.status === 404) {
+            errorMessage = "登録APIが見つかりません。サーバーが正しく起動しているか確認してください。";
+            console.error("❌ 404エラー: /api/auth/register エンドポイントが見つかりません");
+          } else if (response.status === 400) {
+            errorMessage = data.message || "入力内容に問題があります";
+          } else if (response.status === 500) {
+            errorMessage = data.message || "サーバーエラーが発生しました";
+          } else {
+            errorMessage = `${errorMessage} (HTTPステータス: ${response.status} ${response.statusText})`;
+          }
+          
+          console.error("❌ 登録失敗:");
+          console.error("  ステータス:", response.status, response.statusText);
+          console.error("  メッセージ:", errorMessage);
+          console.error("  URL:", response.url);
           if (data.errors) {
-            console.error("詳細エラー:", data.errors);
+            console.error("  詳細エラー:", data.errors);
           }
           throw new Error(errorMessage);
         }
@@ -66,7 +82,18 @@ export default function Register() {
         console.log("✅ 登録成功:", data);
         return data;
       } catch (error) {
-        console.error("❌ ネットワークエラーまたは予期しないエラー:", error);
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          console.error("❌ ネットワークエラー: サーバーに接続できません");
+          console.error("  サーバーが起動しているか確認してください");
+          console.error("  URL: /api/auth/register");
+          throw new Error("サーバーに接続できません。サーバーが起動しているか確認してください。");
+        }
+        console.error("❌ 予期しないエラー:", error);
+        console.error("  エラータイプ:", error instanceof Error ? error.constructor.name : typeof error);
+        if (error instanceof Error) {
+          console.error("  エラーメッセージ:", error.message);
+          console.error("  スタックトレース:", error.stack);
+        }
         throw error;
       }
     },

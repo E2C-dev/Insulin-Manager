@@ -34,6 +34,12 @@ export async function setupVite(server: Server, app: Express) {
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
+    // APIリクエストはViteに処理させない
+    if (url.startsWith("/api/")) {
+      console.log(`⚠️  Viteミドルウェアがキャッチ: ${url} - 本来はAPIエンドポイントで処理されるべき`);
+      return next();
+    }
+
     try {
       const clientTemplate = path.resolve(
         import.meta.dirname,
