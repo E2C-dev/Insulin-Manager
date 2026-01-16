@@ -13,6 +13,12 @@ interface AuthResponse {
 
 // 現在のユーザー情報を取得
 async function fetchCurrentUser(): Promise<User | null> {
+  // モックアップモード：ローカルストレージからユーザー情報を取得
+  const mockUser = localStorage.getItem("mock_user");
+  if (mockUser) {
+    return JSON.parse(mockUser);
+  }
+
   try {
     const response = await fetch("/api/auth/me", {
       credentials: "include",
@@ -38,6 +44,9 @@ async function fetchCurrentUser(): Promise<User | null> {
 
 // ログアウト処理
 async function logout(): Promise<void> {
+  // モックアップモード：ローカルストレージをクリア
+  localStorage.removeItem("mock_user");
+
   try {
     const response = await fetch("/api/auth/logout", {
       method: "POST",
