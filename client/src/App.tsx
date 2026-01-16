@@ -9,6 +9,7 @@ import Dashboard from "@/pages/Dashboard";
 import Logbook from "@/pages/Logbook";
 import Entry from "@/pages/Entry";
 import Settings from "@/pages/Settings";
+import AdjustmentRules from "@/pages/AdjustmentRules";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 
@@ -42,6 +43,13 @@ function Router() {
         {() => (
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        )}
+      </Route>
+      <Route path="/adjustment-rules">
+        {() => (
+          <ProtectedRoute>
+            <AdjustmentRules />
           </ProtectedRoute>
         )}
       </Route>

@@ -25,50 +25,63 @@ export default function Register() {
     }
   }, [isAuthenticated, isLoading, setLocation]);
 
-  // 認証チェック中
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-100 dark:from-gray-900 dark:to-gray-800">
-        <Spinner />
-      </div>
-    );
-  }
-
   const registerMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credentials),
-        credentials: "include",
-      });
-
-      const text = await response.text();
-      let data;
+      console.log("=== API呼び出し開始 ===");
+      console.log("送信データ:", { username: credentials.username, passwordLength: credentials.password.length });
       
       try {
-        data = text ? JSON.parse(text) : {};
+        const response = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(credentials),
+          credentials: "include",
+        });
+
+        console.log("レスポンスステータス:", response.status, response.statusText);
+
+        const text = await response.text();
+        console.log("レスポンスボディ:", text);
+        
+        let data;
+        
+        try {
+          data = text ? JSON.parse(text) : {};
+          console.log("パースされたデータ:", data);
+        } catch (error) {
+          console.error("❌ JSONパースエラー:", error);
+          console.error("パースできなかったテキスト:", text);
+          throw new Error("サーバーからの応答が不正です: " + text.substring(0, 100));
+        }
+
+        if (!response.ok) {
+          const errorMessage = data.message || `登録に失敗しました (ステータス: ${response.status})`;
+          console.error("❌ 登録失敗:", errorMessage);
+          if (data.errors) {
+            console.error("詳細エラー:", data.errors);
+          }
+          throw new Error(errorMessage);
+        }
+
+        console.log("✅ 登録成功:", data);
+        return data;
       } catch (error) {
-        console.error("JSONパースエラー:", error);
-        throw new Error("サーバーからの応答が不正です");
+        console.error("❌ ネットワークエラーまたは予期しないエラー:", error);
+        throw error;
       }
-
-      if (!response.ok) {
-        throw new Error(data.message || "登録に失敗しました");
-      }
-
-      return data;
     },
     onSuccess: (data) => {
+      console.log("✅ 登録成功コールバック:", data);
       toast({
-        title: "登録成功",
+        title: "✅ 登録成功",
         description: data.message || "アカウントが作成されました",
       });
       setLocation("/");
     },
     onError: (error: Error) => {
+      console.error("❌ 登録失敗コールバック:", error);
       toast({
-        title: "登録失敗",
+        title: "❌ 登録失敗",
         description: error.message,
         variant: "destructive",
       });
@@ -78,27 +91,59 @@ export default function Register() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log("=== 登録フォーム送信開始 ===");
+    console.log("ユーザー名:", username);
+    console.log("パスワード長:", password.length);
+    console.log("確認パスワード長:", confirmPassword.length);
+    
     // バリデーション
-    if (password !== confirmPassword) {
+    if (username.length < 3) {
+      const errorMsg = "ユーザー名は3文字以上で入力してください";
+      console.error("バリデーションエラー:", errorMsg);
       toast({
-        title: "エラー",
-        description: "パスワードが一致しません",
+        title: "入力エラー",
+        description: errorMsg,
         variant: "destructive",
       });
       return;
     }
 
     if (password.length < 6) {
+      const errorMsg = "パスワードは6文字以上で入力してください";
+      console.error("バリデーションエラー:", errorMsg);
       toast({
-        title: "エラー",
-        description: "パスワードは6文字以上で入力してください",
+        title: "入力エラー",
+        description: errorMsg,
         variant: "destructive",
       });
       return;
     }
 
+    if (password !== confirmPassword) {
+      const errorMsg = "パスワードが一致しません";
+      console.error("バリデーションエラー:", errorMsg);
+      console.log("パスワード:", password);
+      console.log("確認パスワード:", confirmPassword);
+      toast({
+        title: "パスワード確認エラー",
+        description: errorMsg,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log("バリデーション通過、APIリクエスト送信");
     registerMutation.mutate({ username, password });
   };
+
+  // 認証チェック中
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-100 dark:from-gray-900 dark:to-gray-800">
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-100 dark:from-gray-900 dark:to-gray-800 p-4">

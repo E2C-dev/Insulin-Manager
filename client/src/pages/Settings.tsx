@@ -10,6 +10,7 @@ import { Camera, User, Settings as SettingsIcon, LogOut, ChevronRight, Clock, X,
 import { DEFAULT_SETTINGS, TIME_SLOTS, TIME_SLOT_LABELS } from "@/lib/types";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { Link } from "wouter";
 
 export default function Settings() {
   const { user, logout, isLoggingOut } = useAuth();
@@ -304,6 +305,12 @@ export default function Settings() {
 
         {/* App Settings */}
         <div className="space-y-2">
+          <Link href="/adjustment-rules">
+            <a className="flex items-center justify-between p-3 rounded-lg bg-card border hover:bg-muted/50 transition-colors cursor-pointer">
+              <span className="text-sm font-medium">調整ルール管理</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </a>
+          </Link>
           <div className="flex items-center justify-between p-3 rounded-lg bg-card border hover:bg-muted/50 transition-colors cursor-pointer">
             <span className="text-sm font-medium">通知設定</span>
             <Switch defaultChecked />

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, NotebookPen, PlusCircle, Settings, LogOut, User } from "lucide-react";
+import { Home, NotebookPen, PlusCircle, Settings, LogOut, User, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -22,9 +22,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const navItems = [
     { icon: Home, label: "ホーム", href: "/" },
-    { icon: NotebookPen, label: "記録ノート", href: "/logbook" },
+    { icon: NotebookPen, label: "記録", href: "/logbook" },
     { icon: PlusCircle, label: "入力", href: "/entry", isPrimary: true },
-    // { icon: Activity, label: "Stats", href: "/stats" }, // Simplified for now
+    { icon: Activity, label: "ルール", href: "/adjustment-rules" },
     { icon: Settings, label: "設定", href: "/settings" },
   ];
 

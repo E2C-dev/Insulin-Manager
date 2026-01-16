@@ -24,50 +24,60 @@ export default function Login() {
     }
   }, [isAuthenticated, isLoading, setLocation]);
 
-  // 認証チェック中
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <Spinner />
-      </div>
-    );
-  }
-
   const loginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credentials),
-        credentials: "include",
-      });
-
-      const text = await response.text();
-      let data;
+      console.log("=== ログインAPI呼び出し開始 ===");
+      console.log("ユーザー名:", credentials.username);
       
       try {
-        data = text ? JSON.parse(text) : {};
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(credentials),
+          credentials: "include",
+        });
+
+        console.log("レスポンスステータス:", response.status, response.statusText);
+
+        const text = await response.text();
+        console.log("レスポンスボディ:", text);
+        
+        let data;
+        
+        try {
+          data = text ? JSON.parse(text) : {};
+          console.log("パースされたデータ:", data);
+        } catch (error) {
+          console.error("❌ JSONパースエラー:", error);
+          console.error("パースできなかったテキスト:", text);
+          throw new Error("サーバーからの応答が不正です: " + text.substring(0, 100));
+        }
+
+        if (!response.ok) {
+          const errorMessage = data.message || `ログインに失敗しました (ステータス: ${response.status})`;
+          console.error("❌ ログイン失敗:", errorMessage);
+          throw new Error(errorMessage);
+        }
+
+        console.log("✅ ログイン成功:", data);
+        return data;
       } catch (error) {
-        console.error("JSONパースエラー:", error);
-        throw new Error("サーバーからの応答が不正です");
+        console.error("❌ ネットワークエラーまたは予期しないエラー:", error);
+        throw error;
       }
-
-      if (!response.ok) {
-        throw new Error(data.message || "ログインに失敗しました");
-      }
-
-      return data;
     },
     onSuccess: (data) => {
+      console.log("✅ ログイン成功コールバック:", data);
       toast({
-        title: "ログイン成功",
+        title: "✅ ログイン成功",
         description: data.message || "ログインしました",
       });
       setLocation("/");
     },
     onError: (error: Error) => {
+      console.error("❌ ログイン失敗コールバック:", error);
       toast({
-        title: "ログイン失敗",
+        title: "❌ ログイン失敗",
         description: error.message,
         variant: "destructive",
       });
@@ -76,8 +86,19 @@ export default function Login() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("=== ログインフォーム送信 ===");
+    console.log("ユーザー名:", username);
     loginMutation.mutate({ username, password });
   };
+
+  // 認証チェック中
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
