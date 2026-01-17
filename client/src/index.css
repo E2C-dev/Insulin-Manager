@@ -153,3 +153,37 @@
     scrollbar-width: none;
   }
 }
+
+/* Z-index management for Radix UI components */
+@layer components {
+  /* Dialog overlay and content */
+  [data-radix-dialog-overlay] {
+    z-index: 50;
+  }
+  [data-radix-dialog-content] {
+    z-index: 50;
+  }
+  
+  /* Select dropdown - should be above dialog */
+  [data-radix-select-viewport] {
+    z-index: 100;
+  }
+  [data-radix-select-content] {
+    z-index: 100;
+  }
+  
+  /* Popover */
+  [data-radix-popover-content] {
+    z-index: 100;
+  }
+  
+  /* Dropdown menu */
+  [data-radix-dropdown-menu-content] {
+    z-index: 100;
+  }
+  
+  /* Toast notifications - highest priority */
+  [data-radix-toast-viewport] {
+    z-index: 200;
+  }
+}

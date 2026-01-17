@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, date, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,6 +16,75 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// インスリン投与記録テーブル
+export const insulinEntries = pgTable("insulin_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: date("date").notNull(), // 日付
+  timeSlot: text("time_slot").notNull(), // Breakfast, Lunch, Dinner, Bedtime
+  units: decimal("units", { precision: 5, scale: 1 }).notNull(), // 投与量
+  note: text("note"), // メモ
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// 血糖値測定記録テーブル
+export const glucoseEntries = pgTable("glucose_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: date("date").notNull(), // 日付
+  timeSlot: text("time_slot").notNull(), // BreakfastBefore, BreakfastAfter1h, etc.
+  glucoseLevel: integer("glucose_level").notNull(), // 血糖値 (mg/dL)
+  note: text("note"), // メモ
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertInsulinEntrySchema = createInsertSchema(insulinEntries, {
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "日付形式が正しくありません (YYYY-MM-DD)"),
+  timeSlot: z.enum(["Breakfast", "Lunch", "Dinner", "Bedtime"], {
+    errorMap: () => ({ message: "投与タイミングを選択してください" })
+  }),
+  units: z.string().transform((val) => val).refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0 && num <= 100;
+  }, "投与量は0〜100の範囲で入力してください"),
+  note: z.string().optional(),
+}).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertGlucoseEntrySchema = createInsertSchema(glucoseEntries, {
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "日付形式が正しくありません (YYYY-MM-DD)"),
+  timeSlot: z.enum([
+    "BreakfastBefore",    // 朝食前
+    "BreakfastAfter1h",   // 朝食後1h
+    "LunchBefore",        // 昼食前
+    "LunchAfter1h",       // 昼食後1h
+    "DinnerBefore",       // 夕食前
+    "DinnerAfter1h",      // 夕食後1h
+    "BeforeSleep",        // 眠前
+    "Night"               // 夜間
+  ], {
+    errorMap: () => ({ message: "測定タイミングを選択してください" })
+  }),
+  glucoseLevel: z.number().int().min(20).max(600, "血糖値は20〜600の範囲で入力してください"),
+  note: z.string().optional(),
+}).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsulinEntry = typeof insulinEntries.$inferSelect;
+export type InsertInsulinEntry = z.infer<typeof insertInsulinEntrySchema>;
+export type GlucoseEntry = typeof glucoseEntries.$inferSelect;
+export type InsertGlucoseEntry = z.infer<typeof insertGlucoseEntrySchema>;
 
 // 調整ルールテーブル
 export const adjustmentRules = pgTable("adjustment_rules", {

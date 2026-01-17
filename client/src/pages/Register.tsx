@@ -28,21 +28,82 @@ export default function Register() {
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
-      console.log("=== 登録（モック）開始 ===");
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // 1秒遅延
-
-      // モック登録成功
-      const mockUser = { id: "mock-user-id", username: credentials.username };
-      localStorage.setItem("mock_user", JSON.stringify(mockUser));
+      console.log("=== API呼び出し開始 ===");
+      console.log("送信データ:", { username: credentials.username, passwordLength: credentials.password.length });
       
-      return { message: "アカウントを作成しました", user: mockUser };
+      try {
+        const response = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(credentials),
+          credentials: "include",
+        });
+
+        console.log("レスポンスステータス:", response.status, response.statusText);
+
+        const text = await response.text();
+        console.log("レスポンスボディ:", text);
+        
+        let data;
+        
+        try {
+          data = text ? JSON.parse(text) : {};
+          console.log("パースされたデータ:", data);
+        } catch (error) {
+          console.error("❌ JSONパースエラー:", error);
+          console.error("パースできなかったテキスト:", text);
+          throw new Error("サーバーからの応答が不正です: " + text.substring(0, 100));
+        }
+
+        if (!response.ok) {
+          let errorMessage = data.message || "登録に失敗しました";
+          
+          // ステータスコード別の詳細メッセージ
+          if (response.status === 404) {
+            errorMessage = "登録APIが見つかりません。サーバーが正しく起動しているか確認してください。";
+            console.error("❌ 404エラー: /api/auth/register エンドポイントが見つかりません");
+          } else if (response.status === 400) {
+            errorMessage = data.message || "入力内容に問題があります";
+          } else if (response.status === 500) {
+            errorMessage = data.message || "サーバーエラーが発生しました";
+          } else {
+            errorMessage = `${errorMessage} (HTTPステータス: ${response.status} ${response.statusText})`;
+          }
+          
+          console.error("❌ 登録失敗:");
+          console.error("  ステータス:", response.status, response.statusText);
+          console.error("  メッセージ:", errorMessage);
+          console.error("  URL:", response.url);
+          if (data.errors) {
+            console.error("  詳細エラー:", data.errors);
+          }
+          throw new Error(errorMessage);
+        }
+
+        console.log("✅ 登録成功:", data);
+        return data;
+      } catch (error) {
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          console.error("❌ ネットワークエラー: サーバーに接続できません");
+          console.error("  サーバーが起動しているか確認してください");
+          console.error("  URL: /api/auth/register");
+          throw new Error("サーバーに接続できません。サーバーが起動しているか確認してください。");
+        }
+        console.error("❌ 予期しないエラー:", error);
+        console.error("  エラータイプ:", error instanceof Error ? error.constructor.name : typeof error);
+        if (error instanceof Error) {
+          console.error("  エラーメッセージ:", error.message);
+          console.error("  スタックトレース:", error.stack);
+        }
+        throw error;
+      }
     },
     onSuccess: (data) => {
-      console.log("✅ 登録成功:", data);
+      console.log("✅ 登録成功コールバック:", data);
       queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
       toast({
         title: "✅ 登録成功",
-        description: "アカウントが作成されました（モック）",
+        description: data.message || "アカウントが作成されました",
       });
       setLocation("/");
     },

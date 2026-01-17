@@ -1,208 +1,38 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
-import { ArrowLeft, Save, Sparkles, AlertTriangle } from "lucide-react";
-import { DEFAULT_SETTINGS, TimeSlot, TIME_SLOT_SHORT_LABELS, getTimeSlotColor } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PlusCircle } from "lucide-react";
 
 export default function Entry() {
-  const [, setLocation] = useLocation();
-  const [glucose, setGlucose] = useState<string>("");
-  const [insulin, setInsulin] = useState<string>("");
-  const [note, setNote] = useState("");
-  const [timeSlot, setTimeSlot] = useState<TimeSlot>("BreakfastBefore");
-  const [suggestedDose, setSuggestedDose] = useState<{ total: number, correction: number, basal: number } | null>(null);
-
-  const settings = DEFAULT_SETTINGS;
-  const enabledSlots = settings.enabledTimeSlots;
-
-  // Auto-detect time slot
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 8) setTimeSlot("BreakfastBefore");
-    else if (hour >= 8 && hour < 11) setTimeSlot("BreakfastAfter");
-    else if (hour >= 11 && hour < 13) setTimeSlot("LunchBefore");
-    else if (hour >= 13 && hour < 17) setTimeSlot("LunchAfter");
-    else if (hour >= 17 && hour < 19) setTimeSlot("DinnerBefore");
-    else if (hour >= 19 && hour < 21) setTimeSlot("DinnerAfter");
-    else setTimeSlot("Bedtime");
-  }, []);
-
-  // Simple Sliding Scale Calculation Simulation
-  useEffect(() => {
-    const gVal = parseInt(glucose);
-    if (!isNaN(gVal) && gVal > 0) {
-      const basal = settings.basalRates[timeSlot];
-      
-      let correction = 0;
-      if (gVal > settings.targetGlucoseHigh) {
-        correction = Math.ceil((gVal - settings.targetGlucoseHigh) / settings.insulinSensitivityFactor);
-      }
-
-      setSuggestedDose({
-        total: basal + correction,
-        correction,
-        basal
-      });
-    } else {
-      setSuggestedDose(null);
-    }
-  }, [glucose, timeSlot, settings]);
-
-  const applySuggestion = () => {
-    if (suggestedDose) {
-      setInsulin(suggestedDose.total.toString());
-    }
-  };
-
-  const handleSave = () => {
-    // In a real app, save to context/db
-    setLocation("/");
-  };
-
   return (
-    <div className="min-h-screen bg-background flex flex-col font-sans max-w-md mx-auto">
-      {/* Header */}
-      <div className="p-4 flex items-center gap-4 bg-background z-10 sticky top-0 safe-area-top">
-        <Button variant="ghost" size="icon" onClick={() => setLocation("/")}>
-          <ArrowLeft className="w-6 h-6" />
-        </Button>
-        <h1 className="text-xl font-bold">新規入力</h1>
-        <div className="ml-auto">
-          <Button variant="ghost" className="text-primary font-bold" onClick={handleSave}>
-            保存
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 safe-area-bottom">
-        
-        {/* Time Selection */}
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold">測定タイミング</Label>
-          <div className="grid grid-cols-4 gap-2">
-            {enabledSlots.map((slot) => (
-              <button
-                key={slot}
-                onClick={() => setTimeSlot(slot)}
-                className={cn(
-                  "py-2 px-1 rounded-lg text-[11px] font-semibold transition-all border-2",
-                  timeSlot === slot 
-                    ? `${getTimeSlotColor(slot)} border-current` 
-                    : "border-transparent bg-muted text-muted-foreground hover:bg-muted/80"
-                )}
-              >
-                {TIME_SLOT_SHORT_LABELS[slot]}
-              </button>
-            ))}
-          </div>
+    <AppLayout>
+      <div className="pt-6 px-6 pb-6 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight mb-2">記録入力</h1>
+          <p className="text-muted-foreground text-sm">
+            インスリン投与量と血糖値を記録
+          </p>
         </div>
 
-        {/* Glucose Input */}
-        <div className="space-y-4">
-          <Label className="text-lg font-semibold">血糖値 (mg/dL)</Label>
-          <div className="relative">
-            <Input 
-              type="number" 
-              inputMode="numeric" 
-              placeholder="0" 
-              className="text-5xl font-bold h-24 text-center bg-transparent border-0 border-b-2 border-border focus-visible:ring-0 focus-visible:border-primary rounded-none px-0"
-              value={glucose}
-              onChange={(e) => setGlucose(e.target.value)}
-              autoFocus
-            />
-            {parseInt(glucose) > 180 && (
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 text-status-high animate-pulse">
-                <AlertTriangle className="w-8 h-8" />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Smart Suggestion Card */}
-        {suggestedDose && (
-          <div 
-            className="bg-primary/5 border border-primary/20 rounded-xl p-4 cursor-pointer active:scale-98 transition-transform"
-            onClick={applySuggestion}
-          >
-            <div className="flex items-start gap-3">
-              <div className="bg-primary/20 p-2 rounded-full text-primary">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-1">
-                  <h3 className="font-semibold text-primary">AI提案</h3>
-                  <span className="text-2xl font-bold text-primary">{suggestedDose.total}単位</span>
-                </div>
-                <div className="text-xs text-muted-foreground flex gap-3">
-                  <span>基本: {suggestedDose.basal}</span>
-                  <span>+</span>
-                  <span>補正: {suggestedDose.correction}</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-2 italic">
-                  タップして適用。ISF 1:{settings.insulinSensitivityFactor} に基づき計算
-                </p>
-              </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-primary" />
+              新しい記録を追加
+            </CardTitle>
+            <CardDescription>
+              スプレッドシート形式で記録を入力します
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="mb-4">実装中...</p>
+              <p className="text-sm">
+                朝・昼・夕・眠前の投与量と各測定タイミングの血糖値を入力できます
+              </p>
             </div>
-          </div>
-        )}
-
-        {/* Insulin Input */}
-        <div className="space-y-4">
-          <Label className="text-lg font-semibold">インスリン投与量 (単位)</Label>
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="h-12 w-12 rounded-full shrink-0"
-              onClick={() => setInsulin(prev => Math.max(0, (parseInt(prev || "0") - 1)).toString())}
-            >
-              -
-            </Button>
-            <Input 
-              type="number" 
-              inputMode="numeric" 
-              placeholder="0" 
-              className="text-4xl font-bold h-16 text-center bg-muted/30 border-transparent focus-visible:ring-0 rounded-xl"
-              value={insulin}
-              onChange={(e) => setInsulin(e.target.value)}
-            />
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="h-12 w-12 rounded-full shrink-0"
-              onClick={() => setInsulin(prev => (parseInt(prev || "0") + 1).toString())}
-            >
-              +
-            </Button>
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div className="space-y-2">
-          <Label>メモ</Label>
-          <Textarea 
-            placeholder="メモを追加 (例: 昼食ピザ)..." 
-            className="bg-muted/30 border-transparent resize-none h-24 rounded-xl"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
-
-        <div className="h-20" /> {/* Spacer */}
+          </CardContent>
+        </Card>
       </div>
-
-      <div className="p-4 bg-background border-t fixed bottom-0 w-full max-w-md safe-area-bottom">
-        <Button size="lg" className="w-full text-lg h-14 rounded-xl shadow-lg shadow-primary/20" onClick={handleSave}>
-          <Save className="w-5 h-5 mr-2" /> 保存する
-        </Button>
-      </div>
-    </div>
+    </AppLayout>
   );
 }

@@ -2,7 +2,13 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import passport, { hashPassword, isAuthenticated } from "./auth";
-import { insertUserSchema, insertAdjustmentRuleSchema, type User } from "@shared/schema";
+import { 
+  insertUserSchema, 
+  insertAdjustmentRuleSchema,
+  insertInsulinEntrySchema,
+  insertGlucoseEntrySchema,
+  type User 
+} from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(
@@ -373,10 +379,176 @@ export async function registerRoutes(
     }
   });
 
+  // ===== インスリン投与記録のエンドポイント =====
+  console.log("\n--- インスリン投与記録のエンドポイント ---");
+  
+  // インスリン記録一覧取得
+  console.log("✅ GET /api/insulin-entries");
+  app.get("/api/insulin-entries", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const entries = await storage.getInsulinEntries(user.id);
+      return res.json({ entries });
+    } catch (error) {
+      console.error("❌ インスリン記録取得エラー:", error);
+      return res.status(500).json({ message: "記録の取得に失敗しました" });
+    }
+  });
+
+  // インスリン記録作成
+  console.log("✅ POST /api/insulin-entries");
+  app.post("/api/insulin-entries", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const validatedData = insertInsulinEntrySchema.parse(req.body);
+      const entry = await storage.createInsulinEntry({
+        ...validatedData,
+        userId: user.id,
+      });
+      return res.status(201).json({ message: "記録を作成しました", entry });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "入力データが無効です",
+          errors: error.errors 
+        });
+      }
+      console.error("❌ インスリン記録作成エラー:", error);
+      return res.status(500).json({ message: "記録の作成に失敗しました" });
+    }
+  });
+
+  // インスリン記録更新
+  console.log("✅ PUT /api/insulin-entries/:id");
+  app.put("/api/insulin-entries/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const validatedData = insertInsulinEntrySchema.partial().parse(req.body);
+      const entry = await storage.updateInsulinEntry(req.params.id, user.id, validatedData);
+      
+      if (!entry) {
+        return res.status(404).json({ message: "記録が見つかりません" });
+      }
+      
+      return res.json({ message: "記録を更新しました", entry });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "入力データが無効です",
+          errors: error.errors 
+        });
+      }
+      console.error("❌ インスリン記録更新エラー:", error);
+      return res.status(500).json({ message: "記録の更新に失敗しました" });
+    }
+  });
+
+  // インスリン記録削除
+  console.log("✅ DELETE /api/insulin-entries/:id");
+  app.delete("/api/insulin-entries/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const success = await storage.deleteInsulinEntry(req.params.id, user.id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "記録が見つかりません" });
+      }
+      
+      return res.json({ message: "記録を削除しました" });
+    } catch (error) {
+      console.error("❌ インスリン記録削除エラー:", error);
+      return res.status(500).json({ message: "記録の削除に失敗しました" });
+    }
+  });
+
+  // ===== 血糖値測定記録のエンドポイント =====
+  console.log("\n--- 血糖値測定記録のエンドポイント ---");
+  
+  // 血糖値記録一覧取得
+  console.log("✅ GET /api/glucose-entries");
+  app.get("/api/glucose-entries", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const entries = await storage.getGlucoseEntries(user.id);
+      return res.json({ entries });
+    } catch (error) {
+      console.error("❌ 血糖値記録取得エラー:", error);
+      return res.status(500).json({ message: "記録の取得に失敗しました" });
+    }
+  });
+
+  // 血糖値記録作成
+  console.log("✅ POST /api/glucose-entries");
+  app.post("/api/glucose-entries", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const validatedData = insertGlucoseEntrySchema.parse(req.body);
+      const entry = await storage.createGlucoseEntry({
+        ...validatedData,
+        userId: user.id,
+      });
+      return res.status(201).json({ message: "記録を作成しました", entry });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "入力データが無効です",
+          errors: error.errors 
+        });
+      }
+      console.error("❌ 血糖値記録作成エラー:", error);
+      return res.status(500).json({ message: "記録の作成に失敗しました" });
+    }
+  });
+
+  // 血糖値記録更新
+  console.log("✅ PUT /api/glucose-entries/:id");
+  app.put("/api/glucose-entries/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const validatedData = insertGlucoseEntrySchema.partial().parse(req.body);
+      const entry = await storage.updateGlucoseEntry(req.params.id, user.id, validatedData);
+      
+      if (!entry) {
+        return res.status(404).json({ message: "記録が見つかりません" });
+      }
+      
+      return res.json({ message: "記録を更新しました", entry });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "入力データが無効です",
+          errors: error.errors 
+        });
+      }
+      console.error("❌ 血糖値記録更新エラー:", error);
+      return res.status(500).json({ message: "記録の更新に失敗しました" });
+    }
+  });
+
+  // 血糖値記録削除
+  console.log("✅ DELETE /api/glucose-entries/:id");
+  app.delete("/api/glucose-entries/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const success = await storage.deleteGlucoseEntry(req.params.id, user.id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "記録が見つかりません" });
+      }
+      
+      return res.json({ message: "記録を削除しました" });
+    } catch (error) {
+      console.error("❌ 血糖値記録削除エラー:", error);
+      return res.status(500).json({ message: "記録の削除に失敗しました" });
+    }
+  });
+
   console.log("===========================================");
   console.log("🎉 すべてのAPIルート登録完了");
   console.log("   - 認証: 4エンドポイント");
   console.log("   - 調整ルール: 5エンドポイント");
+  console.log("   - インスリン記録: 4エンドポイント");
+  console.log("   - 血糖値記録: 4エンドポイント");
   console.log("   - その他: 1エンドポイント");
   console.log("===========================================\n");
 
