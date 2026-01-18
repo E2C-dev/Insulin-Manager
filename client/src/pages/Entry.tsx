@@ -58,6 +58,7 @@ export default function Entry() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [basalInsulinDoses, setBasalInsulinDoses] = useState(DEFAULT_SETTINGS.basalInsulinDoses);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // 基礎インスリン投与量をローカルストレージから読み込む
   useEffect(() => {
@@ -72,6 +73,17 @@ export default function Entry() {
     }
   }, []);
 
+  // URLパラメータから日付を取得して編集モードで開く
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dateParam = params.get('date');
+    
+    if (dateParam) {
+      setIsEditMode(true);
+      setFormData(prev => ({ ...prev, date: dateParam }));
+    }
+  }, []);
+
   // 調整ルールを取得
   const { data: rulesData } = useQuery({
     queryKey: ["adjustment-rules"],
@@ -82,6 +94,35 @@ export default function Entry() {
       if (!response.ok) throw new Error("ルールの取得に失敗しました");
       return response.json();
     },
+  });
+
+  // 編集モード時に既存のデータを取得
+  const { data: glucoseData } = useQuery({
+    queryKey: ["glucose-entries", formData.date],
+    queryFn: async () => {
+      if (!isEditMode || !formData.date) return [];
+      const response = await fetch("/api/glucose-entries", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("血糖値記録の取得に失敗しました");
+      const data = await response.json();
+      return data.entries.filter((e: any) => e.date === formData.date);
+    },
+    enabled: isEditMode && !!formData.date,
+  });
+
+  const { data: insulinData } = useQuery({
+    queryKey: ["insulin-entries", formData.date],
+    queryFn: async () => {
+      if (!isEditMode || !formData.date) return [];
+      const response = await fetch("/api/insulin-entries", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("インスリン記録の取得に失敗しました");
+      const data = await response.json();
+      return data.entries.filter((e: any) => e.date === formData.date);
+    },
+    enabled: isEditMode && !!formData.date,
   });
 
   const setToday = () => {
@@ -336,9 +377,11 @@ export default function Entry() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight mb-1">記録入力</h1>
+            <h1 className="text-2xl font-bold tracking-tight mb-1">
+              {isEditMode ? "記録編集" : "記録入力"}
+            </h1>
             <p className="text-muted-foreground text-sm">
-              3ステップで簡単に記録
+              {isEditMode ? "既存の記録を編集" : "3ステップで簡単に記録"}
             </p>
           </div>
         </div>
@@ -610,7 +653,7 @@ export default function Entry() {
               disabled={isSaving}
             >
               <Save className="w-5 h-5 mr-2" />
-              {isSaving ? "保存中..." : "保存"}
+              {isSaving ? "保存中..." : (isEditMode ? "更新" : "保存")}
             </Button>
           </div>
         </form>
