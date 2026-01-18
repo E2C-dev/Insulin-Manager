@@ -8,6 +8,11 @@ import { createServer } from "http";
 const app = express();
 const httpServer = createServer(app);
 
+// 本番環境でプロキシ経由のリクエストを信頼する
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -34,6 +39,7 @@ app.use(
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7日間
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     },
   })
 );
