@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Calendar, Clock, Save, ArrowLeft, Activity } from "lucide-react";
+import { PlusCircle, Calendar, Clock, Save, ArrowLeft, Activity, Info, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
+import { DEFAULT_SETTINGS, type InsulinTimeSlot } from "@/lib/types";
 
 interface EntryFormData {
   date: string;
@@ -19,6 +20,17 @@ interface EntryFormData {
   glucoseLevel: string;
   insulinUnits: string;
   note: string;
+}
+
+interface AdjustmentRule {
+  id: string;
+  name: string;
+  timeSlot: string;
+  conditionType: string;
+  threshold: number;
+  comparison: string;
+  adjustmentAmount: number;
+  targetTimeSlot: string;
 }
 
 const TIME_SLOT_GROUPS = [
@@ -67,6 +79,32 @@ export default function Entry() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [basalInsulinDoses, setBasalInsulinDoses] = useState(DEFAULT_SETTINGS.basalInsulinDoses);
+
+  // 基礎インスリン投与量をローカルストレージから読み込む
+  useEffect(() => {
+    const savedDoses = localStorage.getItem("basalInsulinDoses");
+    if (savedDoses) {
+      try {
+        const parsed = JSON.parse(savedDoses);
+        setBasalInsulinDoses(parsed);
+      } catch (error) {
+        console.error("Failed to parse saved basal insulin doses:", error);
+      }
+    }
+  }, []);
+
+  // 調整ルールを取得
+  const { data: rulesData } = useQuery({
+    queryKey: ["adjustment-rules"],
+    queryFn: async () => {
+      const response = await fetch("/api/adjustment-rules", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("ルールの取得に失敗しました");
+      return response.json();
+    },
+  });
 
   const setToday = () => {
     setFormData(prev => ({ ...prev, date: format(new Date(), "yyyy-MM-dd") }));
@@ -218,6 +256,55 @@ export default function Entry() {
     return group ? `${group.groupLabel}${option.label}` : option.label;
   };
 
+  // 選択されたタイミングに基づいてインスリンのタイミングを取得
+  const getInsulinTimingInfo = useMemo(() => {
+    if (!formData.timeSlot) return null;
+
+    const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
+    if (!selectedOption) return null;
+
+    const insulinSlot = selectedOption.insulinSlot;
+    const insulinSlotMap: Record<string, { label: string; key: InsulinTimeSlot }> = {
+      "Breakfast": { label: "朝食", key: "Breakfast" },
+      "Lunch": { label: "昼食", key: "Lunch" },
+      "Dinner": { label: "夕食", key: "Dinner" },
+      "Bedtime": { label: "眠前", key: "Bedtime" },
+    };
+
+    const timing = insulinSlotMap[insulinSlot];
+    if (!timing) return null;
+
+    return {
+      label: timing.label,
+      baseAmount: basalInsulinDoses[timing.key],
+    };
+  }, [formData.timeSlot, basalInsulinDoses]);
+
+  // 適用される調整ルールを計算
+  const applicableRules = useMemo(() => {
+    if (!formData.date || !formData.timeSlot) return [];
+    if (!rulesData?.rules) return [];
+
+    const rules: AdjustmentRule[] = rulesData.rules;
+    const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
+    if (!selectedOption) return [];
+
+    // インスリンのタイミングを判定
+    const insulinTimingMap: Record<string, string> = {
+      "Breakfast": "朝",
+      "Lunch": "昼",
+      "Dinner": "夕",
+      "Bedtime": "眠前",
+    };
+    const currentTiming = insulinTimingMap[selectedOption.insulinSlot];
+
+    // 現在のタイミングに適用されるルールをフィルタ
+    return rules.filter(rule => rule.timeSlot === currentTiming);
+  }, [formData.date, formData.timeSlot, rulesData]);
+
+  // 情報を表示するかどうか
+  const shouldShowInfo = formData.date && formData.timeSlot;
+
   return (
     <AppLayout>
       <div className="pt-6 px-6 pb-6 space-y-6">
@@ -240,18 +327,18 @@ export default function Entry() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Step 1: 日付選択 */}
-          <Card>
-            <CardHeader className="pb-3 bg-muted/30">
+          <Card className="border-2 border-blue-200 dark:border-blue-800">
+            <CardHeader className="pb-3 bg-blue-50 dark:bg-blue-950/20">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold">
                   1
                 </div>
                 <div className="flex-1">
-                  <CardTitle className="text-base">いつの記録ですか？</CardTitle>
+                  <CardTitle className="text-base text-blue-900 dark:text-blue-100">いつの記録ですか？</CardTitle>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-4">
+            <CardContent className="pt-4 bg-blue-50/30 dark:bg-blue-950/10">
               <div className="grid grid-cols-[auto_1fr] gap-3 items-end">
                 <div className="flex gap-2">
                   <Button
@@ -291,18 +378,18 @@ export default function Entry() {
           </Card>
 
           {/* Step 2: 測定タイミング選択 */}
-          <Card>
-            <CardHeader className="pb-3 bg-muted/30">
+          <Card className="border-2 border-orange-200 dark:border-orange-800">
+            <CardHeader className="pb-3 bg-orange-50 dark:bg-orange-950/20">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-sm font-bold">
                   2
                 </div>
                 <div className="flex-1">
-                  <CardTitle className="text-base">測定タイミングはいつですか？</CardTitle>
+                  <CardTitle className="text-base text-orange-900 dark:text-orange-100">測定タイミングはいつですか？</CardTitle>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-4">
+            <CardContent className="pt-4 bg-orange-50/30 dark:bg-orange-950/10">
               <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
                 <Select
                   value={formData.timeSlot}
@@ -311,7 +398,7 @@ export default function Entry() {
                   <SelectTrigger data-testid="select-timeslot" className="h-10">
                     <SelectValue placeholder="タイミングを選択してください" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white dark:bg-gray-950">
                     {TIME_SLOT_GROUPS.map((group) => (
                       <SelectGroup key={group.groupLabel}>
                         <SelectLabel>{group.groupLabel}</SelectLabel>
@@ -337,22 +424,94 @@ export default function Entry() {
             </CardContent>
           </Card>
 
+          {/* 現在の投与量とルール情報 */}
+          {shouldShowInfo && getInsulinTimingInfo && (
+            <Card className="border-2 border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Info className="w-5 h-5 text-blue-600" />
+                  <CardTitle className="text-base text-blue-900 dark:text-blue-100">
+                    現在の設定情報
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* 基礎インスリン投与量 */}
+                <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-muted-foreground">
+                      {getInsulinTimingInfo.label}の基礎投与量
+                    </span>
+                    <span className="text-2xl font-bold text-primary">
+                      {getInsulinTimingInfo.baseAmount} <span className="text-sm">単位</span>
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    設定画面で登録された基準投与量です
+                  </p>
+                </div>
+
+                {/* 適用される調整ルール */}
+                {applicableRules.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-muted-foreground">
+                      適用される調整ルール（{applicableRules.length}件）
+                    </p>
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      {applicableRules.map((rule) => (
+                        <div
+                          key={rule.id}
+                          className="bg-white dark:bg-gray-900 p-3 rounded-lg border text-sm"
+                        >
+                          <div className="flex items-start gap-2">
+                            {rule.adjustmentAmount > 0 ? (
+                              <TrendingUp className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                            ) : (
+                              <TrendingDown className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium mb-1">{rule.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {rule.conditionType} {rule.threshold}mg/dL{rule.comparison} → {" "}
+                                <span className={rule.adjustmentAmount > 0 ? "text-blue-600 font-semibold" : "text-red-600 font-semibold"}>
+                                  {rule.adjustmentAmount > 0 ? "+" : ""}{rule.adjustmentAmount}単位
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {applicableRules.length === 0 && (
+                  <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border">
+                    <p className="text-sm text-muted-foreground text-center">
+                      このタイミングに適用される調整ルールはありません
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Step 3: 測定値入力 */}
-          <Card>
-            <CardHeader className="pb-3 bg-muted/30">
+          <Card className="border-2 border-green-200 dark:border-green-800">
+            <CardHeader className="pb-3 bg-green-50 dark:bg-green-950/20">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-bold">
                   3
                 </div>
                 <div className="flex-1">
-                  <CardTitle className="text-base">測定値を入力してください</CardTitle>
-                  <CardDescription className="text-xs mt-1">
+                  <CardTitle className="text-base text-green-900 dark:text-green-100">測定値を入力してください</CardTitle>
+                  <CardDescription className="text-xs mt-1 text-green-700 dark:text-green-300">
                     血糖値とインスリンのどちらか、または両方を入力
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-4 space-y-3">
+            <CardContent className="pt-4 space-y-3 bg-green-50/30 dark:bg-green-950/10">
               {/* 血糖値とインスリンを横並び */}
               <div className="grid grid-cols-2 gap-3">
                 <div>

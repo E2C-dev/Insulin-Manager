@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit2, Trash2, Activity, Coffee, Sun, Sunset, Moon } from "lucide-react";
@@ -38,52 +38,47 @@ interface RuleFormData {
 const initialFormData: RuleFormData = {
   name: "",
   timeSlot: "朝",
-  conditionType: "前日眠前血糖",
+  conditionType: "食前血糖",
   threshold: 70,
   comparison: "以下",
   adjustmentAmount: -1,
   targetTimeSlot: "前日の眠前",
 };
 
-// 測定タイミングの選択肢（前日・当日の区別を追加）
+// 測定タイミングの選択肢
 const MEASUREMENT_OPTIONS: Array<{
   value: string;
   label: string;
   timeSlots: string[];
-  group?: string;
 }> = [
-  // 前日の測定
-  { value: "前日朝食前血糖", label: "朝食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日朝食後血糖", label: "朝食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日昼食前血糖", label: "昼食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日昼食後血糖", label: "昼食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日夕食前血糖", label: "夕食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日夕食後血糖", label: "夕食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日眠前血糖", label: "眠前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  
-  // 当日の測定
-  { value: "当日朝食前血糖", label: "朝食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "当日" },
-  { value: "当日朝食後血糖", label: "朝食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "当日" },
-  { value: "当日昼食前血糖", label: "昼食前の血糖値", timeSlots: ["昼", "夕", "眠前"], group: "当日" },
-  { value: "当日昼食後血糖", label: "昼食後1hの血糖値", timeSlots: ["昼", "夕", "眠前"], group: "当日" },
-  { value: "当日夕食前血糖", label: "夕食前の血糖値", timeSlots: ["夕", "眠前"], group: "当日" },
-  { value: "当日夕食後血糖", label: "夕食後1hの血糖値", timeSlots: ["夕", "眠前"], group: "当日" },
-  { value: "当日眠前血糖", label: "眠前の血糖値", timeSlots: ["眠前"], group: "当日" },
+  { value: "食前血糖", label: "食前の血糖値", timeSlots: ["朝", "昼", "夕"] },
+  { value: "食後血糖", label: "食後1hの血糖値", timeSlots: ["朝", "昼", "夕"] },
+  { value: "眠前血糖", label: "眠前の血糖値", timeSlots: ["眠前"] },
+  { value: "夜間血糖", label: "夜間の血糖値", timeSlots: ["朝"] },
 ];
 
-// 調整対象の選択肢（前日・当日すべてのタイミング）
-const TARGET_OPTIONS = [
-  // 前日
-  { value: "前日の朝", label: "朝食", group: "前日" },
-  { value: "前日の昼", label: "昼食", group: "前日" },
-  { value: "前日の夕", label: "夕食", group: "前日" },
-  { value: "前日の眠前", label: "眠前", group: "前日" },
-  // 当日
-  { value: "当日の朝", label: "朝食", group: "当日" },
-  { value: "当日の昼", label: "昼食", group: "当日" },
-  { value: "当日の夕", label: "夕食", group: "当日" },
-  { value: "当日の眠前", label: "眠前", group: "当日" },
-] as const;
+// 調整対象の選択肢（時間帯ごとに変わる）
+const getTargetOptions = (timeSlot: string) => {
+  const options = {
+    "朝": [
+      { value: "前日の眠前", label: "前日の眠前インスリン" },
+      { value: "朝", label: "朝のインスリン" },
+    ],
+    "昼": [
+      { value: "朝", label: "朝のインスリン" },
+      { value: "昼", label: "昼のインスリン" },
+    ],
+    "夕": [
+      { value: "昼", label: "昼のインスリン" },
+      { value: "夕", label: "夕のインスリン" },
+    ],
+    "眠前": [
+      { value: "夕", label: "夕のインスリン" },
+      { value: "眠前", label: "眠前のインスリン" },
+    ],
+  };
+  return options[timeSlot as keyof typeof options] || [];
+};
 
 // 時間帯の定義
 const TIME_SLOTS = [
@@ -93,49 +88,43 @@ const TIME_SLOTS = [
   { value: "眠前", label: "眠前", icon: Moon, color: "text-blue-500" },
 ] as const;
 
-// 時間帯の表示用マッピング
-const TIME_SLOT_DISPLAY: Record<string, string> = {
-  "朝": "朝（朝食時）",
-  "昼": "昼（昼食時）",
-  "夕": "夕（夕食時）",
-  "眠前": "眠前",
-};
-
-// 測定タイミングの表示用関数
-const getConditionTypeLabel = (conditionType: string): string => {
-  const option = MEASUREMENT_OPTIONS.find(opt => opt.value === conditionType);
-  if (option) {
-    return `${option.group}の${option.label}`;
-  }
-  
-  // 古い形式の場合は、そのまま表示
-  const oldFormatMap: Record<string, string> = {
-    "食前血糖": "食前の血糖値",
-    "食後血糖": "食後1hの血糖値",
-    "眠前血糖": "眠前の血糖値",
-    "夜間血糖": "夜間の血糖値",
+// 条件タイプのラベル取得
+const getConditionTypeLabel = (conditionType: string) => {
+  const labels: Record<string, string> = {
+    "食前血糖": "食前血糖",
+    "食後血糖": "食後血糖",
+    "眠前血糖": "眠前血糖",
+    "夜間血糖": "夜間血糖",
+    "前日朝食前血糖": "前日朝食前血糖",
+    "前日朝食後血糖": "前日朝食後血糖",
+    "前日昼食前血糖": "前日昼食前血糖",
+    "前日昼食後血糖": "前日昼食後血糖",
+    "前日夕食前血糖": "前日夕食前血糖",
+    "前日夕食後血糖": "前日夕食後血糖",
+    "前日眠前血糖": "前日眠前血糖",
+    "当日朝食前血糖": "当日朝食前血糖",
   };
-  
-  return oldFormatMap[conditionType] || conditionType;
+  return labels[conditionType] || conditionType;
 };
 
-// 調整対象タイミングの表示用関数
-const getTargetTimeSlotLabel = (targetTimeSlot: string): string => {
-  const option = TARGET_OPTIONS.find(opt => opt.value === targetTimeSlot);
-  if (option) {
-    return `${option.group}の${option.label}`;
-  }
-  
-  // 古い形式の場合は、そのまま表示
-  const oldFormatMap: Record<string, string> = {
+// 調整対象タイムスロットのラベル取得
+const getTargetTimeSlotLabel = (targetTimeSlot: string) => {
+  const labels: Record<string, string> = {
+    "前日の朝": "前日の朝",
+    "前日の昼": "前日の昼",
+    "前日の夕": "前日の夕",
     "前日の眠前": "前日の眠前",
     "朝": "朝",
     "昼": "昼",
     "夕": "夕",
     "眠前": "眠前",
   };
-  
-  return oldFormatMap[targetTimeSlot] || targetTimeSlot;
+  return labels[targetTimeSlot] || targetTimeSlot;
+};
+
+// 調整量のフォーマット
+const formatAdjustmentAmount = (amount: number) => {
+  return amount > 0 ? `+${amount}` : `${amount}`;
 };
 
 export default function AdjustmentRules() {
@@ -400,41 +389,33 @@ export default function AdjustmentRules() {
                     <h3 className="font-semibold text-sm">インスリンを投与するタイミングはいつですか？</h3>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="timeSlot" className="text-xs">測定タイミング</Label>
-                    <Select
-                      value={formData.timeSlot}
-                      onValueChange={(value) => {
-                        setFormData({ 
-                          ...formData, 
-                          timeSlot: value,
-                          targetTimeSlot: TARGET_OPTIONS[0].value
-                        });
-                      }}
-                    >
-                      <SelectTrigger id="timeSlot" className="bg-white dark:bg-background">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent position="popper" sideOffset={5} className="z-[9999] bg-white dark:bg-gray-950 border shadow-lg">
-                        <SelectItem value="朝">朝（朝食時）</SelectItem>
-                        <SelectItem value="昼">昼（昼食時）</SelectItem>
-                        <SelectItem value="夕">夕（夕食時）</SelectItem>
-                        <SelectItem value="眠前">眠前</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* ステップ2: 条件設定 */}
-                <div className="space-y-3 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold">2</div>
-                    <h3 className="font-semibold text-sm">何がどんな値ならインスリン投与量を調整しますか？</h3>
-                  </div>
-                  
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="conditionType" className="text-xs">何を測定？</Label>
+                      <Label htmlFor="timeSlot" className="text-xs">測定タイミング</Label>
+                      <Select
+                        value={formData.timeSlot}
+                        onValueChange={(value) => {
+                          setFormData({ 
+                            ...formData, 
+                            timeSlot: value,
+                            targetTimeSlot: getTargetOptions(value)[0]?.value || ""
+                          });
+                        }}
+                      >
+                        <SelectTrigger id="timeSlot" className="bg-white dark:bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent position="popper" sideOffset={5} className="z-[9999]">
+                          <SelectItem value="朝">朝（朝食時）</SelectItem>
+                          <SelectItem value="昼">昼（昼食時）</SelectItem>
+                          <SelectItem value="夕">夕（夕食時）</SelectItem>
+                          <SelectItem value="眠前">眠前</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="conditionType" className="text-xs">インスリンを投与するタイミングは本日のどのタイミングですか？</Label>
                       <Select
                         value={formData.conditionType}
                         onValueChange={(value) => setFormData({ ...formData, conditionType: value })}
@@ -442,66 +423,58 @@ export default function AdjustmentRules() {
                         <SelectTrigger id="conditionType" className="bg-white dark:bg-background">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent position="popper" sideOffset={5} className="z-[9999] bg-white dark:bg-gray-950 border shadow-lg">
-                          {/* 前日のグループ */}
-                          <SelectGroup>
-                            <SelectLabel>前日</SelectLabel>
-                            {MEASUREMENT_OPTIONS
-                              .filter(opt => opt.group === "前日" && opt.timeSlots.includes(formData.timeSlot))
-                              .map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                          </SelectGroup>
-                          
-                          {/* 当日のグループ */}
-                          <SelectGroup>
-                            <SelectLabel>当日</SelectLabel>
-                            {MEASUREMENT_OPTIONS
-                              .filter(opt => opt.group === "当日" && opt.timeSlots.includes(formData.timeSlot))
-                              .map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                          </SelectGroup>
+                        <SelectContent position="popper" sideOffset={5} className="z-[9999]">
+                          {MEASUREMENT_OPTIONS
+                            .filter(opt => opt.timeSlots.includes(formData.timeSlot))
+                            .map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="threshold" className="text-xs">血糖値（mg/dL）</Label>
-                        <Input
-                          id="threshold"
-                          type="number"
-                          value={formData.threshold}
-                          onChange={(e) => setFormData({ ...formData, threshold: parseInt(e.target.value) || 0 })}
-                          min="0"
-                          max="600"
-                          className="bg-white dark:bg-background"
-                          required
-                        />
-                      </div>
+                  </div>
+                </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="comparison" className="text-xs">条件</Label>
-                        <Select
-                          value={formData.comparison}
-                          onValueChange={(value) => setFormData({ ...formData, comparison: value as RuleFormData["comparison"] })}
-                        >
-                          <SelectTrigger id="comparison" className="bg-white dark:bg-background">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent position="popper" sideOffset={5} className="z-[9999] bg-white dark:bg-gray-950 border shadow-lg">
-                            <SelectItem value="以下">以下（≤）</SelectItem>
-                            <SelectItem value="未満">未満（＜）</SelectItem>
-                            <SelectItem value="以上">以上（≥）</SelectItem>
-                            <SelectItem value="超える">超える（＞）</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                {/* ステップ2: 条件設定 */}
+                <div className="space-y-3 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold">2</div>
+                    <h3 className="font-semibold text-sm">どんな値なら調整しますか？</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="threshold" className="text-xs">血糖値（mg/dL）</Label>
+                      <Input
+                        id="threshold"
+                        type="number"
+                        value={formData.threshold}
+                        onChange={(e) => setFormData({ ...formData, threshold: parseInt(e.target.value) || 0 })}
+                        min="0"
+                        max="600"
+                        className="bg-white dark:bg-background"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="comparison" className="text-xs">条件</Label>
+                      <Select
+                        value={formData.comparison}
+                        onValueChange={(value) => setFormData({ ...formData, comparison: value as RuleFormData["comparison"] })}
+                      >
+                        <SelectTrigger id="comparison" className="bg-white dark:bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent position="popper" sideOffset={5} className="z-[9999]">
+                          <SelectItem value="以下">以下（≤）</SelectItem>
+                          <SelectItem value="未満">未満（＜）</SelectItem>
+                          <SelectItem value="以上">以上（≥）</SelectItem>
+                          <SelectItem value="超える">超える（＞）</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   
@@ -527,30 +500,12 @@ export default function AdjustmentRules() {
                         <SelectTrigger id="targetTimeSlot" className="bg-white dark:bg-background">
                           <SelectValue placeholder="選択してください" />
                         </SelectTrigger>
-                        <SelectContent position="popper" sideOffset={5} className="z-[9999] bg-white dark:bg-gray-950 border shadow-lg">
-                          {/* 前日のグループ */}
-                          <SelectGroup>
-                            <SelectLabel>前日</SelectLabel>
-                            {TARGET_OPTIONS
-                              .filter(opt => opt.group === "前日")
-                              .map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                          </SelectGroup>
-                          
-                          {/* 当日のグループ */}
-                          <SelectGroup>
-                            <SelectLabel>当日</SelectLabel>
-                            {TARGET_OPTIONS
-                              .filter(opt => opt.group === "当日")
-                              .map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                          </SelectGroup>
+                        <SelectContent position="popper" sideOffset={5} className="z-[9999]">
+                          {getTargetOptions(formData.timeSlot).map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -579,8 +534,8 @@ export default function AdjustmentRules() {
                 <div className="p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
                   <h4 className="font-semibold text-sm mb-2 text-purple-900 dark:text-purple-100">📋 ルールのプレビュー</h4>
                   <p className="text-sm text-purple-800 dark:text-purple-200">
-                    <span className="font-semibold">{TIME_SLOT_DISPLAY[formData.timeSlot] || formData.timeSlot}</span>のインスリン投与量は、
-                    <span className="font-semibold">{getConditionTypeLabel(formData.conditionType)}</span>が
+                    <span className="font-semibold">{formData.timeSlot}</span>の
+                    <span className="font-semibold">{formData.conditionType}</span>が
                     <span className="font-semibold text-orange-600 dark:text-orange-400"> {formData.threshold}mg/dL{formData.comparison}</span>
                     なら、
                     <span className="font-semibold text-green-600 dark:text-green-400">{getTargetTimeSlotLabel(formData.targetTimeSlot)}のインスリン</span>の
