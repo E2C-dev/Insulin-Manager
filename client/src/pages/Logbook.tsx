@@ -3,13 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity, Trash2 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
-import { format, subDays, startOfDay } from "date-fns";
+import { format, subDays, parseISO } from "date-fns";
 import { ja } from "date-fns/locale";
+import { Link } from "wouter";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,100 +20,189 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+interface GlucoseEntry {
+  id: string;
+  userId: string;
+  date: string;
+  timeSlot: string;
+  glucoseLevel: number;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface InsulinEntry {
+  id: string;
+  userId: string;
+  date: string;
+  timeSlot: string;
+  units: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface DailyEntry {
   date: string;
   morning: { 
-    glucoseBefore?: number;  // 食前血糖値
-    glucoseAfter?: number;   // 食後血糖値
+    glucoseBefore?: number;
+    glucoseAfter?: number;
     insulin?: number;
   };
   lunch: { 
-    glucoseBefore?: number;  // 食前血糖値
-    glucoseAfter?: number;   // 食後血糖値
+    glucoseBefore?: number;
+    glucoseAfter?: number;
     insulin?: number;
   };
   dinner: { 
-    glucoseBefore?: number;  // 食前血糖値
-    glucoseAfter?: number;   // 食後血糖値
+    glucoseBefore?: number;
+    glucoseAfter?: number;
     insulin?: number;
   };
   bedtime: { 
-    glucose?: number;        // 眠前は1回のみ
+    glucose?: number;
     insulin?: number;
   };
+  glucoseIds: string[];
+  insulinIds: string[];
 }
 
 export default function Logbook() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deletingDate, setDeletingDate] = useState<string | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<{ date: string; glucoseIds: string[]; insulinIds: string[] } | null>(null);
 
-  // 仮のデータ - 実際にはAPIから取得
-  const { data: entriesData, isLoading } = useQuery({
-    queryKey: ["entries", selectedDate, viewMode],
+  const { data: glucoseData, isLoading: glucoseLoading } = useQuery({
+    queryKey: ["glucose-entries"],
     queryFn: async () => {
-      // 仮データを返す
-      const entries: DailyEntry[] = [];
-      const days = viewMode === "week" ? 7 : 30;
-      
-      for (let i = 0; i < days; i++) {
-        const date = format(subDays(new Date(), i), "yyyy-MM-dd");
-        entries.push({
-          date,
-          morning: { 
-            glucoseBefore: 95 + Math.floor(Math.random() * 40),
-            glucoseAfter: 120 + Math.floor(Math.random() * 50),
-            insulin: 5 + Math.floor(Math.random() * 3)
-          },
-          lunch: { 
-            glucoseBefore: 100 + Math.floor(Math.random() * 50),
-            glucoseAfter: 130 + Math.floor(Math.random() * 60),
-            insulin: 6 + Math.floor(Math.random() * 4)
-          },
-          dinner: { 
-            glucoseBefore: 105 + Math.floor(Math.random() * 45),
-            glucoseAfter: 125 + Math.floor(Math.random() * 55),
-            insulin: 7 + Math.floor(Math.random() * 3)
-          },
-          bedtime: { 
-            glucose: 100 + Math.floor(Math.random() * 40),
-            insulin: 8 + Math.floor(Math.random() * 2)
-          },
-        });
-      }
-      
-      return { entries };
+      const response = await fetch("/api/glucose-entries", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("血糖値記録の取得に失敗しました");
+      const data = await response.json();
+      return data.entries as GlucoseEntry[];
     },
   });
 
-  // 削除用のMutation
-  const deleteMutation = useMutation({
-    mutationFn: async (date: string) => {
-      // 実際にはAPIを呼び出す
-      console.log("削除する日付:", date);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return date;
-    },
-    onSuccess: (deletedDate) => {
-      queryClient.invalidateQueries({ queryKey: ["entries"] });
-      toast({
-        title: "削除成功",
-        description: `${format(new Date(deletedDate), "M月d日", { locale: ja })}の記録を削除しました`,
+  const { data: insulinData, isLoading: insulinLoading } = useQuery({
+    queryKey: ["insulin-entries"],
+    queryFn: async () => {
+      const response = await fetch("/api/insulin-entries", {
+        credentials: "include",
       });
-      setIsDeleteDialogOpen(false);
-      setDeletingDate(null);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "削除失敗",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (!response.ok) throw new Error("インスリン記録の取得に失敗しました");
+      const data = await response.json();
+      return data.entries as InsulinEntry[];
     },
   });
+
+  const deleteGlucoseMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/glucose-entries/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("削除に失敗しました");
+      return id;
+    },
+  });
+
+  const deleteInsulinMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/insulin-entries/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("削除に失敗しました");
+      return id;
+    },
+  });
+
+  const processEntries = (): DailyEntry[] => {
+    const days = viewMode === "week" ? 7 : 30;
+    const entriesMap = new Map<string, DailyEntry>();
+
+    for (let i = 0; i < days; i++) {
+      const date = format(subDays(new Date(), i), "yyyy-MM-dd");
+      entriesMap.set(date, {
+        date,
+        morning: {},
+        lunch: {},
+        dinner: {},
+        bedtime: {},
+        glucoseIds: [],
+        insulinIds: [],
+      });
+    }
+
+    if (glucoseData) {
+      for (const entry of glucoseData) {
+        const dailyEntry = entriesMap.get(entry.date);
+        if (dailyEntry) {
+          dailyEntry.glucoseIds.push(entry.id);
+          switch (entry.timeSlot) {
+            case "BreakfastBefore":
+              dailyEntry.morning.glucoseBefore = entry.glucoseLevel;
+              break;
+            case "BreakfastAfter1h":
+              dailyEntry.morning.glucoseAfter = entry.glucoseLevel;
+              break;
+            case "LunchBefore":
+              dailyEntry.lunch.glucoseBefore = entry.glucoseLevel;
+              break;
+            case "LunchAfter1h":
+              dailyEntry.lunch.glucoseAfter = entry.glucoseLevel;
+              break;
+            case "DinnerBefore":
+              dailyEntry.dinner.glucoseBefore = entry.glucoseLevel;
+              break;
+            case "DinnerAfter1h":
+              dailyEntry.dinner.glucoseAfter = entry.glucoseLevel;
+              break;
+            case "BeforeSleep":
+              dailyEntry.bedtime.glucose = entry.glucoseLevel;
+              break;
+          }
+        }
+      }
+    }
+
+    if (insulinData) {
+      for (const entry of insulinData) {
+        const dailyEntry = entriesMap.get(entry.date);
+        if (dailyEntry) {
+          dailyEntry.insulinIds.push(entry.id);
+          const units = parseFloat(entry.units);
+          switch (entry.timeSlot) {
+            case "Breakfast":
+              dailyEntry.morning.insulin = units;
+              break;
+            case "Lunch":
+              dailyEntry.lunch.insulin = units;
+              break;
+            case "Dinner":
+              dailyEntry.dinner.insulin = units;
+              break;
+            case "Bedtime":
+              dailyEntry.bedtime.insulin = units;
+              break;
+          }
+        }
+      }
+    }
+
+    return Array.from(entriesMap.values())
+      .filter(entry => 
+        entry.glucoseIds.length > 0 || entry.insulinIds.length > 0 ||
+        entry.morning.glucoseBefore || entry.morning.glucoseAfter || entry.morning.insulin ||
+        entry.lunch.glucoseBefore || entry.lunch.glucoseAfter || entry.lunch.insulin ||
+        entry.dinner.glucoseBefore || entry.dinner.glucoseAfter || entry.dinner.insulin ||
+        entry.bedtime.glucose || entry.bedtime.insulin
+      )
+      .sort((a, b) => b.date.localeCompare(a.date));
+  };
 
   const getGlucoseColor = (value?: number) => {
     if (!value) return "text-muted-foreground";
@@ -123,29 +211,60 @@ export default function Logbook() {
     return "text-green-600";
   };
 
-  const handleDeleteClick = (date: string, event: React.MouseEvent) => {
+  const handleDeleteClick = (entry: DailyEntry, event: React.MouseEvent) => {
     event.stopPropagation();
-    setDeletingDate(date);
+    setDeletingEntry({
+      date: entry.date,
+      glucoseIds: entry.glucoseIds,
+      insulinIds: entry.insulinIds,
+    });
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (deletingDate) {
-      deleteMutation.mutate(deletingDate);
+  const confirmDelete = async () => {
+    if (!deletingEntry) return;
+
+    try {
+      const deletePromises = [
+        ...deletingEntry.glucoseIds.map(id => deleteGlucoseMutation.mutateAsync(id)),
+        ...deletingEntry.insulinIds.map(id => deleteInsulinMutation.mutateAsync(id)),
+      ];
+
+      await Promise.all(deletePromises);
+
+      queryClient.invalidateQueries({ queryKey: ["glucose-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["insulin-entries"] });
+
+      toast({
+        title: "削除成功",
+        description: `${format(parseISO(deletingEntry.date), "M月d日", { locale: ja })}の記録を削除しました`,
+      });
+    } catch (error) {
+      toast({
+        title: "削除失敗",
+        description: "記録の削除に失敗しました",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setDeletingEntry(null);
     }
   };
+
+  const isLoading = glucoseLoading || insulinLoading;
+  const isDeleting = deleteGlucoseMutation.isPending || deleteInsulinMutation.isPending;
 
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex items-center justify-center min-h-[50vh]" data-testid="loading-state">
           <Spinner />
         </div>
       </AppLayout>
     );
   }
 
-  const entries = entriesData?.entries || [];
+  const entries = processEntries();
 
   return (
     <AppLayout>
@@ -158,17 +277,19 @@ export default function Logbook() {
             </p>
           </div>
           
-          <Button size="lg" className="shadow-lg">
-            <Plus className="w-5 h-5 mr-2" />
-            新規記録
-          </Button>
+          <Link href="/entry" data-testid="link-new-entry">
+            <Button size="lg" className="shadow-lg" data-testid="button-new-entry">
+              <Plus className="w-5 h-5 mr-2" />
+              新規記録
+            </Button>
+          </Link>
         </div>
 
-        {/* 期間選択 */}
         <div className="flex gap-2">
           <Button
             variant={viewMode === "week" ? "default" : "outline"}
             onClick={() => setViewMode("week")}
+            data-testid="button-view-week"
           >
             <Calendar className="w-4 h-4 mr-2" />
             1週間
@@ -176,13 +297,13 @@ export default function Logbook() {
           <Button
             variant={viewMode === "month" ? "default" : "outline"}
             onClick={() => setViewMode("month")}
+            data-testid="button-view-month"
           >
             <Calendar className="w-4 h-4 mr-2" />
             1ヶ月
           </Button>
         </div>
 
-        {/* コンパクトな表形式の記録一覧 */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
@@ -193,31 +314,45 @@ export default function Logbook() {
               血糖値：食前/食後（mg/dL）、インスリン（単位）
             </CardDescription>
             
-            {/* 血糖値の目安 */}
-            <div className="pt-3 mt-3 border-t">
-              <p className="text-xs font-semibold mb-2 text-muted-foreground">血糖値の目安</p>
-              <div className="flex flex-wrap gap-3 text-xs">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-600"></div>
-                  <span className="text-muted-foreground">70未満：低血糖</span>
+            <div className="pt-3 mt-3 border-t space-y-3">
+              {/* 血糖値の目安 */}
+              <div>
+                <p className="text-xs font-semibold mb-2 text-muted-foreground">血糖値の目安</p>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-600"></div>
+                    <span className="text-muted-foreground">70未満：低血糖</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-600"></div>
+                    <span className="text-muted-foreground">70-180：目標範囲</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-orange-600"></div>
+                    <span className="text-muted-foreground">180超：高血糖</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-600"></div>
-                  <span className="text-muted-foreground">70-180：目標範囲</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-orange-600"></div>
-                  <span className="text-muted-foreground">180超：高血糖</span>
+              </div>
+              
+              {/* 単位の説明 */}
+              <div className="flex items-center gap-2 text-xs bg-muted/30 p-2 rounded">
+                <span className="font-semibold text-muted-foreground">表示単位：</span>
+                <div className="flex gap-3">
+                  <span className="text-muted-foreground">血糖値 = mg/dL</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-muted-foreground">
+                    インスリン = <span className="text-primary font-semibold">u</span>（単位 / unit）
+                  </span>
                 </div>
               </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
             {entries.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground p-6">
+              <div className="text-center py-12 text-muted-foreground p-6" data-testid="empty-state">
                 <Activity className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                <p className="mb-2">記録がまだありません</p>
-                <p className="text-sm">
+                <p className="mb-2" data-testid="text-empty-message">記録がまだありません</p>
+                <p className="text-sm" data-testid="text-empty-hint">
                   「新規記録」ボタンから記録を追加してください
                 </p>
               </div>
@@ -257,85 +392,82 @@ export default function Logbook() {
                   </thead>
                   <tbody>
                     {entries.map((entry, index) => (
-                      <tr key={entry.date} className={index % 2 === 0 ? "bg-white dark:bg-background" : "bg-muted/20"}>
+                      <tr key={entry.date} className={index % 2 === 0 ? "bg-white dark:bg-background" : "bg-muted/20"} data-testid={`row-entry-${entry.date}`}>
                         <td className="p-2 text-left font-medium border-b text-[11px] group">
                           <div className="flex items-center justify-between gap-1">
-                            <div>
-                              {format(new Date(entry.date), "M/d\n(E)", { locale: ja }).split('\n').map((line, i) => (
+                            <div data-testid={`text-date-${entry.date}`}>
+                              {format(parseISO(entry.date), "M/d\n(E)", { locale: ja }).split('\n').map((line, i) => (
                                 <div key={i}>{line}</div>
                               ))}
                             </div>
                             <button
-                              onClick={(e) => handleDeleteClick(entry.date, e)}
+                              onClick={(e) => handleDeleteClick(entry, e)}
                               className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
                               title="この日の記録を削除"
+                              data-testid={`button-delete-${entry.date}`}
                             >
                               <Trash2 className="w-3.5 h-3.5 text-destructive" />
                             </button>
                           </div>
                         </td>
                         
-                        {/* 朝食 */}
-                        <td className="p-1.5 border-b border-l text-center">
+                        <td className="p-1.5 border-b border-l text-center" data-testid={`cell-morning-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
-                              <span className={`font-semibold ${getGlucoseColor(entry.morning.glucoseBefore)}`}>
+                              <span className={`font-semibold ${getGlucoseColor(entry.morning.glucoseBefore)}`} data-testid={`text-morning-glucose-before-${entry.date}`}>
                                 {entry.morning.glucoseBefore || "-"}
                               </span>
                               <span className="text-muted-foreground">/</span>
-                              <span className={`font-semibold ${getGlucoseColor(entry.morning.glucoseAfter)}`}>
+                              <span className={`font-semibold ${getGlucoseColor(entry.morning.glucoseAfter)}`} data-testid={`text-morning-glucose-after-${entry.date}`}>
                                 {entry.morning.glucoseAfter || "-"}
                               </span>
                             </div>
-                            <span className="text-[10px] text-primary font-semibold">
+                            <span className="text-[10px] text-primary font-semibold" data-testid={`text-morning-insulin-${entry.date}`}>
                               {entry.morning.insulin ? `${entry.morning.insulin}u` : "-"}
                             </span>
                           </div>
                         </td>
                         
-                        {/* 昼食 */}
-                        <td className="p-1.5 border-b border-l text-center">
+                        <td className="p-1.5 border-b border-l text-center" data-testid={`cell-lunch-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
-                              <span className={`font-semibold ${getGlucoseColor(entry.lunch.glucoseBefore)}`}>
+                              <span className={`font-semibold ${getGlucoseColor(entry.lunch.glucoseBefore)}`} data-testid={`text-lunch-glucose-before-${entry.date}`}>
                                 {entry.lunch.glucoseBefore || "-"}
                               </span>
                               <span className="text-muted-foreground">/</span>
-                              <span className={`font-semibold ${getGlucoseColor(entry.lunch.glucoseAfter)}`}>
+                              <span className={`font-semibold ${getGlucoseColor(entry.lunch.glucoseAfter)}`} data-testid={`text-lunch-glucose-after-${entry.date}`}>
                                 {entry.lunch.glucoseAfter || "-"}
                               </span>
                             </div>
-                            <span className="text-[10px] text-primary font-semibold">
+                            <span className="text-[10px] text-primary font-semibold" data-testid={`text-lunch-insulin-${entry.date}`}>
                               {entry.lunch.insulin ? `${entry.lunch.insulin}u` : "-"}
                             </span>
                           </div>
                         </td>
                         
-                        {/* 夕食 */}
-                        <td className="p-1.5 border-b border-l text-center">
+                        <td className="p-1.5 border-b border-l text-center" data-testid={`cell-dinner-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
-                              <span className={`font-semibold ${getGlucoseColor(entry.dinner.glucoseBefore)}`}>
+                              <span className={`font-semibold ${getGlucoseColor(entry.dinner.glucoseBefore)}`} data-testid={`text-dinner-glucose-before-${entry.date}`}>
                                 {entry.dinner.glucoseBefore || "-"}
                               </span>
                               <span className="text-muted-foreground">/</span>
-                              <span className={`font-semibold ${getGlucoseColor(entry.dinner.glucoseAfter)}`}>
+                              <span className={`font-semibold ${getGlucoseColor(entry.dinner.glucoseAfter)}`} data-testid={`text-dinner-glucose-after-${entry.date}`}>
                                 {entry.dinner.glucoseAfter || "-"}
                               </span>
                             </div>
-                            <span className="text-[10px] text-primary font-semibold">
+                            <span className="text-[10px] text-primary font-semibold" data-testid={`text-dinner-insulin-${entry.date}`}>
                               {entry.dinner.insulin ? `${entry.dinner.insulin}u` : "-"}
                             </span>
                           </div>
                         </td>
                         
-                        {/* 眠前 */}
-                        <td className="p-1.5 border-b border-l text-center">
+                        <td className="p-1.5 border-b border-l text-center" data-testid={`cell-bedtime-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
-                            <span className={`text-xs font-semibold ${getGlucoseColor(entry.bedtime.glucose)}`}>
+                            <span className={`text-xs font-semibold ${getGlucoseColor(entry.bedtime.glucose)}`} data-testid={`text-bedtime-glucose-${entry.date}`}>
                               {entry.bedtime.glucose || "-"}
                             </span>
-                            <span className="text-[10px] text-primary font-semibold">
+                            <span className="text-[10px] text-primary font-semibold" data-testid={`text-bedtime-insulin-${entry.date}`}>
                               {entry.bedtime.insulin ? `${entry.bedtime.insulin}u` : "-"}
                             </span>
                           </div>
@@ -350,16 +482,15 @@ export default function Logbook() {
         </Card>
       </div>
 
-      {/* 削除確認ダイアログ */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>記録を削除しますか？</AlertDialogTitle>
             <AlertDialogDescription>
-              {deletingDate && (
+              {deletingEntry && (
                 <>
-                  <span className="font-semibold text-foreground">
-                    {format(new Date(deletingDate), "yyyy年M月d日 (E)", { locale: ja })}
+                  <span className="font-semibold text-foreground" data-testid="text-delete-date">
+                    {format(parseISO(deletingEntry.date), "yyyy年M月d日 (E)", { locale: ja })}
                   </span>
                   の記録をすべて削除します。この操作は取り消せません。
                 </>
@@ -367,15 +498,16 @@ export default function Logbook() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
+            <AlertDialogCancel disabled={isDeleting} data-testid="button-cancel-delete">
               キャンセル
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              disabled={deleteMutation.isPending}
+              disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
             >
-              {deleteMutation.isPending ? "削除中..." : "削除する"}
+              {isDeleting ? "削除中..." : "削除する"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
