@@ -1,14 +1,25 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity } from "lucide-react";
+import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
+import { useToast } from "@/hooks/use-toast";
 import { format, subDays, startOfDay } from "date-fns";
 import { ja } from "date-fns/locale";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface DailyEntry {
   date: string;
@@ -34,8 +45,12 @@ interface DailyEntry {
 }
 
 export default function Logbook() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingDate, setDeletingDate] = useState<string | null>(null);
 
   // 仮のデータ - 実際にはAPIから取得
   const { data: entriesData, isLoading } = useQuery({
@@ -75,11 +90,49 @@ export default function Logbook() {
     },
   });
 
+  // 削除用のMutation
+  const deleteMutation = useMutation({
+    mutationFn: async (date: string) => {
+      // 実際にはAPIを呼び出す
+      console.log("削除する日付:", date);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return date;
+    },
+    onSuccess: (deletedDate) => {
+      queryClient.invalidateQueries({ queryKey: ["entries"] });
+      toast({
+        title: "削除成功",
+        description: `${format(new Date(deletedDate), "M月d日", { locale: ja })}の記録を削除しました`,
+      });
+      setIsDeleteDialogOpen(false);
+      setDeletingDate(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "削除失敗",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const getGlucoseColor = (value?: number) => {
     if (!value) return "text-muted-foreground";
     if (value < 70) return "text-red-600 font-semibold";
     if (value > 180) return "text-orange-600 font-semibold";
     return "text-green-600";
+  };
+
+  const handleDeleteClick = (date: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setDeletingDate(date);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (deletingDate) {
+      deleteMutation.mutate(deletingDate);
+    }
   };
 
   if (isLoading) {
@@ -173,7 +226,7 @@ export default function Logbook() {
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50 border-b sticky top-0">
                     <tr>
-                      <th className="p-2 text-left font-semibold w-[70px]">
+                      <th className="p-2 text-left font-semibold w-[90px]">
                         日付
                       </th>
                       <th className="p-2 text-center font-semibold border-l">
@@ -205,10 +258,21 @@ export default function Logbook() {
                   <tbody>
                     {entries.map((entry, index) => (
                       <tr key={entry.date} className={index % 2 === 0 ? "bg-white dark:bg-background" : "bg-muted/20"}>
-                        <td className="p-2 text-left font-medium border-b text-[11px]">
-                          {format(new Date(entry.date), "M/d\n(E)", { locale: ja }).split('\n').map((line, i) => (
-                            <div key={i}>{line}</div>
-                          ))}
+                        <td className="p-2 text-left font-medium border-b text-[11px] group">
+                          <div className="flex items-center justify-between gap-1">
+                            <div>
+                              {format(new Date(entry.date), "M/d\n(E)", { locale: ja }).split('\n').map((line, i) => (
+                                <div key={i}>{line}</div>
+                              ))}
+                            </div>
+                            <button
+                              onClick={(e) => handleDeleteClick(entry.date, e)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+                              title="この日の記録を削除"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                            </button>
+                          </div>
                         </td>
                         
                         {/* 朝食 */}
@@ -285,6 +349,37 @@ export default function Logbook() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 削除確認ダイアログ */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>記録を削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingDate && (
+                <>
+                  <span className="font-semibold text-foreground">
+                    {format(new Date(deletingDate), "yyyy年M月d日 (E)", { locale: ja })}
+                  </span>
+                  の記録をすべて削除します。この操作は取り消せません。
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              キャンセル
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "削除中..." : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

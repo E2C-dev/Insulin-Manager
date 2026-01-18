@@ -88,6 +88,14 @@ const TIME_SLOTS = [
   { value: "眠前", label: "眠前", icon: Moon, color: "text-blue-500" },
 ] as const;
 
+// 時間帯の表示用マッピング
+const TIME_SLOT_DISPLAY: Record<string, string> = {
+  "朝": "朝（朝食時）",
+  "昼": "昼（昼食時）",
+  "夕": "夕（夕食時）",
+  "眠前": "眠前",
+};
+
 export default function AdjustmentRules() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -347,34 +355,42 @@ export default function AdjustmentRules() {
                 <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</div>
-                    <h3 className="font-semibold text-sm">いつの測定値を確認しますか？</h3>
+                    <h3 className="font-semibold text-sm">インスリンを投与するタイミングはいつですか？</h3>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="timeSlot" className="text-xs">測定タイミング</Label>
-                      <Select
-                        value={formData.timeSlot}
-                        onValueChange={(value) => {
-                          setFormData({ 
-                            ...formData, 
-                            timeSlot: value,
-                            targetTimeSlot: getTargetOptions(value)[0]?.value || ""
-                          });
-                        }}
-                      >
-                        <SelectTrigger id="timeSlot" className="bg-white dark:bg-background">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent position="popper" sideOffset={5} className="z-[9999]">
-                          <SelectItem value="朝">朝（朝食時）</SelectItem>
-                          <SelectItem value="昼">昼（昼食時）</SelectItem>
-                          <SelectItem value="夕">夕（夕食時）</SelectItem>
-                          <SelectItem value="眠前">眠前</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="timeSlot" className="text-xs">測定タイミング</Label>
+                    <Select
+                      value={formData.timeSlot}
+                      onValueChange={(value) => {
+                        setFormData({ 
+                          ...formData, 
+                          timeSlot: value,
+                          targetTimeSlot: getTargetOptions(value)[0]?.value || ""
+                        });
+                      }}
+                    >
+                      <SelectTrigger id="timeSlot" className="bg-white dark:bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="popper" sideOffset={5} className="z-[9999] bg-white dark:bg-gray-950 border shadow-lg">
+                        <SelectItem value="朝">朝（朝食時）</SelectItem>
+                        <SelectItem value="昼">昼（昼食時）</SelectItem>
+                        <SelectItem value="夕">夕（夕食時）</SelectItem>
+                        <SelectItem value="眠前">眠前</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
+                {/* ステップ2: 条件設定 */}
+                <div className="space-y-3 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold">2</div>
+                    <h3 className="font-semibold text-sm">何がどんな値ならインスリン投与量を調整しますか？</h3>
+                  </div>
+                  
+                  <div className="space-y-3">
                     <div className="space-y-2">
                       <Label htmlFor="conditionType" className="text-xs">何を測定？</Label>
                       <Select
@@ -384,7 +400,7 @@ export default function AdjustmentRules() {
                         <SelectTrigger id="conditionType" className="bg-white dark:bg-background">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent position="popper" sideOffset={5} className="z-[9999]">
+                        <SelectContent position="popper" sideOffset={5} className="z-[9999] bg-white dark:bg-gray-950 border shadow-lg">
                           {MEASUREMENT_OPTIONS
                             .filter(opt => opt.timeSlots.includes(formData.timeSlot))
                             .map(opt => (
@@ -395,47 +411,39 @@ export default function AdjustmentRules() {
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-                </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="threshold" className="text-xs">血糖値（mg/dL）</Label>
+                        <Input
+                          id="threshold"
+                          type="number"
+                          value={formData.threshold}
+                          onChange={(e) => setFormData({ ...formData, threshold: parseInt(e.target.value) || 0 })}
+                          min="0"
+                          max="600"
+                          className="bg-white dark:bg-background"
+                          required
+                        />
+                      </div>
 
-                {/* ステップ2: 条件設定 */}
-                <div className="space-y-3 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold">2</div>
-                    <h3 className="font-semibold text-sm">どんな値なら調整しますか？</h3>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="threshold" className="text-xs">血糖値（mg/dL）</Label>
-                      <Input
-                        id="threshold"
-                        type="number"
-                        value={formData.threshold}
-                        onChange={(e) => setFormData({ ...formData, threshold: parseInt(e.target.value) || 0 })}
-                        min="0"
-                        max="600"
-                        className="bg-white dark:bg-background"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="comparison" className="text-xs">条件</Label>
-                      <Select
-                        value={formData.comparison}
-                        onValueChange={(value) => setFormData({ ...formData, comparison: value as RuleFormData["comparison"] })}
-                      >
-                        <SelectTrigger id="comparison" className="bg-white dark:bg-background">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent position="popper" sideOffset={5} className="z-[9999]">
-                          <SelectItem value="以下">以下（≤）</SelectItem>
-                          <SelectItem value="未満">未満（＜）</SelectItem>
-                          <SelectItem value="以上">以上（≥）</SelectItem>
-                          <SelectItem value="超える">超える（＞）</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="space-y-2">
+                        <Label htmlFor="comparison" className="text-xs">条件</Label>
+                        <Select
+                          value={formData.comparison}
+                          onValueChange={(value) => setFormData({ ...formData, comparison: value as RuleFormData["comparison"] })}
+                        >
+                          <SelectTrigger id="comparison" className="bg-white dark:bg-background">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent position="popper" sideOffset={5} className="z-[9999] bg-white dark:bg-gray-950 border shadow-lg">
+                            <SelectItem value="以下">以下（≤）</SelectItem>
+                            <SelectItem value="未満">未満（＜）</SelectItem>
+                            <SelectItem value="以上">以上（≥）</SelectItem>
+                            <SelectItem value="超える">超える（＞）</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                   
@@ -448,7 +456,7 @@ export default function AdjustmentRules() {
                 <div className="space-y-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold">3</div>
-                    <h3 className="font-semibold text-sm">どのインスリンを調整しますか？</h3>
+                    <h3 className="font-semibold text-sm">どのタイミングのインスリンの投与量を調整しますか？</h3>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3">
@@ -461,7 +469,7 @@ export default function AdjustmentRules() {
                         <SelectTrigger id="targetTimeSlot" className="bg-white dark:bg-background">
                           <SelectValue placeholder="選択してください" />
                         </SelectTrigger>
-                        <SelectContent position="popper" sideOffset={5} className="z-[9999]">
+                        <SelectContent position="popper" sideOffset={5} className="z-[9999] bg-white dark:bg-gray-950 border shadow-lg">
                           {getTargetOptions(formData.timeSlot).map(opt => (
                             <SelectItem key={opt.value} value={opt.value}>
                               {opt.label}
@@ -495,7 +503,7 @@ export default function AdjustmentRules() {
                 <div className="p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
                   <h4 className="font-semibold text-sm mb-2 text-purple-900 dark:text-purple-100">📋 ルールのプレビュー</h4>
                   <p className="text-sm text-purple-800 dark:text-purple-200">
-                    <span className="font-semibold">{formData.timeSlot}</span>の
+                    <span className="font-semibold">{TIME_SLOT_DISPLAY[formData.timeSlot] || formData.timeSlot}</span>の
                     <span className="font-semibold">{formData.conditionType}</span>が
                     <span className="font-semibold text-orange-600 dark:text-orange-400"> {formData.threshold}mg/dL{formData.comparison}</span>
                     なら、
