@@ -6,25 +6,52 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Coffee, Sun, Sunset, Moon, Save, ArrowLeft } from "lucide-react";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { PlusCircle, Calendar, Clock, Save, ArrowLeft, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
 
 interface EntryFormData {
   date: string;
-  morningGlucoseBefore: string;
-  morningGlucoseAfter: string;
-  morningInsulin: string;
-  lunchGlucoseBefore: string;
-  lunchGlucoseAfter: string;
-  lunchInsulin: string;
-  dinnerGlucoseBefore: string;
-  dinnerGlucoseAfter: string;
-  dinnerInsulin: string;
-  bedtimeGlucose: string;
-  bedtimeInsulin: string;
+  timeSlot: string;
+  glucoseLevel: string;
+  insulinUnits: string;
+  note: string;
 }
+
+const TIME_SLOT_GROUPS = [
+  {
+    groupLabel: "朝食",
+    options: [
+      { value: "BreakfastBefore", label: "食前", glucoseSlot: true, insulinSlot: "Breakfast" },
+      { value: "BreakfastAfter1h", label: "食後1時間", glucoseSlot: true, insulinSlot: "Breakfast" },
+    ]
+  },
+  {
+    groupLabel: "昼食",
+    options: [
+      { value: "LunchBefore", label: "食前", glucoseSlot: true, insulinSlot: "Lunch" },
+      { value: "LunchAfter1h", label: "食後1時間", glucoseSlot: true, insulinSlot: "Lunch" },
+    ]
+  },
+  {
+    groupLabel: "夕食",
+    options: [
+      { value: "DinnerBefore", label: "食前", glucoseSlot: true, insulinSlot: "Dinner" },
+      { value: "DinnerAfter1h", label: "食後1時間", glucoseSlot: true, insulinSlot: "Dinner" },
+    ]
+  },
+  {
+    groupLabel: "眠前",
+    options: [
+      { value: "BeforeSleep", label: "眠前", glucoseSlot: true, insulinSlot: "Bedtime" },
+    ]
+  },
+] as const;
+
+const TIME_SLOT_OPTIONS = TIME_SLOT_GROUPS.flatMap(group => group.options);
 
 export default function Entry() {
   const [, setLocation] = useLocation();
@@ -33,23 +60,24 @@ export default function Entry() {
   
   const [formData, setFormData] = useState<EntryFormData>({
     date: format(new Date(), "yyyy-MM-dd"),
-    morningGlucoseBefore: "",
-    morningGlucoseAfter: "",
-    morningInsulin: "",
-    lunchGlucoseBefore: "",
-    lunchGlucoseAfter: "",
-    lunchInsulin: "",
-    dinnerGlucoseBefore: "",
-    dinnerGlucoseAfter: "",
-    dinnerInsulin: "",
-    bedtimeGlucose: "",
-    bedtimeInsulin: "",
+    timeSlot: "",
+    glucoseLevel: "",
+    insulinUnits: "",
+    note: "",
   });
 
   const [isSaving, setIsSaving] = useState(false);
 
+  const setToday = () => {
+    setFormData(prev => ({ ...prev, date: format(new Date(), "yyyy-MM-dd") }));
+  };
+
+  const setYesterday = () => {
+    setFormData(prev => ({ ...prev, date: format(subDays(new Date(), 1), "yyyy-MM-dd") }));
+  };
+
   const createGlucoseMutation = useMutation({
-    mutationFn: async (data: { date: string; timeSlot: string; glucoseLevel: number }) => {
+    mutationFn: async (data: { date: string; timeSlot: string; glucoseLevel: number; note?: string }) => {
       const response = await fetch("/api/glucose-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,7 +93,7 @@ export default function Entry() {
   });
 
   const createInsulinMutation = useMutation({
-    mutationFn: async (data: { date: string; timeSlot: string; units: string }) => {
+    mutationFn: async (data: { date: string; timeSlot: string; units: string; note?: string }) => {
       const response = await fetch("/api/insulin-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,102 +112,62 @@ export default function Entry() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const resetForm = () => {
+    setFormData({
+      date: format(new Date(), "yyyy-MM-dd"),
+      timeSlot: "",
+      glucoseLevel: "",
+      insulinUnits: "",
+      note: "",
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // バリデーション
+    if (!formData.timeSlot) {
+      toast({
+        title: "入力エラー",
+        description: "測定タイミングを選択してください",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.glucoseLevel && !formData.insulinUnits) {
+      toast({
+        title: "入力エラー",
+        description: "血糖値またはインスリン量のいずれかを入力してください",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
 
     try {
       const promises: Promise<any>[] = [];
+      const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
 
-      if (formData.morningGlucoseBefore) {
+      // 血糖値の記録
+      if (formData.glucoseLevel && selectedOption?.glucoseSlot) {
         promises.push(createGlucoseMutation.mutateAsync({
           date: formData.date,
-          timeSlot: "BreakfastBefore",
-          glucoseLevel: parseInt(formData.morningGlucoseBefore),
+          timeSlot: formData.timeSlot,
+          glucoseLevel: parseInt(formData.glucoseLevel),
+          note: formData.note || undefined,
         }));
       }
-      if (formData.morningGlucoseAfter) {
-        promises.push(createGlucoseMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: "BreakfastAfter1h",
-          glucoseLevel: parseInt(formData.morningGlucoseAfter),
-        }));
-      }
-      if (formData.morningInsulin) {
+
+      // インスリンの記録
+      if (formData.insulinUnits && selectedOption?.insulinSlot) {
         promises.push(createInsulinMutation.mutateAsync({
           date: formData.date,
-          timeSlot: "Breakfast",
-          units: formData.morningInsulin,
+          timeSlot: selectedOption.insulinSlot,
+          units: formData.insulinUnits,
+          note: formData.note || undefined,
         }));
-      }
-
-      if (formData.lunchGlucoseBefore) {
-        promises.push(createGlucoseMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: "LunchBefore",
-          glucoseLevel: parseInt(formData.lunchGlucoseBefore),
-        }));
-      }
-      if (formData.lunchGlucoseAfter) {
-        promises.push(createGlucoseMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: "LunchAfter1h",
-          glucoseLevel: parseInt(formData.lunchGlucoseAfter),
-        }));
-      }
-      if (formData.lunchInsulin) {
-        promises.push(createInsulinMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: "Lunch",
-          units: formData.lunchInsulin,
-        }));
-      }
-
-      if (formData.dinnerGlucoseBefore) {
-        promises.push(createGlucoseMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: "DinnerBefore",
-          glucoseLevel: parseInt(formData.dinnerGlucoseBefore),
-        }));
-      }
-      if (formData.dinnerGlucoseAfter) {
-        promises.push(createGlucoseMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: "DinnerAfter1h",
-          glucoseLevel: parseInt(formData.dinnerGlucoseAfter),
-        }));
-      }
-      if (formData.dinnerInsulin) {
-        promises.push(createInsulinMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: "Dinner",
-          units: formData.dinnerInsulin,
-        }));
-      }
-
-      if (formData.bedtimeGlucose) {
-        promises.push(createGlucoseMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: "BeforeSleep",
-          glucoseLevel: parseInt(formData.bedtimeGlucose),
-        }));
-      }
-      if (formData.bedtimeInsulin) {
-        promises.push(createInsulinMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: "Bedtime",
-          units: formData.bedtimeInsulin,
-        }));
-      }
-
-      if (promises.length === 0) {
-        toast({
-          title: "入力エラー",
-          description: "少なくとも1つの値を入力してください",
-          variant: "destructive",
-        });
-        setIsSaving(false);
-        return;
       }
 
       await Promise.all(promises);
@@ -187,12 +175,21 @@ export default function Entry() {
       queryClient.invalidateQueries({ queryKey: ["glucose-entries"] });
       queryClient.invalidateQueries({ queryKey: ["insulin-entries"] });
 
+      const dateLabel = format(new Date(formData.date), "M月d日", { locale: ja });
+      const timeLabel = selectedOption?.label || "";
+
       toast({
-        title: "保存成功",
-        description: `${format(new Date(formData.date), "M月d日", { locale: ja })}の記録を保存しました`,
+        title: "✅ 保存成功",
+        description: `${dateLabel} ${timeLabel}の記録を保存しました`,
       });
 
-      setLocation("/logbook");
+      // フォームをリセット（日付とタイミングは保持）
+      setFormData(prev => ({
+        ...prev,
+        glucoseLevel: "",
+        insulinUnits: "",
+        note: "",
+      }));
     } catch (error) {
       toast({
         title: "保存失敗",
@@ -204,117 +201,22 @@ export default function Entry() {
     }
   };
 
-  const TimeSlotCard = ({ 
-    icon: Icon, 
-    iconColor, 
-    title, 
-    glucoseBeforeField, 
-    glucoseAfterField, 
-    insulinField,
-    showBothGlucose = true,
-  }: { 
-    icon: any; 
-    iconColor: string; 
-    title: string; 
-    glucoseBeforeField?: keyof EntryFormData; 
-    glucoseAfterField?: keyof EntryFormData; 
-    insulinField: keyof EntryFormData;
-    showBothGlucose?: boolean;
-  }) => (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Icon className={`w-5 h-5 ${iconColor}`} />
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {showBothGlucose && glucoseBeforeField && glucoseAfterField ? (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor={glucoseBeforeField} className="text-xs text-muted-foreground">
-                食前血糖値
-              </Label>
-              <div className="flex items-center gap-1">
-                <Input
-                  id={glucoseBeforeField}
-                  data-testid={`input-${glucoseBeforeField}`}
-                  type="number"
-                  placeholder="-"
-                  value={formData[glucoseBeforeField]}
-                  onChange={(e) => handleInputChange(glucoseBeforeField, e.target.value)}
-                  className="h-9"
-                  min="20"
-                  max="600"
-                />
-                <span className="text-xs text-muted-foreground">mg/dL</span>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor={glucoseAfterField} className="text-xs text-muted-foreground">
-                食後血糖値
-              </Label>
-              <div className="flex items-center gap-1">
-                <Input
-                  id={glucoseAfterField}
-                  data-testid={`input-${glucoseAfterField}`}
-                  type="number"
-                  placeholder="-"
-                  value={formData[glucoseAfterField]}
-                  onChange={(e) => handleInputChange(glucoseAfterField, e.target.value)}
-                  className="h-9"
-                  min="20"
-                  max="600"
-                />
-                <span className="text-xs text-muted-foreground">mg/dL</span>
-              </div>
-            </div>
-          </div>
-        ) : glucoseBeforeField ? (
-          <div>
-            <Label htmlFor={glucoseBeforeField} className="text-xs text-muted-foreground">
-              血糖値
-            </Label>
-            <div className="flex items-center gap-1">
-              <Input
-                id={glucoseBeforeField}
-                data-testid={`input-${glucoseBeforeField}`}
-                type="number"
-                placeholder="-"
-                value={formData[glucoseBeforeField]}
-                onChange={(e) => handleInputChange(glucoseBeforeField, e.target.value)}
-                className="h-9"
-                min="20"
-                max="600"
-              />
-              <span className="text-xs text-muted-foreground">mg/dL</span>
-            </div>
-          </div>
-        ) : null}
-        
-        <div>
-          <Label htmlFor={insulinField} className="text-xs text-muted-foreground">
-            インスリン
-          </Label>
-          <div className="flex items-center gap-1">
-            <Input
-              id={insulinField}
-              data-testid={`input-${insulinField}`}
-              type="number"
-              step="0.5"
-              placeholder="-"
-              value={formData[insulinField]}
-              onChange={(e) => handleInputChange(insulinField, e.target.value)}
-              className="h-9"
-              min="0"
-              max="100"
-            />
-            <span className="text-xs text-muted-foreground">単位</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const getDateLabel = () => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
+    
+    if (formData.date === today) return "今日";
+    if (formData.date === yesterday) return "昨日";
+    return format(new Date(formData.date), "M月d日", { locale: ja });
+  };
+
+  const getTimeSlotLabel = () => {
+    const option = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
+    if (!option) return "";
+    
+    const group = TIME_SLOT_GROUPS.find(g => g.options.some(o => o.value === formData.timeSlot));
+    return group ? `${group.groupLabel}${option.label}` : option.label;
+  };
 
   return (
     <AppLayout>
@@ -331,76 +233,211 @@ export default function Entry() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight mb-1">記録入力</h1>
             <p className="text-muted-foreground text-sm">
-              インスリン投与量と血糖値を記録
+              3ステップで簡単に記録
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Step 1: 日付選択 */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <PlusCircle className="w-5 h-5 text-primary" />
-                日付選択
-              </CardTitle>
+            <CardHeader className="pb-3 bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                  1
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-base">いつの記録ですか？</CardTitle>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
-              <Input
-                type="date"
-                data-testid="input-date"
-                value={formData.date}
-                onChange={(e) => handleInputChange("date", e.target.value)}
-                className="max-w-[200px]"
-              />
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-[auto_1fr] gap-3 items-end">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={formData.date === format(subDays(new Date(), 1), "yyyy-MM-dd") ? "default" : "outline"}
+                    size="sm"
+                    onClick={setYesterday}
+                    data-testid="button-yesterday"
+                  >
+                    昨日
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.date === format(new Date(), "yyyy-MM-dd") ? "default" : "outline"}
+                    size="sm"
+                    onClick={setToday}
+                    data-testid="button-today"
+                  >
+                    今日
+                  </Button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="date"
+                    type="date"
+                    data-testid="input-date"
+                    value={formData.date}
+                    onChange={(e) => handleInputChange("date", e.target.value)}
+                    className="h-9"
+                  />
+                  <div className="text-sm font-semibold text-primary whitespace-nowrap">
+                    → {getDateLabel()}
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          <TimeSlotCard
-            icon={Coffee}
-            iconColor="text-orange-500"
-            title="朝食"
-            glucoseBeforeField="morningGlucoseBefore"
-            glucoseAfterField="morningGlucoseAfter"
-            insulinField="morningInsulin"
-          />
+          {/* Step 2: 測定タイミング選択 */}
+          <Card>
+            <CardHeader className="pb-3 bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                  2
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-base">測定タイミングはいつですか？</CardTitle>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
+                <Select
+                  value={formData.timeSlot}
+                  onValueChange={(value) => handleInputChange("timeSlot", value)}
+                >
+                  <SelectTrigger data-testid="select-timeslot" className="h-10">
+                    <SelectValue placeholder="タイミングを選択してください" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_SLOT_GROUPS.map((group) => (
+                      <SelectGroup key={group.groupLabel}>
+                        <SelectLabel>{group.groupLabel}</SelectLabel>
+                        {group.options.map((option) => (
+                          <SelectItem 
+                            key={option.value} 
+                            value={option.value}
+                            data-testid={`option-${option.value}`}
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.timeSlot && (
+                  <div className="text-sm font-semibold text-primary whitespace-nowrap">
+                    → {getTimeSlotLabel()}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-          <TimeSlotCard
-            icon={Sun}
-            iconColor="text-yellow-500"
-            title="昼食"
-            glucoseBeforeField="lunchGlucoseBefore"
-            glucoseAfterField="lunchGlucoseAfter"
-            insulinField="lunchInsulin"
-          />
+          {/* Step 3: 測定値入力 */}
+          <Card>
+            <CardHeader className="pb-3 bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                  3
+                </div>
+                <div className="flex-1">
+                  <CardTitle className="text-base">測定値を入力してください</CardTitle>
+                  <CardDescription className="text-xs mt-1">
+                    血糖値とインスリンのどちらか、または両方を入力
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
+              {/* 血糖値とインスリンを横並び */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="glucoseLevel" className="text-xs text-muted-foreground">
+                    血糖値 (任意)
+                  </Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input
+                      id="glucoseLevel"
+                      data-testid="input-glucoseLevel"
+                      type="number"
+                      placeholder="例: 120"
+                      value={formData.glucoseLevel}
+                      onChange={(e) => handleInputChange("glucoseLevel", e.target.value)}
+                      className="h-10"
+                      min="20"
+                      max="600"
+                    />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">mg/dL</span>
+                  </div>
+                </div>
 
-          <TimeSlotCard
-            icon={Sunset}
-            iconColor="text-purple-500"
-            title="夕食"
-            glucoseBeforeField="dinnerGlucoseBefore"
-            glucoseAfterField="dinnerGlucoseAfter"
-            insulinField="dinnerInsulin"
-          />
+                <div>
+                  <Label htmlFor="insulinUnits" className="text-xs text-muted-foreground">
+                    インスリン (任意)
+                  </Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input
+                      id="insulinUnits"
+                      data-testid="input-insulinUnits"
+                      type="number"
+                      step="0.5"
+                      placeholder="例: 5"
+                      value={formData.insulinUnits}
+                      onChange={(e) => handleInputChange("insulinUnits", e.target.value)}
+                      className="h-10"
+                      min="0"
+                      max="100"
+                    />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">単位</span>
+                  </div>
+                </div>
+              </div>
 
-          <TimeSlotCard
-            icon={Moon}
-            iconColor="text-blue-500"
-            title="眠前"
-            glucoseBeforeField="bedtimeGlucose"
-            insulinField="bedtimeInsulin"
-            showBothGlucose={false}
-          />
+              {/* メモ欄 */}
+              <div>
+                <Label htmlFor="note" className="text-xs text-muted-foreground">
+                  メモ (任意)
+                </Label>
+                <Textarea
+                  id="note"
+                  data-testid="input-note"
+                  placeholder="備考があれば入力してください"
+                  value={formData.note}
+                  onChange={(e) => handleInputChange("note", e.target.value)}
+                  className="mt-1 min-h-[50px] text-sm"
+                  rows={2}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-          <Button 
-            type="submit" 
-            className="w-full" 
-            size="lg"
-            data-testid="button-save"
-            disabled={isSaving}
-          >
-            <Save className="w-5 h-5 mr-2" />
-            {isSaving ? "保存中..." : "記録を保存"}
-          </Button>
+          {/* 保存・リセットボタン */}
+          <div className="flex gap-3 pt-2">
+            <Button 
+              type="button"
+              variant="outline"
+              onClick={resetForm}
+              disabled={isSaving}
+              data-testid="button-reset"
+              className="flex-1"
+            >
+              リセット
+            </Button>
+            <Button 
+              type="submit" 
+              className="flex-1" 
+              size="lg"
+              data-testid="button-save"
+              disabled={isSaving}
+            >
+              <Save className="w-5 h-5 mr-2" />
+              {isSaving ? "保存中..." : "保存"}
+            </Button>
+          </div>
         </form>
       </div>
     </AppLayout>

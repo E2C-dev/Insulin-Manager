@@ -269,31 +269,48 @@ export default function Settings() {
           </h3>
 
           <Card>
-            <CardHeader className="p-4 pb-2">
+            <CardHeader className="p-4 pb-3">
               <div className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-primary" />
                 <div>
                   <CardTitle className="text-base">基礎インスリン投与量</CardTitle>
-                  <CardDescription>各食事と眠前の基準投与量。※現時点の投与量をそれぞれ登録お願いします</CardDescription>
+                  <CardDescription className="text-xs">各食事と眠前の基準投与量。※現時点の投与量をそれぞれ登録お願いします</CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-4 pt-2 space-y-2">
-              {INSULIN_TIME_SLOTS.map(slot => (
-                <div key={slot} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                  <Label className="text-sm font-medium">
-                    {INSULIN_TIME_SLOT_LABELS[slot]}
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Input 
-                      type="number" 
-                      defaultValue={DEFAULT_SETTINGS.basalInsulinDoses[slot]} 
-                      className="h-8 text-center w-20" 
-                    />
-                    <span className="text-xs text-muted-foreground">単位</span>
-                  </div>
-                </div>
-              ))}
+            <CardContent className="p-4 pt-0">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      {INSULIN_TIME_SLOTS.map(slot => (
+                        <th key={slot} className="p-2 text-center text-sm font-medium text-muted-foreground">
+                          {INSULIN_TIME_SLOT_LABELS[slot]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      {INSULIN_TIME_SLOTS.map(slot => (
+                        <td key={slot} className="p-2">
+                          <div className="flex items-center justify-center gap-1">
+                            <Input 
+                              type="number" 
+                              defaultValue={DEFAULT_SETTINGS.basalInsulinDoses[slot]} 
+                              className="h-9 text-center w-16 text-sm" 
+                              step="0.5"
+                              min="0"
+                              max="100"
+                            />
+                            <span className="text-xs text-muted-foreground">単位</span>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </div>
