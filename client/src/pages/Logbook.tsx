@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity, Edit2, X } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { format, subDays, startOfDay } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { format, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
 
 interface DailyEntry {
@@ -33,13 +35,30 @@ interface DailyEntry {
   };
 }
 
+type TimeSlot = 'morning' | 'lunch' | 'dinner' | 'bedtime';
+
 export default function Logbook() {
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<{
+    date: string;
+    timeSlot: TimeSlot;
+    data: DailyEntry[TimeSlot];
+  } | null>(null);
+
+  // フォームの状態
+  const [formData, setFormData] = useState({
+    glucoseBefore: "",
+    glucoseAfter: "",
+    glucose: "",
+    insulin: "",
+  });
 
   // 仮のデータ - 実際にはAPIから取得
   const { data: entriesData, isLoading } = useQuery({
-    queryKey: ["entries", selectedDate, viewMode],
+    queryKey: ["entries", viewMode],
     queryFn: async () => {
       // 仮データを返す
       const entries: DailyEntry[] = [];
@@ -75,11 +94,101 @@ export default function Logbook() {
     },
   });
 
+  // 更新用のMutation
+  const updateMutation = useMutation({
+    mutationFn: async (data: { date: string; timeSlot: TimeSlot; values: any }) => {
+      // 実際にはAPIを呼び出す
+      console.log("更新データ:", data);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["entries"] });
+      toast({
+        title: "更新成功",
+        description: "記録を更新しました",
+      });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "更新失敗",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const getGlucoseColor = (value?: number) => {
     if (!value) return "text-muted-foreground";
     if (value < 70) return "text-red-600 font-semibold";
     if (value > 180) return "text-orange-600 font-semibold";
     return "text-green-600";
+  };
+
+  const handleCellClick = (date: string, timeSlot: TimeSlot, data: DailyEntry[TimeSlot]) => {
+    setEditingEntry({ date, timeSlot, data });
+    
+    // フォームデータを設定
+    if (timeSlot === 'bedtime') {
+      setFormData({
+        glucoseBefore: "",
+        glucoseAfter: "",
+        glucose: data.glucose?.toString() || "",
+        insulin: data.insulin?.toString() || "",
+      });
+    } else {
+      const mealData = data as { glucoseBefore?: number; glucoseAfter?: number; insulin?: number };
+      setFormData({
+        glucoseBefore: mealData.glucoseBefore?.toString() || "",
+        glucoseAfter: mealData.glucoseAfter?.toString() || "",
+        glucose: "",
+        insulin: mealData.insulin?.toString() || "",
+      });
+    }
+    
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSave = () => {
+    if (!editingEntry) return;
+
+    const values = editingEntry.timeSlot === 'bedtime'
+      ? {
+          glucose: formData.glucose ? parseInt(formData.glucose) : undefined,
+          insulin: formData.insulin ? parseInt(formData.insulin) : undefined,
+        }
+      : {
+          glucoseBefore: formData.glucoseBefore ? parseInt(formData.glucoseBefore) : undefined,
+          glucoseAfter: formData.glucoseAfter ? parseInt(formData.glucoseAfter) : undefined,
+          insulin: formData.insulin ? parseInt(formData.insulin) : undefined,
+        };
+
+    updateMutation.mutate({
+      date: editingEntry.date,
+      timeSlot: editingEntry.timeSlot,
+      values,
+    });
+  };
+
+  const getTimeSlotLabel = (timeSlot: TimeSlot) => {
+    const labels = {
+      morning: '朝食',
+      lunch: '昼食',
+      dinner: '夕食',
+      bedtime: '眠前',
+    };
+    return labels[timeSlot];
+  };
+
+  const getTimeSlotIcon = (timeSlot: TimeSlot) => {
+    const icons = {
+      morning: <Coffee className="w-4 h-4 text-orange-500" />,
+      lunch: <Sun className="w-4 h-4 text-yellow-500" />,
+      dinner: <Sunset className="w-4 h-4 text-purple-500" />,
+      bedtime: <Moon className="w-4 h-4 text-blue-500" />,
+    };
+    return icons[timeSlot];
   };
 
   if (isLoading) {
@@ -138,6 +247,9 @@ export default function Logbook() {
             </CardTitle>
             <CardDescription>
               血糖値：食前/食後（mg/dL）、インスリン（単位）
+              <span className="block text-xs mt-1 text-muted-foreground">
+                クリックして編集できます
+              </span>
             </CardDescription>
             
             {/* 血糖値の目安 */}
@@ -212,7 +324,11 @@ export default function Logbook() {
                         </td>
                         
                         {/* 朝食 */}
-                        <td className="p-1.5 border-b border-l text-center">
+                        <td 
+                          className="p-1.5 border-b border-l text-center cursor-pointer hover:bg-primary/10 transition-colors group relative"
+                          onClick={() => handleCellClick(entry.date, 'morning', entry.morning)}
+                        >
+                          <Edit2 className="w-3 h-3 absolute top-1 right-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
                               <span className={`font-semibold ${getGlucoseColor(entry.morning.glucoseBefore)}`}>
@@ -230,7 +346,11 @@ export default function Logbook() {
                         </td>
                         
                         {/* 昼食 */}
-                        <td className="p-1.5 border-b border-l text-center">
+                        <td 
+                          className="p-1.5 border-b border-l text-center cursor-pointer hover:bg-primary/10 transition-colors group relative"
+                          onClick={() => handleCellClick(entry.date, 'lunch', entry.lunch)}
+                        >
+                          <Edit2 className="w-3 h-3 absolute top-1 right-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
                               <span className={`font-semibold ${getGlucoseColor(entry.lunch.glucoseBefore)}`}>
@@ -248,7 +368,11 @@ export default function Logbook() {
                         </td>
                         
                         {/* 夕食 */}
-                        <td className="p-1.5 border-b border-l text-center">
+                        <td 
+                          className="p-1.5 border-b border-l text-center cursor-pointer hover:bg-primary/10 transition-colors group relative"
+                          onClick={() => handleCellClick(entry.date, 'dinner', entry.dinner)}
+                        >
+                          <Edit2 className="w-3 h-3 absolute top-1 right-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
                               <span className={`font-semibold ${getGlucoseColor(entry.dinner.glucoseBefore)}`}>
@@ -266,7 +390,11 @@ export default function Logbook() {
                         </td>
                         
                         {/* 眠前 */}
-                        <td className="p-1.5 border-b border-l text-center">
+                        <td 
+                          className="p-1.5 border-b border-l text-center cursor-pointer hover:bg-primary/10 transition-colors group relative"
+                          onClick={() => handleCellClick(entry.date, 'bedtime', entry.bedtime)}
+                        >
+                          <Edit2 className="w-3 h-3 absolute top-1 right-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                           <div className="flex flex-col items-center gap-0.5">
                             <span className={`text-xs font-semibold ${getGlucoseColor(entry.bedtime.glucose)}`}>
                               {entry.bedtime.glucose || "-"}
@@ -285,6 +413,100 @@ export default function Logbook() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 編集ダイアログ */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {editingEntry && getTimeSlotIcon(editingEntry.timeSlot)}
+              {editingEntry && getTimeSlotLabel(editingEntry.timeSlot)}の記録を編集
+            </DialogTitle>
+            <DialogDescription>
+              {editingEntry && format(new Date(editingEntry.date), "yyyy年M月d日 (E)", { locale: ja })}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {editingEntry?.timeSlot === 'bedtime' ? (
+              // 眠前は1回のみ
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="glucose">血糖値 (mg/dL)</Label>
+                  <Input
+                    id="glucose"
+                    type="number"
+                    value={formData.glucose}
+                    onChange={(e) => setFormData({ ...formData, glucose: e.target.value })}
+                    placeholder="100"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="insulin">インスリン投与量 (単位)</Label>
+                  <Input
+                    id="insulin"
+                    type="number"
+                    value={formData.insulin}
+                    onChange={(e) => setFormData({ ...formData, insulin: e.target.value })}
+                    placeholder="8"
+                  />
+                </div>
+              </>
+            ) : (
+              // 朝・昼・夕は食前食後
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="glucoseBefore">食前血糖値 (mg/dL)</Label>
+                  <Input
+                    id="glucoseBefore"
+                    type="number"
+                    value={formData.glucoseBefore}
+                    onChange={(e) => setFormData({ ...formData, glucoseBefore: e.target.value })}
+                    placeholder="95"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="glucoseAfter">食後血糖値 (mg/dL)</Label>
+                  <Input
+                    id="glucoseAfter"
+                    type="number"
+                    value={formData.glucoseAfter}
+                    onChange={(e) => setFormData({ ...formData, glucoseAfter: e.target.value })}
+                    placeholder="134"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="insulin">インスリン投与量 (単位)</Label>
+                  <Input
+                    id="insulin"
+                    type="number"
+                    value={formData.insulin}
+                    onChange={(e) => setFormData({ ...formData, insulin: e.target.value })}
+                    placeholder="5"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
+              キャンセル
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleSave}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "保存中..." : "保存"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
