@@ -52,11 +52,9 @@ export function AppLayout({ children }: AppLayoutProps) {
               <DropdownMenuLabel>アカウント</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  <a className="flex items-center gap-2 cursor-pointer">
-                    <Settings className="w-4 h-4" />
-                    設定
-                  </a>
+                <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
+                  <Settings className="w-4 h-4" />
+                  設定
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -87,28 +85,24 @@ export function AppLayout({ children }: AppLayoutProps) {
             
             if (item.isPrimary) {
               return (
-                <Link key={item.href} href={item.href}>
-                  <a className="relative -top-5">
-                    <div className={cn(
-                      "w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-95",
-                      "bg-primary text-primary-foreground border-4 border-background"
-                    )}>
-                      <Icon size={28} strokeWidth={2.5} />
-                    </div>
-                  </a>
+                <Link key={item.href} href={item.href} className="relative -top-5">
+                  <div className={cn(
+                    "w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-95",
+                    "bg-primary text-primary-foreground border-4 border-background"
+                  )}>
+                    <Icon size={28} strokeWidth={2.5} />
+                  </div>
                 </Link>
               );
             }
 
             return (
-              <Link key={item.href} href={item.href}>
-                <a className={cn(
-                  "flex flex-col items-center justify-center w-16 py-1 transition-colors duration-200 gap-1",
-                  isActive ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
-                )}>
-                  <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-                  <span className="text-[10px]">{item.label}</span>
-                </a>
+              <Link key={item.href} href={item.href} className={cn(
+                "flex flex-col items-center justify-center w-16 py-1 transition-colors duration-200 gap-1",
+                isActive ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+              )}>
+                <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[10px]">{item.label}</span>
               </Link>
             );
           })}
