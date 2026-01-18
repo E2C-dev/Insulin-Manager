@@ -579,15 +579,15 @@ export default function AdjustmentRules() {
                 <div className="p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
                   <h4 className="font-semibold text-sm mb-2 text-purple-900 dark:text-purple-100">📋 ルールのプレビュー</h4>
                   <p className="text-sm text-purple-800 dark:text-purple-200">
-                    <span className="font-semibold">{TIME_SLOT_DISPLAY[formData.timeSlot] || formData.timeSlot}</span>の
+                    <span className="font-semibold">{TIME_SLOT_DISPLAY[formData.timeSlot] || formData.timeSlot}</span>のインスリン投与量は、
                     <span className="font-semibold">{getConditionTypeLabel(formData.conditionType)}</span>が
                     <span className="font-semibold text-orange-600 dark:text-orange-400"> {formData.threshold}mg/dL{formData.comparison}</span>
                     なら、
-                    <span className="font-semibold text-green-600 dark:text-green-400">{getTargetTimeSlotLabel(formData.targetTimeSlot)}のインスリン</span>を
+                    <span className="font-semibold text-green-600 dark:text-green-400">{getTargetTimeSlotLabel(formData.targetTimeSlot)}のインスリン</span>の
                     <span className={`font-bold ${formData.adjustmentAmount > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
                       {formData.adjustmentAmount > 0 ? '+' : ''}{formData.adjustmentAmount}単位
                     </span>
-                    調整する
+                    した量を投与する
                   </p>
                 </div>
 
