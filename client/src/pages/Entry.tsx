@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Calendar, Clock, Save, ArrowLeft, Activity, Info, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -33,37 +33,15 @@ interface AdjustmentRule {
   targetTimeSlot: string;
 }
 
-const TIME_SLOT_GROUPS = [
-  {
-    groupLabel: "朝食",
-    options: [
-      { value: "BreakfastBefore", label: "食前", glucoseSlot: true, insulinSlot: "Breakfast" },
-      { value: "BreakfastAfter1h", label: "食後1時間", glucoseSlot: true, insulinSlot: "Breakfast" },
-    ]
-  },
-  {
-    groupLabel: "昼食",
-    options: [
-      { value: "LunchBefore", label: "食前", glucoseSlot: true, insulinSlot: "Lunch" },
-      { value: "LunchAfter1h", label: "食後1時間", glucoseSlot: true, insulinSlot: "Lunch" },
-    ]
-  },
-  {
-    groupLabel: "夕食",
-    options: [
-      { value: "DinnerBefore", label: "食前", glucoseSlot: true, insulinSlot: "Dinner" },
-      { value: "DinnerAfter1h", label: "食後1時間", glucoseSlot: true, insulinSlot: "Dinner" },
-    ]
-  },
-  {
-    groupLabel: "眠前",
-    options: [
-      { value: "BeforeSleep", label: "眠前", glucoseSlot: true, insulinSlot: "Bedtime" },
-    ]
-  },
+const TIME_SLOT_OPTIONS = [
+  { value: "BreakfastBefore", label: "朝食の食前", glucoseSlot: true, insulinSlot: "Breakfast" },
+  { value: "BreakfastAfter1h", label: "朝食の食後1時間", glucoseSlot: true, insulinSlot: "Breakfast" },
+  { value: "LunchBefore", label: "昼食の食前", glucoseSlot: true, insulinSlot: "Lunch" },
+  { value: "LunchAfter1h", label: "昼食の食後1時間", glucoseSlot: true, insulinSlot: "Lunch" },
+  { value: "DinnerBefore", label: "夕食の食前", glucoseSlot: true, insulinSlot: "Dinner" },
+  { value: "DinnerAfter1h", label: "夕食の食後1時間", glucoseSlot: true, insulinSlot: "Dinner" },
+  { value: "BeforeSleep", label: "眠前", glucoseSlot: true, insulinSlot: "Bedtime" },
 ] as const;
-
-const TIME_SLOT_OPTIONS = TIME_SLOT_GROUPS.flatMap(group => group.options);
 
 export default function Entry() {
   const [, setLocation] = useLocation();
@@ -250,10 +228,7 @@ export default function Entry() {
 
   const getTimeSlotLabel = () => {
     const option = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
-    if (!option) return "";
-    
-    const group = TIME_SLOT_GROUPS.find(g => g.options.some(o => o.value === formData.timeSlot));
-    return group ? `${group.groupLabel}${option.label}` : option.label;
+    return option ? option.label : "";
   };
 
   // 選択されたタイミングに基づいてインスリンのタイミングを取得
@@ -399,19 +374,14 @@ export default function Entry() {
                     <SelectValue placeholder="タイミングを選択してください" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-950">
-                    {TIME_SLOT_GROUPS.map((group) => (
-                      <SelectGroup key={group.groupLabel}>
-                        <SelectLabel>{group.groupLabel}</SelectLabel>
-                        {group.options.map((option) => (
-                          <SelectItem 
-                            key={option.value} 
-                            value={option.value}
-                            data-testid={`option-${option.value}`}
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
+                    {TIME_SLOT_OPTIONS.map((option) => (
+                      <SelectItem 
+                        key={option.value} 
+                        value={option.value}
+                        data-testid={`option-${option.value}`}
+                      >
+                        {option.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

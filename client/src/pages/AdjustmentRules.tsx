@@ -53,36 +53,36 @@ const MEASUREMENT_OPTIONS: Array<{
   group?: string;
 }> = [
   // 前日の測定
-  { value: "前日朝食前血糖", label: "朝食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日朝食後血糖", label: "朝食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日昼食前血糖", label: "昼食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日昼食後血糖", label: "昼食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日夕食前血糖", label: "夕食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日夕食後血糖", label: "夕食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
-  { value: "前日眠前血糖", label: "眠前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
+  { value: "前日朝食前血糖", label: "前日の朝食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
+  { value: "前日朝食後血糖", label: "前日の朝食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
+  { value: "前日昼食前血糖", label: "前日の昼食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
+  { value: "前日昼食後血糖", label: "前日の昼食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
+  { value: "前日夕食前血糖", label: "前日の夕食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
+  { value: "前日夕食後血糖", label: "前日の夕食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
+  { value: "前日眠前血糖", label: "前日の眠前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "前日" },
   
   // 当日の測定
-  { value: "当日朝食前血糖", label: "朝食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "当日" },
-  { value: "当日朝食後血糖", label: "朝食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "当日" },
-  { value: "当日昼食前血糖", label: "昼食前の血糖値", timeSlots: ["昼", "夕", "眠前"], group: "当日" },
-  { value: "当日昼食後血糖", label: "昼食後1hの血糖値", timeSlots: ["昼", "夕", "眠前"], group: "当日" },
-  { value: "当日夕食前血糖", label: "夕食前の血糖値", timeSlots: ["夕", "眠前"], group: "当日" },
-  { value: "当日夕食後血糖", label: "夕食後1hの血糖値", timeSlots: ["夕", "眠前"], group: "当日" },
-  { value: "当日眠前血糖", label: "眠前の血糖値", timeSlots: ["眠前"], group: "当日" },
+  { value: "当日朝食前血糖", label: "当日の朝食前の血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "当日" },
+  { value: "当日朝食後血糖", label: "当日の朝食後1hの血糖値", timeSlots: ["朝", "昼", "夕", "眠前"], group: "当日" },
+  { value: "当日昼食前血糖", label: "当日の昼食前の血糖値", timeSlots: ["昼", "夕", "眠前"], group: "当日" },
+  { value: "当日昼食後血糖", label: "当日の昼食後1hの血糖値", timeSlots: ["昼", "夕", "眠前"], group: "当日" },
+  { value: "当日夕食前血糖", label: "当日の夕食前の血糖値", timeSlots: ["夕", "眠前"], group: "当日" },
+  { value: "当日夕食後血糖", label: "当日の夕食後1hの血糖値", timeSlots: ["夕", "眠前"], group: "当日" },
+  { value: "当日眠前血糖", label: "当日の眠前の血糖値", timeSlots: ["眠前"], group: "当日" },
 ];
 
 // 調整対象の選択肢（前日・当日すべてのタイミング）
 const TARGET_OPTIONS = [
   // 前日
-  { value: "前日の朝", label: "朝食", group: "前日" },
-  { value: "前日の昼", label: "昼食", group: "前日" },
-  { value: "前日の夕", label: "夕食", group: "前日" },
-  { value: "前日の眠前", label: "眠前", group: "前日" },
+  { value: "前日の朝", label: "前日の朝食", group: "前日" },
+  { value: "前日の昼", label: "前日の昼食", group: "前日" },
+  { value: "前日の夕", label: "前日の夕食", group: "前日" },
+  { value: "前日の眠前", label: "前日の眠前", group: "前日" },
   // 当日
-  { value: "当日の朝", label: "朝食", group: "当日" },
-  { value: "当日の昼", label: "昼食", group: "当日" },
-  { value: "当日の夕", label: "夕食", group: "当日" },
-  { value: "当日の眠前", label: "眠前", group: "当日" },
+  { value: "当日の朝", label: "当日の朝食", group: "当日" },
+  { value: "当日の昼", label: "当日の昼食", group: "当日" },
+  { value: "当日の夕", label: "当日の夕食", group: "当日" },
+  { value: "当日の眠前", label: "当日の眠前", group: "当日" },
 ] as const;
 
 // 時間帯の定義
@@ -110,7 +110,7 @@ const TIME_SLOT_DISPLAY: Record<string, string> = {
 const getConditionTypeLabel = (conditionType: string): string => {
   const option = MEASUREMENT_OPTIONS.find(opt => opt.value === conditionType);
   if (option) {
-    return `${option.group}の${option.label}`;
+    return option.label;
   }
   
   // 古い形式の場合は、そのまま表示
@@ -128,7 +128,7 @@ const getConditionTypeLabel = (conditionType: string): string => {
 const getTargetTimeSlotLabel = (targetTimeSlot: string): string => {
   const option = TARGET_OPTIONS.find(opt => opt.value === targetTimeSlot);
   if (option) {
-    return `${option.group}の${option.label}`;
+    return option.label;
   }
   
   // 古い形式の場合は、そのまま表示
