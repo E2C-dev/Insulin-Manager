@@ -520,12 +520,12 @@ export default function AdjustmentRules() {
                 <div className="space-y-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold">3</div>
-                    <h3 className="font-semibold text-sm">どのタイミングのインスリンの投与量を基本に調整しますか？</h3>
+                    <h3 className="font-semibold text-sm">どのタイミングのインスリンの投与量を基準に調整しますか？</h3>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="targetTimeSlot" className="text-xs">基本となる投与タイミングは？</Label>
+                      <Label htmlFor="targetTimeSlot" className="text-xs">基準となる投与タイミングは？</Label>
                       <Select
                         value={formData.targetTimeSlot}
                         onValueChange={(value) => setFormData({ ...formData, targetTimeSlot: value })}

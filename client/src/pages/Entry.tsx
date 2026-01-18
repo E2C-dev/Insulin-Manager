@@ -280,6 +280,49 @@ export default function Entry() {
   // 情報を表示するかどうか
   const shouldShowInfo = formData.date && formData.timeSlot;
 
+  // 血糖値が入力されたら、ルールに基づいてインスリン量を自動計算
+  useEffect(() => {
+    if (!formData.glucoseLevel || !formData.timeSlot) return;
+    if (!getInsulinTimingInfo) return;
+
+    const glucoseValue = parseInt(formData.glucoseLevel);
+    if (isNaN(glucoseValue)) return;
+
+    // 基礎投与量
+    let calculatedInsulin = getInsulinTimingInfo.baseAmount;
+
+    // 該当するルールを探して調整量を加算
+    for (const rule of applicableRules) {
+      let matches = false;
+
+      switch (rule.comparison) {
+        case "以下":
+          matches = glucoseValue <= rule.threshold;
+          break;
+        case "未満":
+          matches = glucoseValue < rule.threshold;
+          break;
+        case "以上":
+          matches = glucoseValue >= rule.threshold;
+          break;
+        case "超える":
+          matches = glucoseValue > rule.threshold;
+          break;
+      }
+
+      if (matches) {
+        calculatedInsulin += rule.adjustmentAmount;
+      }
+    }
+
+    // 計算結果を反映（0未満にはしない）
+    const finalInsulin = Math.max(0, calculatedInsulin);
+    setFormData(prev => ({
+      ...prev,
+      insulinUnits: finalInsulin.toString(),
+    }));
+  }, [formData.glucoseLevel, formData.timeSlot, getInsulinTimingInfo, applicableRules]);
+
   return (
     <AppLayout>
       <div className="pt-6 px-6 pb-6 space-y-6">
@@ -364,7 +407,7 @@ export default function Entry() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-4 bg-orange-50/30 dark:bg-orange-950/10">
+            <CardContent className="pt-4 bg-orange-50/30 dark:bg-orange-950/10 space-y-4">
               <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
                 <Select
                   value={formData.timeSlot}
@@ -391,80 +434,77 @@ export default function Entry() {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
 
-          {/* 現在の投与量とルール情報 */}
-          {shouldShowInfo && getInsulinTimingInfo && (
-            <Card className="border-2 border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Info className="w-5 h-5 text-blue-600" />
-                  <CardTitle className="text-base text-blue-900 dark:text-blue-100">
-                    現在の設定情報
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* 基礎インスリン投与量 */}
-                <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-muted-foreground">
-                      {getInsulinTimingInfo.label}の基礎投与量
-                    </span>
-                    <span className="text-2xl font-bold text-primary">
-                      {getInsulinTimingInfo.baseAmount} <span className="text-sm">単位</span>
-                    </span>
+              {/* 現在の投与量とルール情報 */}
+              {shouldShowInfo && getInsulinTimingInfo && (
+                <div className="space-y-3 pt-3 border-t border-orange-200 dark:border-orange-800">
+                  <div className="flex items-center gap-2">
+                    <Info className="w-4 h-4 text-orange-700 dark:text-orange-300" />
+                    <h4 className="text-sm font-semibold text-orange-900 dark:text-orange-100">
+                      現在の設定情報
+                    </h4>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    設定画面で登録された基準投与量です
-                  </p>
-                </div>
 
-                {/* 適用される調整ルール */}
-                {applicableRules.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-muted-foreground">
-                      適用される調整ルール（{applicableRules.length}件）
+                  {/* 基礎インスリン投与量 */}
+                  <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-muted-foreground">
+                        {getInsulinTimingInfo.label}の基礎投与量
+                      </span>
+                      <span className="text-2xl font-bold text-primary">
+                        {getInsulinTimingInfo.baseAmount} <span className="text-sm">単位</span>
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      設定画面で登録された基準投与量です
                     </p>
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                      {applicableRules.map((rule) => (
-                        <div
-                          key={rule.id}
-                          className="bg-white dark:bg-gray-900 p-3 rounded-lg border text-sm"
-                        >
-                          <div className="flex items-start gap-2">
-                            {rule.adjustmentAmount > 0 ? (
-                              <TrendingUp className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-                            ) : (
-                              <TrendingDown className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
-                            )}
-                            <div className="flex-1">
-                              <p className="font-medium mb-1">{rule.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {rule.conditionType} {rule.threshold}mg/dL{rule.comparison} → {" "}
-                                <span className={rule.adjustmentAmount > 0 ? "text-blue-600 font-semibold" : "text-red-600 font-semibold"}>
-                                  {rule.adjustmentAmount > 0 ? "+" : ""}{rule.adjustmentAmount}単位
-                                </span>
-                              </p>
+                  </div>
+
+                  {/* 適用される調整ルール */}
+                  {applicableRules.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">
+                        適用される調整ルール（{applicableRules.length}件）
+                      </p>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {applicableRules.map((rule) => (
+                          <div
+                            key={rule.id}
+                            className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-orange-200 dark:border-orange-800 text-sm"
+                          >
+                            <div className="flex items-start gap-2">
+                              {rule.adjustmentAmount > 0 ? (
+                                <TrendingUp className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                              ) : (
+                                <TrendingDown className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+                              )}
+                              <div className="flex-1">
+                                <p className="font-medium mb-1">{rule.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {rule.conditionType} {rule.threshold}mg/dL{rule.comparison} → {" "}
+                                  <span className={rule.adjustmentAmount > 0 ? "text-blue-600 font-semibold" : "text-red-600 font-semibold"}>
+                                    {rule.adjustmentAmount > 0 ? "+" : ""}{rule.adjustmentAmount}単位
+                                  </span>
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {applicableRules.length === 0 && (
-                  <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border">
-                    <p className="text-sm text-muted-foreground text-center">
-                      このタイミングに適用される調整ルールはありません
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                  {applicableRules.length === 0 && (
+                    <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
+                      <p className="text-sm text-muted-foreground text-center">
+                        このタイミングに適用される調整ルールはありません
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Step 3: 測定値入力 */}
           <Card className="border-2 border-green-200 dark:border-green-800">
@@ -513,7 +553,7 @@ export default function Entry() {
                       id="insulinUnits"
                       data-testid="input-insulinUnits"
                       type="number"
-                      step="0.5"
+                      step="1"
                       placeholder="例: 5"
                       value={formData.insulinUnits}
                       onChange={(e) => handleInputChange("insulinUnits", e.target.value)}
@@ -523,6 +563,12 @@ export default function Entry() {
                     />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">単位</span>
                   </div>
+                  {formData.glucoseLevel && formData.insulinUnits && (
+                    <p className="text-xs text-green-700 dark:text-green-300 mt-1 flex items-center gap-1">
+                      <Activity className="w-3 h-3" />
+                      血糖値に基づいて自動計算されました（手動変更可）
+                    </p>
+                  )}
                 </div>
               </div>
 

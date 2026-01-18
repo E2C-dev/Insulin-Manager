@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity, Trash2, Edit2, Check, X } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, parseISO } from "date-fns";
@@ -48,20 +49,24 @@ interface DailyEntry {
     glucoseBefore?: number;
     glucoseAfter?: number;
     insulin?: number;
+    insulinId?: string;
   };
   lunch: { 
     glucoseBefore?: number;
     glucoseAfter?: number;
     insulin?: number;
+    insulinId?: string;
   };
   dinner: { 
     glucoseBefore?: number;
     glucoseAfter?: number;
     insulin?: number;
+    insulinId?: string;
   };
   bedtime: { 
     glucose?: number;
     insulin?: number;
+    insulinId?: string;
   };
   glucoseIds: string[];
   insulinIds: string[];
@@ -73,6 +78,9 @@ export default function Logbook() {
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState<{ date: string; glucoseIds: string[]; insulinIds: string[] } | null>(null);
+  
+  // 編集用のstate
+  const [editingCell, setEditingCell] = useState<{ insulinId: string; value: string } | null>(null);
 
   const { data: glucoseData, isLoading: glucoseLoading } = useQuery({
     queryKey: ["glucose-entries"],
@@ -117,6 +125,34 @@ export default function Logbook() {
       });
       if (!response.ok) throw new Error("削除に失敗しました");
       return id;
+    },
+  });
+
+  const updateInsulinMutation = useMutation({
+    mutationFn: async ({ id, units }: { id: string; units: string }) => {
+      const response = await fetch(`/api/insulin-entries/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ units }),
+      });
+      if (!response.ok) throw new Error("更新に失敗しました");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["insulin-entries"] });
+      toast({
+        title: "✅ 更新成功",
+        description: "インスリン量を更新しました",
+      });
+      setEditingCell(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "更新失敗",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -251,6 +287,34 @@ export default function Logbook() {
     }
   };
 
+  // インスリン編集の開始
+  const handleEditClick = (insulinId: string, currentValue: number | undefined, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (currentValue === undefined) return;
+    setEditingCell({ insulinId, value: currentValue.toString() });
+  };
+
+  // インスリン値の変更
+  const handleEditChange = (value: string) => {
+    if (editingCell) {
+      setEditingCell({ ...editingCell, value });
+    }
+  };
+
+  // インスリン編集の保存
+  const handleEditSave = () => {
+    if (!editingCell) return;
+    updateInsulinMutation.mutate({
+      id: editingCell.insulinId,
+      units: editingCell.value,
+    });
+  };
+
+  // インスリン編集のキャンセル
+  const handleEditCancel = () => {
+    setEditingCell(null);
+  };
+
   const isLoading = glucoseLoading || insulinLoading;
   const isDeleting = deleteGlucoseMutation.isPending || deleteInsulinMutation.isPending;
 
@@ -311,7 +375,7 @@ export default function Logbook() {
               記録一覧
             </CardTitle>
             <CardDescription>
-              血糖値：食前/食後（mg/dL）、インスリン（単位）
+              血糖値：食前/食後（mg/dL）、インスリン（u）
             </CardDescription>
             
             <div className="pt-3 mt-3 border-t space-y-3">
@@ -411,7 +475,7 @@ export default function Logbook() {
                           </div>
                         </td>
                         
-                        <td className="p-1.5 border-b border-l text-center" data-testid={`cell-morning-${entry.date}`}>
+                        <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-morning-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
                               <span className={`font-semibold ${getGlucoseColor(entry.morning.glucoseBefore)}`} data-testid={`text-morning-glucose-before-${entry.date}`}>
@@ -422,13 +486,58 @@ export default function Logbook() {
                                 {entry.morning.glucoseAfter || "-"}
                               </span>
                             </div>
-                            <span className="text-[10px] text-primary font-semibold" data-testid={`text-morning-insulin-${entry.date}`}>
-                              {entry.morning.insulin ? `${entry.morning.insulin}u` : "-"}
-                            </span>
+                            {entry.morning.insulin && entry.morning.insulinId ? (
+                              editingCell?.insulinId === entry.morning.insulinId ? (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    value={editingCell.value}
+                                    onChange={(e) => handleEditChange(e.target.value)}
+                                    className="h-6 w-14 text-[10px] text-center p-0"
+                                    step="0.5"
+                                    min="0"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleEditSave();
+                                      if (e.key === "Escape") handleEditCancel();
+                                    }}
+                                  />
+                                  <button
+                                    onClick={handleEditSave}
+                                    className="p-0.5 hover:bg-green-100 rounded"
+                                    title="保存"
+                                  >
+                                    <Check className="w-3 h-3 text-green-600" />
+                                  </button>
+                                  <button
+                                    onClick={handleEditCancel}
+                                    className="p-0.5 hover:bg-red-100 rounded"
+                                    title="キャンセル"
+                                  >
+                                    <X className="w-3 h-3 text-red-600" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-morning-insulin-${entry.date}`}>
+                                    {entry.morning.insulin}u
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleEditClick(entry.morning.insulinId!, entry.morning.insulin, e)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
+                                    title="編集"
+                                  >
+                                    <Edit2 className="w-3 h-3 text-blue-600" />
+                                  </button>
+                                </div>
+                              )
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">-</span>
+                            )}
                           </div>
                         </td>
                         
-                        <td className="p-1.5 border-b border-l text-center" data-testid={`cell-lunch-${entry.date}`}>
+                        <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-lunch-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
                               <span className={`font-semibold ${getGlucoseColor(entry.lunch.glucoseBefore)}`} data-testid={`text-lunch-glucose-before-${entry.date}`}>
@@ -439,13 +548,58 @@ export default function Logbook() {
                                 {entry.lunch.glucoseAfter || "-"}
                               </span>
                             </div>
-                            <span className="text-[10px] text-primary font-semibold" data-testid={`text-lunch-insulin-${entry.date}`}>
-                              {entry.lunch.insulin ? `${entry.lunch.insulin}u` : "-"}
-                            </span>
+                            {entry.lunch.insulin && entry.lunch.insulinId ? (
+                              editingCell?.insulinId === entry.lunch.insulinId ? (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    value={editingCell.value}
+                                    onChange={(e) => handleEditChange(e.target.value)}
+                                    className="h-6 w-14 text-[10px] text-center p-0"
+                                    step="0.5"
+                                    min="0"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleEditSave();
+                                      if (e.key === "Escape") handleEditCancel();
+                                    }}
+                                  />
+                                  <button
+                                    onClick={handleEditSave}
+                                    className="p-0.5 hover:bg-green-100 rounded"
+                                    title="保存"
+                                  >
+                                    <Check className="w-3 h-3 text-green-600" />
+                                  </button>
+                                  <button
+                                    onClick={handleEditCancel}
+                                    className="p-0.5 hover:bg-red-100 rounded"
+                                    title="キャンセル"
+                                  >
+                                    <X className="w-3 h-3 text-red-600" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-lunch-insulin-${entry.date}`}>
+                                    {entry.lunch.insulin}u
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleEditClick(entry.lunch.insulinId!, entry.lunch.insulin, e)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
+                                    title="編集"
+                                  >
+                                    <Edit2 className="w-3 h-3 text-blue-600" />
+                                  </button>
+                                </div>
+                              )
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">-</span>
+                            )}
                           </div>
                         </td>
                         
-                        <td className="p-1.5 border-b border-l text-center" data-testid={`cell-dinner-${entry.date}`}>
+                        <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-dinner-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
                               <span className={`font-semibold ${getGlucoseColor(entry.dinner.glucoseBefore)}`} data-testid={`text-dinner-glucose-before-${entry.date}`}>
@@ -456,20 +610,110 @@ export default function Logbook() {
                                 {entry.dinner.glucoseAfter || "-"}
                               </span>
                             </div>
-                            <span className="text-[10px] text-primary font-semibold" data-testid={`text-dinner-insulin-${entry.date}`}>
-                              {entry.dinner.insulin ? `${entry.dinner.insulin}u` : "-"}
-                            </span>
+                            {entry.dinner.insulin && entry.dinner.insulinId ? (
+                              editingCell?.insulinId === entry.dinner.insulinId ? (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    value={editingCell.value}
+                                    onChange={(e) => handleEditChange(e.target.value)}
+                                    className="h-6 w-14 text-[10px] text-center p-0"
+                                    step="0.5"
+                                    min="0"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleEditSave();
+                                      if (e.key === "Escape") handleEditCancel();
+                                    }}
+                                  />
+                                  <button
+                                    onClick={handleEditSave}
+                                    className="p-0.5 hover:bg-green-100 rounded"
+                                    title="保存"
+                                  >
+                                    <Check className="w-3 h-3 text-green-600" />
+                                  </button>
+                                  <button
+                                    onClick={handleEditCancel}
+                                    className="p-0.5 hover:bg-red-100 rounded"
+                                    title="キャンセル"
+                                  >
+                                    <X className="w-3 h-3 text-red-600" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-dinner-insulin-${entry.date}`}>
+                                    {entry.dinner.insulin}u
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleEditClick(entry.dinner.insulinId!, entry.dinner.insulin, e)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
+                                    title="編集"
+                                  >
+                                    <Edit2 className="w-3 h-3 text-blue-600" />
+                                  </button>
+                                </div>
+                              )
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">-</span>
+                            )}
                           </div>
                         </td>
                         
-                        <td className="p-1.5 border-b border-l text-center" data-testid={`cell-bedtime-${entry.date}`}>
+                        <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-bedtime-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
                             <span className={`text-xs font-semibold ${getGlucoseColor(entry.bedtime.glucose)}`} data-testid={`text-bedtime-glucose-${entry.date}`}>
                               {entry.bedtime.glucose || "-"}
                             </span>
-                            <span className="text-[10px] text-primary font-semibold" data-testid={`text-bedtime-insulin-${entry.date}`}>
-                              {entry.bedtime.insulin ? `${entry.bedtime.insulin}u` : "-"}
-                            </span>
+                            {entry.bedtime.insulin && entry.bedtime.insulinId ? (
+                              editingCell?.insulinId === entry.bedtime.insulinId ? (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    value={editingCell.value}
+                                    onChange={(e) => handleEditChange(e.target.value)}
+                                    className="h-6 w-14 text-[10px] text-center p-0"
+                                    step="0.5"
+                                    min="0"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleEditSave();
+                                      if (e.key === "Escape") handleEditCancel();
+                                    }}
+                                  />
+                                  <button
+                                    onClick={handleEditSave}
+                                    className="p-0.5 hover:bg-green-100 rounded"
+                                    title="保存"
+                                  >
+                                    <Check className="w-3 h-3 text-green-600" />
+                                  </button>
+                                  <button
+                                    onClick={handleEditCancel}
+                                    className="p-0.5 hover:bg-red-100 rounded"
+                                    title="キャンセル"
+                                  >
+                                    <X className="w-3 h-3 text-red-600" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-bedtime-insulin-${entry.date}`}>
+                                    {entry.bedtime.insulin}u
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleEditClick(entry.bedtime.insulinId!, entry.bedtime.insulin, e)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
+                                    title="編集"
+                                  >
+                                    <Edit2 className="w-3 h-3 text-blue-600" />
+                                  </button>
+                                </div>
+                              )
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">-</span>
+                            )}
                           </div>
                         </td>
                       </tr>
