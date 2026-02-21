@@ -210,6 +210,26 @@ export default function Dashboard() {
             </Link>
           </div>
         </div>
+
+        {/* ===== 広告バナー（ダッシュボード下部・1本のみ） =====
+            Google AdSense 本番導入時:
+            1. 下記の placeholder div を <ins class="adsbygoogle" ...> タグに差し替える
+            2. index.html の <head> に AdSense スクリプトを追加:
+               <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+            3. data-ad-client / data-ad-slot に発行されたIDを設定する
+        ===== */}
+        <div className="mt-2 -mx-6 px-6 pt-3 border-t border-border/50">
+          <p className="text-[10px] text-muted-foreground/60 text-center mb-1 tracking-wide">広告</p>
+          {/* AdSense placeholder — 本番では <ins class="adsbygoogle"> に差し替え */}
+          <div
+            className="w-full h-[60px] bg-muted/30 rounded flex items-center justify-center text-xs text-muted-foreground/50 border border-dashed border-border/40"
+            aria-label="広告枠"
+          >
+            {/* 本番AdSenseコードをここに挿入 */}
+            広告スペース（320×60）
+          </div>
+        </div>
+        {/* ===== 広告バナーここまで ===== */}
       </div>
     </AppLayout>
   );

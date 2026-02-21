@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2, Trash2, Activity, Coffee, Sun, Sunset, Moon } from "lucide-react";
+import { Plus, Edit2, Trash2, Activity, Coffee, Sun, Sunset, Moon, Syringe } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { Link } from "wouter";
 
 interface AdjustmentRule {
   id: string;
@@ -287,8 +288,16 @@ export default function AdjustmentRules() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.presetId) {
+      toast({
+        title: "インスリンを選択してください",
+        description: "使用するインスリンは必須です",
+        variant: "destructive",
+      });
+      return;
+    }
     console.log("フォーム送信:", editingRule ? "更新" : "新規作成", formData);
-    
+
     // ルール名が空の場合、自動生成
     const finalFormData = {
       ...formData,
@@ -403,7 +412,25 @@ export default function AdjustmentRules() {
                   血糖値の条件とインスリン調整量を設定してください
                 </DialogDescription>
               </DialogHeader>
-              
+
+              {presets.length === 0 ? (
+                <div className="flex flex-col items-center gap-4 py-6 text-center">
+                  <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                    <Syringe className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm mb-1">インスリンが登録されていません</p>
+                    <p className="text-xs text-muted-foreground">
+                      調整ルールを作成するには、先に設定画面でインスリンを登録してください。
+                    </p>
+                  </div>
+                  <Link href="/settings">
+                    <Button onClick={() => setIsDialogOpen(false)}>
+                      設定画面でインスリンを登録する
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
               <form onSubmit={handleSubmit} className="space-y-6 mt-4">
                 {/* ステップ1: いつの測定を見るか */}
                 <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -582,18 +609,17 @@ export default function AdjustmentRules() {
                     </div>
                   </div>
 
-                  {/* 使用するインスリン（省略可） */}
+                  {/* 使用するインスリン（必須） */}
                   <div className="space-y-2">
-                    <Label htmlFor="presetId" className="text-xs">使用するインスリン（省略可）</Label>
+                    <Label htmlFor="presetId" className="text-xs">使用するインスリン</Label>
                     <Select
-                      value={formData.presetId ?? "none"}
-                      onValueChange={(v) => setFormData({ ...formData, presetId: v === "none" ? null : v })}
+                      value={formData.presetId ?? ""}
+                      onValueChange={(v) => setFormData({ ...formData, presetId: v })}
                     >
                       <SelectTrigger id="presetId" className="bg-white dark:bg-background">
-                        <SelectValue placeholder="指定なし" />
+                        <SelectValue placeholder="インスリンを選択してください" />
                       </SelectTrigger>
                       <SelectContent position="popper" sideOffset={5} className="z-[9999] bg-white dark:bg-gray-950 border shadow-lg">
-                        <SelectItem value="none">指定なし</SelectItem>
                         {presets.map((preset) => (
                           <SelectItem key={preset.id} value={preset.id}>
                             {preset.name}（{preset.category}）
@@ -654,7 +680,7 @@ export default function AdjustmentRules() {
                   <Button
                     type="submit"
                     className="flex-1"
-                    disabled={createMutation.isPending || updateMutation.isPending}
+                    disabled={createMutation.isPending || updateMutation.isPending || !formData.presetId}
                   >
                     {createMutation.isPending || updateMutation.isPending
                       ? "保存中..."
@@ -664,6 +690,7 @@ export default function AdjustmentRules() {
                   </Button>
                 </div>
               </form>
+              )}
             </DialogContent>
           </Dialog>
         </div>
