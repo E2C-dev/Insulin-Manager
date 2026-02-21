@@ -2,12 +2,13 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import passport, { hashPassword, isAuthenticated } from "./auth";
-import { 
-  insertUserSchema, 
+import {
+  insertUserSchema,
+  insertInsulinPresetSchema,
   insertAdjustmentRuleSchema,
   insertInsulinEntrySchema,
   insertGlucoseEntrySchema,
-  type User 
+  type User
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -543,12 +544,78 @@ export async function registerRoutes(
     }
   });
 
+  // ===== インスリンプリセットのエンドポイント =====
+  console.log("\n--- インスリンプリセットのエンドポイント ---");
+
+  // プリセット一覧取得
+  console.log("✅ GET /api/insulin-presets");
+  app.get("/api/insulin-presets", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const presets = await storage.getInsulinPresets(user.id);
+      return res.json({ presets });
+    } catch (error) {
+      console.error("❌ プリセット一覧取得エラー:", error);
+      return res.status(500).json({ message: "プリセットの取得に失敗しました" });
+    }
+  });
+
+  // プリセット作成
+  console.log("✅ POST /api/insulin-presets");
+  app.post("/api/insulin-presets", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const validatedData = insertInsulinPresetSchema.parse(req.body);
+      const preset = await storage.createInsulinPreset({ ...validatedData, userId: user.id });
+      return res.status(201).json({ message: "プリセットを作成しました", preset });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "入力データが無効です", errors: error.errors });
+      }
+      console.error("❌ プリセット作成エラー:", error);
+      return res.status(500).json({ message: "プリセットの作成に失敗しました" });
+    }
+  });
+
+  // プリセット更新
+  console.log("✅ PUT /api/insulin-presets/:id");
+  app.put("/api/insulin-presets/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const validatedData = insertInsulinPresetSchema.partial().parse(req.body);
+      const preset = await storage.updateInsulinPreset(req.params.id, user.id, validatedData);
+      if (!preset) return res.status(404).json({ message: "プリセットが見つかりません" });
+      return res.json({ message: "プリセットを更新しました", preset });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "入力データが無効です", errors: error.errors });
+      }
+      console.error("❌ プリセット更新エラー:", error);
+      return res.status(500).json({ message: "プリセットの更新に失敗しました" });
+    }
+  });
+
+  // プリセット削除（ソフトデリート）
+  console.log("✅ DELETE /api/insulin-presets/:id");
+  app.delete("/api/insulin-presets/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const success = await storage.deleteInsulinPreset(req.params.id, user.id);
+      if (!success) return res.status(404).json({ message: "プリセットが見つかりません" });
+      return res.json({ message: "プリセットを削除しました" });
+    } catch (error) {
+      console.error("❌ プリセット削除エラー:", error);
+      return res.status(500).json({ message: "プリセットの削除に失敗しました" });
+    }
+  });
+
   console.log("===========================================");
   console.log("🎉 すべてのAPIルート登録完了");
   console.log("   - 認証: 4エンドポイント");
   console.log("   - 調整ルール: 5エンドポイント");
   console.log("   - インスリン記録: 4エンドポイント");
   console.log("   - 血糖値記録: 4エンドポイント");
+  console.log("   - インスリンプリセット: 4エンドポイント");
   console.log("   - その他: 1エンドポイント");
   console.log("===========================================\n");
 

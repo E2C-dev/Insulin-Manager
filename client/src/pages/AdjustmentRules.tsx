@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -21,6 +22,7 @@ interface AdjustmentRule {
   comparison: string;
   adjustmentAmount: number;
   targetTimeSlot: string;
+  presetId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -33,6 +35,7 @@ interface RuleFormData {
   comparison: "以下" | "以上" | "未満" | "超える";
   adjustmentAmount: number;
   targetTimeSlot: string;
+  presetId: string | null;
 }
 
 const initialFormData: RuleFormData = {
@@ -43,6 +46,7 @@ const initialFormData: RuleFormData = {
   comparison: "以下",
   adjustmentAmount: -1,
   targetTimeSlot: "前日の眠前",
+  presetId: null,
 };
 
 // 測定タイミングの選択肢（前日・当日の区別を追加）
@@ -155,6 +159,7 @@ export default function AdjustmentRules() {
   const [editingRule, setEditingRule] = useState<AdjustmentRule | null>(null);
   const [formData, setFormData] = useState<RuleFormData>(initialFormData);
   const [activeTab, setActiveTab] = useState<string>("朝");
+  const { presets } = useInsulinPresets();
 
   // ルール一覧取得
   const { data: rulesData, isLoading } = useQuery({
@@ -308,6 +313,7 @@ export default function AdjustmentRules() {
       comparison: rule.comparison as RuleFormData["comparison"],
       adjustmentAmount: rule.adjustmentAmount,
       targetTimeSlot: rule.targetTimeSlot,
+      presetId: rule.presetId,
     });
     setIsDialogOpen(true);
   };
@@ -403,12 +409,12 @@ export default function AdjustmentRules() {
                 <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</div>
-                    <h3 className="font-semibold text-sm">インスリンを投与するタイミングはいつですか？</h3>
+                    <h3 className="font-semibold text-sm">インスリン投与のタイミングと判断基準を設定</h3>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="timeSlot" className="text-xs">測定タイミング</Label>
+                      <Label htmlFor="timeSlot" className="text-xs">インスリンを注射するタイミング</Label>
                       <Select
                         value={formData.timeSlot}
                         onValueChange={(value) => {
@@ -432,7 +438,7 @@ export default function AdjustmentRules() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="conditionType" className="text-xs">何を測定？</Label>
+                      <Label htmlFor="conditionType" className="text-xs">判断に使う血糖値の測定タイミング</Label>
                       <Select
                         value={formData.conditionType}
                         onValueChange={(value) => setFormData({ ...formData, conditionType: value })}
@@ -474,12 +480,12 @@ export default function AdjustmentRules() {
                 <div className="space-y-3 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold">2</div>
-                    <h3 className="font-semibold text-sm">何がどんな値ならインスリン投与量を調整しますか？</h3>
+                    <h3 className="font-semibold text-sm">調整を行う血糖値の条件を設定</h3>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="threshold" className="text-xs">血糖値（mg/dL）</Label>
+                      <Label htmlFor="threshold" className="text-xs">閾値となる血糖値（mg/dL）</Label>
                       <Input
                         id="threshold"
                         type="number"
@@ -520,12 +526,12 @@ export default function AdjustmentRules() {
                 <div className="space-y-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold">3</div>
-                    <h3 className="font-semibold text-sm">どのタイミングのインスリンの投与量を基準に調整しますか？</h3>
+                    <h3 className="font-semibold text-sm">インスリン投与量の調整内容を設定</h3>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label htmlFor="targetTimeSlot" className="text-xs">基準となる投与タイミングは？</Label>
+                      <Label htmlFor="targetTimeSlot" className="text-xs">調整する注射のタイミング</Label>
                       <Select
                         value={formData.targetTimeSlot}
                         onValueChange={(value) => setFormData({ ...formData, targetTimeSlot: value })}
@@ -562,7 +568,7 @@ export default function AdjustmentRules() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="adjustmentAmount" className="text-xs">調整量（単位）</Label>
+                      <Label htmlFor="adjustmentAmount" className="text-xs">調整量（正の値=増量、負の値=減量）</Label>
                       <Input
                         id="adjustmentAmount"
                         type="number"
@@ -575,9 +581,30 @@ export default function AdjustmentRules() {
                       />
                     </div>
                   </div>
-                  
+
+                  {/* 使用するインスリン（省略可） */}
+                  <div className="space-y-2">
+                    <Label htmlFor="presetId" className="text-xs">使用するインスリン（省略可）</Label>
+                    <Select
+                      value={formData.presetId ?? "none"}
+                      onValueChange={(v) => setFormData({ ...formData, presetId: v === "none" ? null : v })}
+                    >
+                      <SelectTrigger id="presetId" className="bg-white dark:bg-background">
+                        <SelectValue placeholder="指定なし" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" sideOffset={5} className="z-[9999] bg-white dark:bg-gray-950 border shadow-lg">
+                        <SelectItem value="none">指定なし</SelectItem>
+                        {presets.map((preset) => (
+                          <SelectItem key={preset.id} value={preset.id}>
+                            {preset.name}（{preset.category}）
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="text-xs text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 p-2 rounded">
-                    <strong>例：</strong> 低血糖なら-1〜-2、高血糖なら+1〜+2
+                    <strong>例：</strong> 血糖値が高い → +1〜+2単位増量、低い → -1〜-2単位減量
                   </div>
                 </div>
 
@@ -589,11 +616,14 @@ export default function AdjustmentRules() {
                     <span className="font-semibold">{getConditionTypeLabel(formData.conditionType)}</span>が
                     <span className="font-semibold text-orange-600 dark:text-orange-400"> {formData.threshold}mg/dL{formData.comparison}</span>
                     なら、
-                    <span className="font-semibold text-green-600 dark:text-green-400">{getTargetTimeSlotLabel(formData.targetTimeSlot)}のインスリン</span>の
+                    <span className="font-semibold text-green-600 dark:text-green-400">
+                      {getTargetTimeSlotLabel(formData.targetTimeSlot)}の
+                      {formData.presetId ? presets.find(p => p.id === formData.presetId)?.name ?? "インスリン" : "インスリン"}
+                    </span>を
                     <span className={`font-bold ${formData.adjustmentAmount > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
                       {formData.adjustmentAmount > 0 ? '+' : ''}{formData.adjustmentAmount}単位
                     </span>
-                    した量を投与する
+                    調整して投与する
                   </p>
                 </div>
 
@@ -722,7 +752,9 @@ export default function AdjustmentRules() {
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-muted-foreground">調整:</span>
                               <span className={rule.adjustmentAmount > 0 ? "text-blue-600 font-semibold" : "text-red-600 font-semibold"}>
-                                {getTargetTimeSlotLabel(rule.targetTimeSlot)}のインスリン {formatAdjustmentAmount(rule.adjustmentAmount)}単位
+                                {getTargetTimeSlotLabel(rule.targetTimeSlot)}の
+                                {rule.presetId ? (presets.find(p => p.id === rule.presetId)?.name ?? "インスリン") : "インスリン"}
+                                {" "}{formatAdjustmentAmount(rule.adjustmentAmount)}単位
                               </span>
                             </div>
                           </div>

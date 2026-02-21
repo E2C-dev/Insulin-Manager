@@ -19,57 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-interface GlucoseEntry {
-  id: string;
-  userId: string;
-  date: string;
-  timeSlot: string;
-  glucoseLevel: number;
-  note?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface InsulinEntry {
-  id: string;
-  userId: string;
-  date: string;
-  timeSlot: string;
-  units: string;
-  note?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface DailyEntry {
-  date: string;
-  morning: { 
-    glucoseBefore?: number;
-    glucoseAfter?: number;
-    insulin?: number;
-    insulinId?: string;
-  };
-  lunch: { 
-    glucoseBefore?: number;
-    glucoseAfter?: number;
-    insulin?: number;
-    insulinId?: string;
-  };
-  dinner: { 
-    glucoseBefore?: number;
-    glucoseAfter?: number;
-    insulin?: number;
-    insulinId?: string;
-  };
-  bedtime: { 
-    glucose?: number;
-    insulin?: number;
-    insulinId?: string;
-  };
-  glucoseIds: string[];
-  insulinIds: string[];
-}
+import { type ApiGlucoseEntry, type ApiInsulinEntry, type DailyEntry, getGlucoseBasicColor } from "@/lib/types";
 
 export default function Logbook() {
   const { toast } = useToast();
@@ -86,7 +36,7 @@ export default function Logbook() {
       });
       if (!response.ok) throw new Error("血糖値記録の取得に失敗しました");
       const data = await response.json();
-      return data.entries as GlucoseEntry[];
+      return data.entries as ApiGlucoseEntry[];
     },
   });
 
@@ -98,7 +48,7 @@ export default function Logbook() {
       });
       if (!response.ok) throw new Error("インスリン記録の取得に失敗しました");
       const data = await response.json();
-      return data.entries as InsulinEntry[];
+      return data.entries as ApiInsulinEntry[];
     },
   });
 
@@ -145,7 +95,7 @@ export default function Logbook() {
       for (const entry of glucoseData) {
         const dailyEntry = entriesMap.get(entry.date);
         if (dailyEntry) {
-          dailyEntry.glucoseIds.push(entry.id);
+          (dailyEntry.glucoseIds ??= []).push(entry.id);
           switch (entry.timeSlot) {
             case "BreakfastBefore":
               dailyEntry.morning.glucoseBefore = entry.glucoseLevel;
@@ -177,7 +127,7 @@ export default function Logbook() {
       for (const entry of insulinData) {
         const dailyEntry = entriesMap.get(entry.date);
         if (dailyEntry) {
-          dailyEntry.insulinIds.push(entry.id);
+          (dailyEntry.insulinIds ??= []).push(entry.id);
           const units = parseFloat(entry.units);
           switch (entry.timeSlot) {
             case "Breakfast":
@@ -202,8 +152,8 @@ export default function Logbook() {
     }
 
     return Array.from(entriesMap.values())
-      .filter(entry => 
-        entry.glucoseIds.length > 0 || entry.insulinIds.length > 0 ||
+      .filter(entry =>
+        (entry.glucoseIds?.length ?? 0) > 0 || (entry.insulinIds?.length ?? 0) > 0 ||
         entry.morning.glucoseBefore || entry.morning.glucoseAfter || entry.morning.insulin ||
         entry.lunch.glucoseBefore || entry.lunch.glucoseAfter || entry.lunch.insulin ||
         entry.dinner.glucoseBefore || entry.dinner.glucoseAfter || entry.dinner.insulin ||
@@ -212,19 +162,12 @@ export default function Logbook() {
       .sort((a, b) => b.date.localeCompare(a.date));
   };
 
-  const getGlucoseColor = (value?: number) => {
-    if (!value) return "text-muted-foreground";
-    if (value < 70) return "text-red-600 font-semibold";
-    if (value > 180) return "text-orange-600 font-semibold";
-    return "text-green-600";
-  };
-
   const handleDeleteClick = (entry: DailyEntry, event: React.MouseEvent) => {
     event.stopPropagation();
     setDeletingEntry({
       date: entry.date,
-      glucoseIds: entry.glucoseIds,
-      insulinIds: entry.insulinIds,
+      glucoseIds: entry.glucoseIds ?? [],
+      insulinIds: entry.insulinIds ?? [],
     });
     setIsDeleteDialogOpen(true);
   };
@@ -260,10 +203,9 @@ export default function Logbook() {
   };
 
   // 編集画面に遷移（記録入力画面で編集）
-  const handleEditClick = (date: string, event: React.MouseEvent) => {
+  const handleEditClick = (date: string, timeSlot: string, event: React.MouseEvent) => {
     event.stopPropagation();
-    // 記録入力画面に日付パラメータを持って遷移
-    window.location.href = `/entry?date=${date}`;
+    window.location.href = `/entry?date=${date}&timeSlot=${timeSlot}`;
   };
 
   const isLoading = glucoseLoading || insulinLoading;
@@ -429,11 +371,11 @@ export default function Logbook() {
                         <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-morning-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
-                              <span className={`font-semibold ${getGlucoseColor(entry.morning.glucoseBefore)}`} data-testid={`text-morning-glucose-before-${entry.date}`}>
+                              <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseBefore)}`} data-testid={`text-morning-glucose-before-${entry.date}`}>
                                 {entry.morning.glucoseBefore || "-"}
                               </span>
                               <span className="text-muted-foreground">/</span>
-                              <span className={`font-semibold ${getGlucoseColor(entry.morning.glucoseAfter)}`} data-testid={`text-morning-glucose-after-${entry.date}`}>
+                              <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseAfter)}`} data-testid={`text-morning-glucose-after-${entry.date}`}>
                                 {entry.morning.glucoseAfter || "-"}
                               </span>
                             </div>
@@ -443,7 +385,7 @@ export default function Logbook() {
                                   {entry.morning.insulin}u
                                 </span>
                                 <button
-                                  onClick={(e) => handleEditClick(entry.date, e)}
+                                  onClick={(e) => handleEditClick(entry.date, "BreakfastBefore", e)}
                                   className="opacity-0 group-hover/insulin:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
                                   title="編集"
                                 >
@@ -455,15 +397,15 @@ export default function Logbook() {
                             )}
                           </div>
                         </td>
-                        
+
                         <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-lunch-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
-                              <span className={`font-semibold ${getGlucoseColor(entry.lunch.glucoseBefore)}`} data-testid={`text-lunch-glucose-before-${entry.date}`}>
+                              <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseBefore)}`} data-testid={`text-lunch-glucose-before-${entry.date}`}>
                                 {entry.lunch.glucoseBefore || "-"}
                               </span>
                               <span className="text-muted-foreground">/</span>
-                              <span className={`font-semibold ${getGlucoseColor(entry.lunch.glucoseAfter)}`} data-testid={`text-lunch-glucose-after-${entry.date}`}>
+                              <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseAfter)}`} data-testid={`text-lunch-glucose-after-${entry.date}`}>
                                 {entry.lunch.glucoseAfter || "-"}
                               </span>
                             </div>
@@ -473,7 +415,7 @@ export default function Logbook() {
                                   {entry.lunch.insulin}u
                                 </span>
                                 <button
-                                  onClick={(e) => handleEditClick(entry.date, e)}
+                                  onClick={(e) => handleEditClick(entry.date, "LunchBefore", e)}
                                   className="opacity-0 group-hover/insulin:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
                                   title="編集"
                                 >
@@ -485,15 +427,15 @@ export default function Logbook() {
                             )}
                           </div>
                         </td>
-                        
+
                         <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-dinner-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
                             <div className="flex items-center gap-1 text-[10px]">
-                              <span className={`font-semibold ${getGlucoseColor(entry.dinner.glucoseBefore)}`} data-testid={`text-dinner-glucose-before-${entry.date}`}>
+                              <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseBefore)}`} data-testid={`text-dinner-glucose-before-${entry.date}`}>
                                 {entry.dinner.glucoseBefore || "-"}
                               </span>
                               <span className="text-muted-foreground">/</span>
-                              <span className={`font-semibold ${getGlucoseColor(entry.dinner.glucoseAfter)}`} data-testid={`text-dinner-glucose-after-${entry.date}`}>
+                              <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseAfter)}`} data-testid={`text-dinner-glucose-after-${entry.date}`}>
                                 {entry.dinner.glucoseAfter || "-"}
                               </span>
                             </div>
@@ -503,7 +445,7 @@ export default function Logbook() {
                                   {entry.dinner.insulin}u
                                 </span>
                                 <button
-                                  onClick={(e) => handleEditClick(entry.date, e)}
+                                  onClick={(e) => handleEditClick(entry.date, "DinnerBefore", e)}
                                   className="opacity-0 group-hover/insulin:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
                                   title="編集"
                                 >
@@ -515,10 +457,10 @@ export default function Logbook() {
                             )}
                           </div>
                         </td>
-                        
+
                         <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-bedtime-${entry.date}`}>
                           <div className="flex flex-col items-center gap-0.5">
-                            <span className={`text-xs font-semibold ${getGlucoseColor(entry.bedtime.glucose)}`} data-testid={`text-bedtime-glucose-${entry.date}`}>
+                            <span className={`text-xs font-semibold ${getGlucoseBasicColor(entry.bedtime.glucose)}`} data-testid={`text-bedtime-glucose-${entry.date}`}>
                               {entry.bedtime.glucose || "-"}
                             </span>
                             {entry.bedtime.insulin ? (
@@ -527,7 +469,7 @@ export default function Logbook() {
                                   {entry.bedtime.insulin}u
                                 </span>
                                 <button
-                                  onClick={(e) => handleEditClick(entry.date, e)}
+                                  onClick={(e) => handleEditClick(entry.date, "BeforeSleep", e)}
                                   className="opacity-0 group-hover/insulin:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
                                   title="編集"
                                 >

@@ -10,9 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Calendar, Clock, Save, ArrowLeft, Activity, Info, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useInsulinPresets } from "@/hooks/use-insulin-presets";
+import { InsulinPresetSelector } from "@/components/entry/InsulinPresetSelector";
 import { format, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
-import { DEFAULT_SETTINGS, type InsulinTimeSlot } from "@/lib/types";
+import {
+  type InsulinTimeSlot,
+  type AdjustmentRule,
+  TIME_SLOT_OPTIONS,
+  getPresetDefaultUnits,
+} from "@/lib/types";
 
 interface EntryFormData {
   date: string;
@@ -22,32 +29,11 @@ interface EntryFormData {
   note: string;
 }
 
-interface AdjustmentRule {
-  id: string;
-  name: string;
-  timeSlot: string;
-  conditionType: string;
-  threshold: number;
-  comparison: string;
-  adjustmentAmount: number;
-  targetTimeSlot: string;
-}
-
-const TIME_SLOT_OPTIONS = [
-  { value: "BreakfastBefore", label: "朝食の食前", glucoseSlot: true, insulinSlot: "Breakfast" },
-  { value: "BreakfastAfter1h", label: "朝食の食後1時間", glucoseSlot: true, insulinSlot: "Breakfast" },
-  { value: "LunchBefore", label: "昼食の食前", glucoseSlot: true, insulinSlot: "Lunch" },
-  { value: "LunchAfter1h", label: "昼食の食後1時間", glucoseSlot: true, insulinSlot: "Lunch" },
-  { value: "DinnerBefore", label: "夕食の食前", glucoseSlot: true, insulinSlot: "Dinner" },
-  { value: "DinnerAfter1h", label: "夕食の食後1時間", glucoseSlot: true, insulinSlot: "Dinner" },
-  { value: "BeforeSleep", label: "眠前", glucoseSlot: true, insulinSlot: "Bedtime" },
-] as const;
-
 export default function Entry() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [formData, setFormData] = useState<EntryFormData>({
     date: format(new Date(), "yyyy-MM-dd"),
     timeSlot: "",
@@ -57,30 +43,27 @@ export default function Entry() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
-  const [basalInsulinDoses, setBasalInsulinDoses] = useState(DEFAULT_SETTINGS.basalInsulinDoses);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [editGlucoseId, setEditGlucoseId] = useState<string | null>(null);
+  const [editInsulinId, setEditInsulinId] = useState<string | null>(null);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
 
-  // 基礎インスリン投与量をローカルストレージから読み込む
-  useEffect(() => {
-    const savedDoses = localStorage.getItem("basalInsulinDoses");
-    if (savedDoses) {
-      try {
-        const parsed = JSON.parse(savedDoses);
-        setBasalInsulinDoses(parsed);
-      } catch (error) {
-        console.error("Failed to parse saved basal insulin doses:", error);
-      }
-    }
-  }, []);
+  // インスリンプリセット
+  const { presets, getBasalDosesFromPresets } = useInsulinPresets();
 
-  // URLパラメータから日付を取得して編集モードで開く
+  // URLパラメータから日付・タイムスロットを取得して編集モードで開く
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const dateParam = params.get('date');
-    
+    const dateParam = params.get("date");
+    const timeSlotParam = params.get("timeSlot");
+
     if (dateParam) {
       setIsEditMode(true);
-      setFormData(prev => ({ ...prev, date: dateParam }));
+      setFormData(prev => ({
+        ...prev,
+        date: dateParam,
+        timeSlot: timeSlotParam || prev.timeSlot,
+      }));
     }
   }, []);
 
@@ -88,22 +71,17 @@ export default function Entry() {
   const { data: rulesData } = useQuery({
     queryKey: ["adjustment-rules"],
     queryFn: async () => {
-      const response = await fetch("/api/adjustment-rules", {
-        credentials: "include",
-      });
+      const response = await fetch("/api/adjustment-rules", { credentials: "include" });
       if (!response.ok) throw new Error("ルールの取得に失敗しました");
       return response.json();
     },
   });
 
-  // 編集モード時に既存のデータを取得
+  // 編集モード時に既存データを取得してフォームに反映
   const { data: glucoseData } = useQuery({
     queryKey: ["glucose-entries", formData.date],
     queryFn: async () => {
-      if (!isEditMode || !formData.date) return [];
-      const response = await fetch("/api/glucose-entries", {
-        credentials: "include",
-      });
+      const response = await fetch("/api/glucose-entries", { credentials: "include" });
       if (!response.ok) throw new Error("血糖値記録の取得に失敗しました");
       const data = await response.json();
       return data.entries.filter((e: any) => e.date === formData.date);
@@ -114,16 +92,44 @@ export default function Entry() {
   const { data: insulinData } = useQuery({
     queryKey: ["insulin-entries", formData.date],
     queryFn: async () => {
-      if (!isEditMode || !formData.date) return [];
-      const response = await fetch("/api/insulin-entries", {
-        credentials: "include",
-      });
+      const response = await fetch("/api/insulin-entries", { credentials: "include" });
       if (!response.ok) throw new Error("インスリン記録の取得に失敗しました");
       const data = await response.json();
       return data.entries.filter((e: any) => e.date === formData.date);
     },
     enabled: isEditMode && !!formData.date,
   });
+
+  // 編集モード: 既存データをフォームに反映
+  useEffect(() => {
+    if (!isEditMode || !formData.timeSlot) return;
+
+    const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
+    if (!selectedOption) return;
+
+    // 血糖値の反映
+    if (glucoseData && Array.isArray(glucoseData)) {
+      const glucoseEntry = glucoseData.find((e: any) => e.timeSlot === formData.timeSlot);
+      if (glucoseEntry) {
+        setFormData(prev => ({ ...prev, glucoseLevel: String(glucoseEntry.glucoseLevel) }));
+        setEditGlucoseId(glucoseEntry.id);
+      }
+    }
+
+    // インスリンの反映
+    if (insulinData && Array.isArray(insulinData)) {
+      const insulinEntry = insulinData.find((e: any) => e.timeSlot === selectedOption.insulinSlot);
+      if (insulinEntry) {
+        setFormData(prev => ({
+          ...prev,
+          insulinUnits: String(parseFloat(insulinEntry.units)),
+          note: insulinEntry.note || "",
+        }));
+        setEditInsulinId(insulinEntry.id);
+        if (insulinEntry.presetId) setSelectedPresetId(insulinEntry.presetId);
+      }
+    }
+  }, [isEditMode, formData.timeSlot, glucoseData, insulinData]);
 
   const setToday = () => {
     setFormData(prev => ({ ...prev, date: format(new Date(), "yyyy-MM-dd") }));
@@ -133,6 +139,7 @@ export default function Entry() {
     setFormData(prev => ({ ...prev, date: format(subDays(new Date(), 1), "yyyy-MM-dd") }));
   };
 
+  // POST mutations
   const createGlucoseMutation = useMutation({
     mutationFn: async (data: { date: string; timeSlot: string; glucoseLevel: number; note?: string }) => {
       const response = await fetch("/api/glucose-entries", {
@@ -150,7 +157,7 @@ export default function Entry() {
   });
 
   const createInsulinMutation = useMutation({
-    mutationFn: async (data: { date: string; timeSlot: string; units: string; note?: string }) => {
+    mutationFn: async (data: { date: string; timeSlot: string; units: string; presetId?: string; note?: string }) => {
       const response = await fetch("/api/insulin-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -165,11 +172,49 @@ export default function Entry() {
     },
   });
 
+  // PUT mutations（編集モード用）
+  const updateGlucoseMutation = useMutation({
+    mutationFn: async (data: { id: string; glucoseLevel?: number; note?: string }) => {
+      const { id, ...body } = data;
+      const response = await fetch(`/api/glucose-entries/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "血糖値の更新に失敗しました");
+      }
+      return response.json();
+    },
+  });
+
+  const updateInsulinMutation = useMutation({
+    mutationFn: async (data: { id: string; units?: string; presetId?: string; note?: string }) => {
+      const { id, ...body } = data;
+      const response = await fetch(`/api/insulin-entries/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "インスリンの更新に失敗しました");
+      }
+      return response.json();
+    },
+  });
+
   const handleInputChange = (field: keyof EntryFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const resetForm = () => {
+    setSelectedPresetId(null);
+    setEditGlucoseId(null);
+    setEditInsulinId(null);
     setFormData({
       date: format(new Date(), "yyyy-MM-dd"),
       timeSlot: "",
@@ -182,22 +227,13 @@ export default function Entry() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // バリデーション
     if (!formData.timeSlot) {
-      toast({
-        title: "入力エラー",
-        description: "測定タイミングを選択してください",
-        variant: "destructive",
-      });
+      toast({ title: "入力エラー", description: "測定タイミングを選択してください", variant: "destructive" });
       return;
     }
 
     if (!formData.glucoseLevel && !formData.insulinUnits) {
-      toast({
-        title: "入力エラー",
-        description: "血糖値またはインスリン量のいずれかを入力してください",
-        variant: "destructive",
-      });
+      toast({ title: "入力エラー", description: "血糖値またはインスリン量のいずれかを入力してください", variant: "destructive" });
       return;
     }
 
@@ -207,24 +243,64 @@ export default function Entry() {
       const promises: Promise<any>[] = [];
       const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
 
-      // 血糖値の記録
-      if (formData.glucoseLevel && selectedOption?.glucoseSlot) {
-        promises.push(createGlucoseMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: formData.timeSlot,
-          glucoseLevel: parseInt(formData.glucoseLevel),
-          note: formData.note || undefined,
-        }));
-      }
+      if (isEditMode) {
+        // 編集モード: PUT
+        if (formData.glucoseLevel && selectedOption?.glucoseSlot) {
+          if (editGlucoseId) {
+            promises.push(updateGlucoseMutation.mutateAsync({
+              id: editGlucoseId,
+              glucoseLevel: parseInt(formData.glucoseLevel),
+              note: formData.note || undefined,
+            }));
+          } else {
+            // 新しい血糖値エントリを作成
+            promises.push(createGlucoseMutation.mutateAsync({
+              date: formData.date,
+              timeSlot: formData.timeSlot,
+              glucoseLevel: parseInt(formData.glucoseLevel),
+              note: formData.note || undefined,
+            }));
+          }
+        }
 
-      // インスリンの記録
-      if (formData.insulinUnits && selectedOption?.insulinSlot) {
-        promises.push(createInsulinMutation.mutateAsync({
-          date: formData.date,
-          timeSlot: selectedOption.insulinSlot,
-          units: formData.insulinUnits,
-          note: formData.note || undefined,
-        }));
+        if (formData.insulinUnits && selectedOption?.insulinSlot) {
+          if (editInsulinId) {
+            promises.push(updateInsulinMutation.mutateAsync({
+              id: editInsulinId,
+              units: formData.insulinUnits,
+              presetId: selectedPresetId ?? undefined,
+              note: formData.note || undefined,
+            }));
+          } else {
+            promises.push(createInsulinMutation.mutateAsync({
+              date: formData.date,
+              timeSlot: selectedOption.insulinSlot,
+              units: formData.insulinUnits,
+              presetId: selectedPresetId ?? undefined,
+              note: formData.note || undefined,
+            }));
+          }
+        }
+      } else {
+        // 新規モード: POST
+        if (formData.glucoseLevel && selectedOption?.glucoseSlot) {
+          promises.push(createGlucoseMutation.mutateAsync({
+            date: formData.date,
+            timeSlot: formData.timeSlot,
+            glucoseLevel: parseInt(formData.glucoseLevel),
+            note: formData.note || undefined,
+          }));
+        }
+
+        if (formData.insulinUnits && selectedOption?.insulinSlot) {
+          promises.push(createInsulinMutation.mutateAsync({
+            date: formData.date,
+            timeSlot: selectedOption.insulinSlot,
+            units: formData.insulinUnits,
+            presetId: selectedPresetId ?? undefined,
+            note: formData.note || undefined,
+          }));
+        }
       }
 
       await Promise.all(promises);
@@ -236,20 +312,18 @@ export default function Entry() {
       const timeLabel = selectedOption?.label || "";
 
       toast({
-        title: "✅ 保存成功",
-        description: `${dateLabel} ${timeLabel}の記録を保存しました`,
+        title: isEditMode ? "✅ 更新成功" : "✅ 保存成功",
+        description: `${dateLabel} ${timeLabel}の記録を${isEditMode ? "更新" : "保存"}しました`,
       });
 
-      // フォームをリセット（日付とタイミングは保持）
-      setFormData(prev => ({
-        ...prev,
-        glucoseLevel: "",
-        insulinUnits: "",
-        note: "",
-      }));
+      // 新規モードではフォームをリセット（日付・タイミングは保持）
+      if (!isEditMode) {
+        setFormData(prev => ({ ...prev, glucoseLevel: "", insulinUnits: "", note: "" }));
+        setSelectedPresetId(null);
+      }
     } catch (error) {
       toast({
-        title: "保存失敗",
+        title: isEditMode ? "更新失敗" : "保存失敗",
         description: error instanceof Error ? error.message : "記録の保存に失敗しました",
         variant: "destructive",
       });
@@ -261,7 +335,6 @@ export default function Entry() {
   const getDateLabel = () => {
     const today = format(new Date(), "yyyy-MM-dd");
     const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
-    
     if (formData.date === today) return "今日";
     if (formData.date === yesterday) return "昨日";
     return format(new Date(formData.date), "M月d日", { locale: ja });
@@ -272,29 +345,21 @@ export default function Entry() {
     return option ? option.label : "";
   };
 
-  // 選択されたタイミングに基づいてインスリンのタイミングを取得
+  // 選択されたタイミングに基づいてインスリン情報を取得
   const getInsulinTimingInfo = useMemo(() => {
     if (!formData.timeSlot) return null;
-
     const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
     if (!selectedOption) return null;
 
-    const insulinSlot = selectedOption.insulinSlot;
-    const insulinSlotMap: Record<string, { label: string; key: InsulinTimeSlot }> = {
-      "Breakfast": { label: "朝食", key: "Breakfast" },
-      "Lunch": { label: "昼食", key: "Lunch" },
-      "Dinner": { label: "夕食", key: "Dinner" },
-      "Bedtime": { label: "眠前", key: "Bedtime" },
+    const insulinSlot = selectedOption.insulinSlot as InsulinTimeSlot;
+    const labels: Record<string, string> = {
+      Breakfast: "朝食", Lunch: "昼食", Dinner: "夕食", Bedtime: "眠前",
     };
 
-    const timing = insulinSlotMap[insulinSlot];
-    if (!timing) return null;
+    const baseAmount = getBasalDosesFromPresets(insulinSlot);
 
-    return {
-      label: timing.label,
-      baseAmount: basalInsulinDoses[timing.key],
-    };
-  }, [formData.timeSlot, basalInsulinDoses]);
+    return { label: labels[insulinSlot], baseAmount, insulinSlot };
+  }, [formData.timeSlot, presets, getBasalDosesFromPresets]);
 
   // 適用される調整ルールを計算
   const applicableRules = useMemo(() => {
@@ -305,16 +370,11 @@ export default function Entry() {
     const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
     if (!selectedOption) return [];
 
-    // インスリンのタイミングを判定
     const insulinTimingMap: Record<string, string> = {
-      "Breakfast": "朝",
-      "Lunch": "昼",
-      "Dinner": "夕",
-      "Bedtime": "眠前",
+      Breakfast: "朝", Lunch: "昼", Dinner: "夕", Bedtime: "眠前",
     };
     const currentTiming = insulinTimingMap[selectedOption.insulinSlot];
 
-    // 現在のタイミングに適用されるルールをフィルタ
     return rules.filter(rule => rule.timeSlot === currentTiming);
   }, [formData.date, formData.timeSlot, rulesData]);
 
@@ -323,53 +383,37 @@ export default function Entry() {
 
   // 血糖値が入力されたら、ルールに基づいてインスリン量を自動計算
   useEffect(() => {
+    // 編集モード中や手動でプリセットを選択した場合は自動計算しない
+    if (selectedPresetId) return;
     if (!formData.glucoseLevel || !formData.timeSlot) return;
     if (!getInsulinTimingInfo) return;
 
     const glucoseValue = parseInt(formData.glucoseLevel);
     if (isNaN(glucoseValue)) return;
 
-    // 基礎投与量
     let calculatedInsulin = getInsulinTimingInfo.baseAmount;
 
-    // 該当するルールを探して調整量を加算
     for (const rule of applicableRules) {
       let matches = false;
-
       switch (rule.comparison) {
-        case "以下":
-          matches = glucoseValue <= rule.threshold;
-          break;
-        case "未満":
-          matches = glucoseValue < rule.threshold;
-          break;
-        case "以上":
-          matches = glucoseValue >= rule.threshold;
-          break;
-        case "超える":
-          matches = glucoseValue > rule.threshold;
-          break;
+        case "以下": matches = glucoseValue <= rule.threshold; break;
+        case "未満": matches = glucoseValue < rule.threshold; break;
+        case "以上": matches = glucoseValue >= rule.threshold; break;
+        case "超える": matches = glucoseValue > rule.threshold; break;
       }
-
-      if (matches) {
-        calculatedInsulin += rule.adjustmentAmount;
-      }
+      if (matches) calculatedInsulin += rule.adjustmentAmount;
     }
 
-    // 計算結果を反映（0未満にはしない）
     const finalInsulin = Math.max(0, calculatedInsulin);
-    setFormData(prev => ({
-      ...prev,
-      insulinUnits: finalInsulin.toString(),
-    }));
-  }, [formData.glucoseLevel, formData.timeSlot, getInsulinTimingInfo, applicableRules]);
+    setFormData(prev => ({ ...prev, insulinUnits: finalInsulin.toString() }));
+  }, [formData.glucoseLevel, formData.timeSlot, getInsulinTimingInfo, applicableRules, selectedPresetId]);
 
   return (
     <AppLayout>
       <div className="pt-6 px-6 pb-6 space-y-6">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             data-testid="button-back"
             onClick={() => setLocation("/logbook")}
@@ -391,12 +435,8 @@ export default function Entry() {
           <Card className="border-2 border-blue-200 dark:border-blue-800">
             <CardHeader className="pb-3 bg-blue-50 dark:bg-blue-950/20">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold">
-                  1
-                </div>
-                <div className="flex-1">
-                  <CardTitle className="text-base text-blue-900 dark:text-blue-100">いつの記録ですか？</CardTitle>
-                </div>
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold">1</div>
+                <CardTitle className="text-base text-blue-900 dark:text-blue-100">いつの記録ですか？</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="pt-4 bg-blue-50/30 dark:bg-blue-950/10">
@@ -442,27 +482,26 @@ export default function Entry() {
           <Card className="border-2 border-orange-200 dark:border-orange-800">
             <CardHeader className="pb-3 bg-orange-50 dark:bg-orange-950/20">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-sm font-bold">
-                  2
-                </div>
-                <div className="flex-1">
-                  <CardTitle className="text-base text-orange-900 dark:text-orange-100">測定タイミングはいつですか？</CardTitle>
-                </div>
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-orange-600 text-white text-sm font-bold">2</div>
+                <CardTitle className="text-base text-orange-900 dark:text-orange-100">測定タイミングはいつですか？</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="pt-4 bg-orange-50/30 dark:bg-orange-950/10 space-y-4">
               <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
                 <Select
                   value={formData.timeSlot}
-                  onValueChange={(value) => handleInputChange("timeSlot", value)}
+                  onValueChange={(value) => {
+                    handleInputChange("timeSlot", value);
+                    setSelectedPresetId(null); // タイミング変更時にプリセット選択をリセット
+                  }}
                 >
                   <SelectTrigger data-testid="select-timeslot" className="h-10">
                     <SelectValue placeholder="タイミングを選択してください" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-950">
                     {TIME_SLOT_OPTIONS.map((option) => (
-                      <SelectItem 
-                        key={option.value} 
+                      <SelectItem
+                        key={option.value}
                         value={option.value}
                         data-testid={`option-${option.value}`}
                       >
@@ -477,6 +516,19 @@ export default function Entry() {
                   </div>
                 )}
               </div>
+
+              {/* インスリンプリセット選択 */}
+              {shouldShowInfo && getInsulinTimingInfo && (
+                <InsulinPresetSelector
+                  timeSlot={getInsulinTimingInfo.insulinSlot}
+                  presets={presets}
+                  selectedPresetId={selectedPresetId}
+                  onPresetSelect={(presetId, units) => {
+                    setSelectedPresetId(presetId);
+                    setFormData(prev => ({ ...prev, insulinUnits: units.toString() }));
+                  }}
+                />
+              )}
 
               {/* 現在の投与量とルール情報 */}
               {shouldShowInfo && getInsulinTimingInfo && (
@@ -524,7 +576,7 @@ export default function Entry() {
                               <div className="flex-1">
                                 <p className="font-medium mb-1">{rule.name}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {rule.conditionType} {rule.threshold}mg/dL{rule.comparison} → {" "}
+                                  {rule.conditionType} {rule.threshold}mg/dL{rule.comparison} →{" "}
                                   <span className={rule.adjustmentAmount > 0 ? "text-blue-600 font-semibold" : "text-red-600 font-semibold"}>
                                     {rule.adjustmentAmount > 0 ? "+" : ""}{rule.adjustmentAmount}単位
                                   </span>
@@ -553,9 +605,7 @@ export default function Entry() {
           <Card className="border-2 border-green-200 dark:border-green-800">
             <CardHeader className="pb-3 bg-green-50 dark:bg-green-950/20">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-bold">
-                  3
-                </div>
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-600 text-white text-sm font-bold">3</div>
                 <div className="flex-1">
                   <CardTitle className="text-base text-green-900 dark:text-green-100">測定値を入力してください</CardTitle>
                   <CardDescription className="text-xs mt-1 text-green-700 dark:text-green-300">
@@ -565,7 +615,6 @@ export default function Entry() {
               </div>
             </CardHeader>
             <CardContent className="pt-4 space-y-3 bg-green-50/30 dark:bg-green-950/10">
-              {/* 血糖値とインスリンを横並び */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="glucoseLevel" className="text-xs text-muted-foreground">
@@ -609,13 +658,12 @@ export default function Entry() {
                   {formData.glucoseLevel && formData.insulinUnits && (
                     <p className="text-xs text-green-700 dark:text-green-300 mt-1 flex items-center gap-1">
                       <Activity className="w-3 h-3" />
-                      血糖値に基づいて自動計算されました（手動変更可）
+                      {selectedPresetId ? "プリセットから選択されました（手動変更可）" : "血糖値に基づいて自動計算されました（手動変更可）"}
                     </p>
                   )}
                 </div>
               </div>
 
-              {/* メモ欄 */}
               <div>
                 <Label htmlFor="note" className="text-xs text-muted-foreground">
                   メモ (任意)
@@ -635,7 +683,7 @@ export default function Entry() {
 
           {/* 保存・リセットボタン */}
           <div className="flex gap-3 pt-2">
-            <Button 
+            <Button
               type="button"
               variant="outline"
               onClick={resetForm}
@@ -645,9 +693,9 @@ export default function Entry() {
             >
               リセット
             </Button>
-            <Button 
-              type="submit" 
-              className="flex-1" 
+            <Button
+              type="submit"
+              className="flex-1"
               size="lg"
               data-testid="button-save"
               disabled={isSaving}

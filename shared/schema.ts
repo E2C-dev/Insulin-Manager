@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, date, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, date, decimal, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -17,10 +17,28 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// インスリンプリセットテーブル（ユーザーが使用するインスリン製品の設定）
+export const insulinPresets = pgTable("insulin_presets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // カスタム名（例: "朝のノボラピッド"）
+  category: text("category").notNull(), // 超速効型 | 速効型 | 中間型 | 持効型 | 超持効型 | 混合型
+  brand: text("brand").notNull(), // ブランド名
+  defaultBreakfastUnits: decimal("default_breakfast_units", { precision: 5, scale: 1 }), // null=このタイミングには使わない
+  defaultLunchUnits: decimal("default_lunch_units", { precision: 5, scale: 1 }),
+  defaultDinnerUnits: decimal("default_dinner_units", { precision: 5, scale: 1 }),
+  defaultBedtimeUnits: decimal("default_bedtime_units", { precision: 5, scale: 1 }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: text("is_active").notNull().default("true"), // ソフトデリート用
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
 // インスリン投与記録テーブル
 export const insulinEntries = pgTable("insulin_entries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  presetId: varchar("preset_id").references(() => insulinPresets.id, { onDelete: "set null" }), // 使用したプリセット
   date: date("date").notNull(), // 日付
   timeSlot: text("time_slot").notNull(), // Breakfast, Lunch, Dinner, Bedtime
   units: decimal("units", { precision: 5, scale: 1 }).notNull(), // 投与量
@@ -41,6 +59,25 @@ export const glucoseEntries = pgTable("glucose_entries", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
+export const insertInsulinPresetSchema = createInsertSchema(insulinPresets, {
+  name: z.string().min(1, "名前を入力してください").max(50, "名前は50文字以内で入力してください"),
+  category: z.enum(["超速効型", "速効型", "中間型", "持効型", "超持効型", "混合型"], {
+    errorMap: () => ({ message: "カテゴリを選択してください" }),
+  }),
+  brand: z.string().min(1, "ブランドを選択してください"),
+  defaultBreakfastUnits: z.string().nullable().optional(),
+  defaultLunchUnits: z.string().nullable().optional(),
+  defaultDinnerUnits: z.string().nullable().optional(),
+  defaultBedtimeUnits: z.string().nullable().optional(),
+  sortOrder: z.number().int().default(0),
+  isActive: z.string().default("true"),
+}).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertInsulinEntrySchema = createInsertSchema(insulinEntries, {
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "日付形式が正しくありません (YYYY-MM-DD)"),
   timeSlot: z.enum(["Breakfast", "Lunch", "Dinner", "Bedtime"], {
@@ -50,6 +87,7 @@ export const insertInsulinEntrySchema = createInsertSchema(insulinEntries, {
     const num = parseFloat(val);
     return !isNaN(num) && num >= 0 && num <= 100;
   }, "投与量は0〜100の範囲で入力してください"),
+  presetId: z.string().nullable().optional(),
   note: z.string().optional(),
 }).omit({
   id: true,
@@ -81,6 +119,8 @@ export const insertGlucoseEntrySchema = createInsertSchema(glucoseEntries, {
   updatedAt: true,
 });
 
+export type InsulinPreset = typeof insulinPresets.$inferSelect;
+export type InsertInsulinPreset = z.infer<typeof insertInsulinPresetSchema>;
 export type InsulinEntry = typeof insulinEntries.$inferSelect;
 export type InsertInsulinEntry = z.infer<typeof insertInsulinEntrySchema>;
 export type GlucoseEntry = typeof glucoseEntries.$inferSelect;
@@ -103,6 +143,7 @@ export const adjustmentRules = pgTable("adjustment_rules", {
   // 調整内容
   adjustmentAmount: integer("adjustment_amount").notNull(), // 調整量（+2, -1 など）
   targetTimeSlot: text("target_time_slot").notNull(), // 調整対象の時間帯（眠前、翌日同食事など）
+  presetId: varchar("preset_id").references(() => insulinPresets.id, { onDelete: "set null" }), // 使用するインスリンプリセット（省略可）
   
   // タイムスタンプ
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
@@ -119,6 +160,7 @@ export const insertAdjustmentRuleSchema = createInsertSchema(adjustmentRules, {
   }),
   adjustmentAmount: z.number().int().min(-20).max(20, "調整量は-20〜+20の範囲で入力してください"),
   targetTimeSlot: z.string().min(1, "調整対象の時間帯を入力してください"),
+  presetId: z.string().nullable().optional(),
 }).omit({
   id: true,
   userId: true,

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.healthline.com)",
+      "WebFetch(domain:www.cdc.gov)",
+      "WebFetch(domain:my.clevelandclinic.org)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(curl:*)",
+      "Bash(node -e:*)",
+      "Bash(pkill:*)",
+      "Bash(kill:*)"
+    ]
+  }
+}
