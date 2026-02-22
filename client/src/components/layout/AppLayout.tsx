@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+
 interface AppLayoutProps {
   children: React.ReactNode;
 }
@@ -22,10 +23,8 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const navItems = [
     { icon: Home, label: "ホーム", href: "/" },
-    { icon: NotebookPen, label: "記録", href: "/logbook" },
     { icon: PlusCircle, label: "入力", href: "/entry", isPrimary: true },
-    { icon: Activity, label: "ルール", href: "/adjustment-rules" },
-    { icon: Settings, label: "設定", href: "/settings" },
+    { icon: NotebookPen, label: "ノート", href: "/logbook" },
   ];
 
   return (
@@ -55,6 +54,12 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
                   <Settings className="w-4 h-4" />
                   設定
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/adjustment-rules" className="flex items-center gap-2 cursor-pointer">
+                  <Activity className="w-4 h-4" />
+                  調整ルール
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

@@ -8,9 +8,14 @@ import {
   insertAdjustmentRuleSchema,
   insertInsulinEntrySchema,
   insertGlucoseEntrySchema,
+  users,
   type User
 } from "@shared/schema";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { registerAdminRoutes } from "./admin-routes";
+import { adminStorage } from "./admin-storage";
+import { db } from "./db";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -129,20 +134,27 @@ export async function registerRoutes(
         }
 
         console.log(`✅ 認証成功: ${user.username} (ID: ${user.id})`);
-        req.login(user, (err) => {
+        req.login(user, async (err) => {
           if (err) {
             console.error("❌ ログインエラー:", err);
             console.log("===========================================\n");
             return res.status(500).json({ message: "ログインに失敗しました" });
           }
-          
+
+          // 最終ログイン日時を更新
+          try {
+            await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
+          } catch (e) {
+            console.warn("lastLoginAt更新エラー:", e);
+          }
+
           console.log("✅ ログイン完了");
           console.log("===========================================\n");
           // パスワードを除外してレスポンス
           const { password, ...userWithoutPassword } = user;
-          return res.json({ 
+          return res.json({
             message: "ログインに成功しました",
-            user: userWithoutPassword 
+            user: userWithoutPassword
           });
         });
       })(req, res, next);
@@ -609,6 +621,25 @@ export async function registerRoutes(
     }
   });
 
+  // フィーチャーフラグ公開API（認証不要、フロントエンドの表示制御用）
+  app.get("/api/feature-flags/public", async (_req: Request, res: Response) => {
+    try {
+      const flags = await adminStorage.getFeatureFlags();
+      const flagMap = flags.reduce(
+        (acc, f) => ({ ...acc, [f.key]: f.value }),
+        {} as Record<string, boolean>
+      );
+      res.json({ flags: flagMap });
+    } catch (error) {
+      console.error("フィーチャーフラグ取得エラー:", error);
+      // エラー時はデフォルト値を返す
+      res.json({ flags: { show_ads: false, enable_user_registration: true } });
+    }
+  });
+
+  // 管理者ルート登録
+  registerAdminRoutes(app);
+
   console.log("===========================================");
   console.log("🎉 すべてのAPIルート登録完了");
   console.log("   - 認証: 4エンドポイント");
@@ -617,6 +648,7 @@ export async function registerRoutes(
   console.log("   - 血糖値記録: 4エンドポイント");
   console.log("   - インスリンプリセット: 4エンドポイント");
   console.log("   - その他: 1エンドポイント");
+  console.log("   - 管理者API: 10エンドポイント");
   console.log("===========================================\n");
 
   return httpServer;

@@ -9,7 +9,9 @@
       "Bash(node -e:*)",
       "Bash(pkill:*)",
       "Bash(kill:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(psql:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

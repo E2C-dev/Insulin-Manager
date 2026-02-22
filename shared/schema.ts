@@ -7,6 +7,10 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  role: text("role").notNull().default("user"),            // "user" | "admin" | "admin_readonly"
+  isActive: boolean("is_active").notNull().default(true),  // アカウント無効化用
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  lastLoginAt: timestamp("last_login_at"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -16,6 +20,36 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type UserWithRole = typeof users.$inferSelect;
+
+// フィーチャーフラグテーブル（管理者がON/OFFを制御する機能フラグ）
+export const featureFlags = pgTable("feature_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),        // 例: "show_ads", "enable_user_registration"
+  value: boolean("value").notNull().default(false),
+  description: text("description"),
+  updatedBy: varchar("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type FeatureFlag = typeof featureFlags.$inferSelect;
+
+// 監査ログテーブル（管理者の操作履歴）
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminId: varchar("admin_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(),             // "user.deactivate", "flag.update" など
+  targetType: text("target_type").notNull(),    // "user", "feature_flag"
+  targetId: varchar("target_id"),
+  previousValue: text("previous_value"),        // JSON文字列
+  newValue: text("new_value"),                  // JSON文字列
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
 
 // インスリンプリセットテーブル（ユーザーが使用するインスリン製品の設定）
 export const insulinPresets = pgTable("insulin_presets", {

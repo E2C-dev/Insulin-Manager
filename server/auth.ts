@@ -2,7 +2,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcrypt";
 import { storage } from "./storage";
-import type { User } from "@shared/schema";
+import type { User, UserWithRole } from "@shared/schema";
 
 // パスワードをハッシュ化する関数
 export async function hashPassword(password: string): Promise<string> {
@@ -62,6 +62,36 @@ export function isAuthenticated(req: any, res: any, next: any) {
     return next();
   }
   res.status(401).json({ message: "認証が必要です" });
+}
+
+// 管理者認証チェックのミドルウェア（admin または admin_readonly）
+export function isAdmin(req: any, res: any, next: any) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "認証が必要です" });
+  }
+  const user = req.user as UserWithRole;
+  if (user.role !== "admin" && user.role !== "admin_readonly") {
+    return res.status(403).json({ message: `管理者権限が必要です (role: ${user.role})` });
+  }
+  if (!user.isActive) {
+    return res.status(403).json({ message: "このアカウントは無効化されています" });
+  }
+  return next();
+}
+
+// 管理者書き込み権限チェックのミドルウェア（admin のみ）
+export function isAdminWritable(req: any, res: any, next: any) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "認証が必要です" });
+  }
+  const user = req.user as UserWithRole;
+  if (user.role !== "admin") {
+    return res.status(403).json({ message: "書き込み権限を持つ管理者権限が必要です" });
+  }
+  if (!user.isActive) {
+    return res.status(403).json({ message: "このアカウントは無効化されています" });
+  }
+  return next();
 }
 
 export default passport;

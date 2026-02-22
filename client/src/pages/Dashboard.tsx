@@ -1,16 +1,34 @@
 import { useQuery } from "@tanstack/react-query";
+import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Activity, TrendingUp, BookOpen, Plus, Syringe, AlertTriangle } from "lucide-react";
+import { Activity, TrendingUp, BookOpen, Flame, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
 import { format, subDays, parseISO } from "date-fns";
 import { ja } from "date-fns/locale";
-import { Link } from "wouter";
 import { type ApiGlucoseEntry, type ApiInsulinEntry, getGlucoseBasicColor } from "@/lib/types";
+
+// 時間帯に応じた挨拶
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 10) return "おはようございます";
+  if (hour < 17) return "こんにちは";
+  return "こんばんは";
+}
+
+// 7日間カレンダーの日付ドットの色を決定
+function getDayDotStyle(hasRecord: boolean, avgGlucose: number | null, isToday: boolean): string {
+  const ring = isToday ? "ring-2 ring-primary ring-offset-1 " : "";
+  if (!hasRecord) return ring + "bg-muted text-muted-foreground";
+  if (avgGlucose === null) return ring + "bg-primary text-primary-foreground";
+  if (avgGlucose < 70) return ring + "bg-red-500 text-white";
+  if (avgGlucose > 180) return ring + "bg-orange-400 text-white";
+  return ring + "bg-green-500 text-white";
+}
 
 export default function Dashboard() {
   const today = format(new Date(), "yyyy-MM-dd");
   const sevenDaysAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
+  const { showAds } = useFeatureFlags();
 
   const { data: glucoseData, isLoading: glucoseLoading } = useQuery({
     queryKey: ["glucose-entries"],
@@ -34,42 +52,73 @@ export default function Dashboard() {
 
   const isLoading = glucoseLoading || insulinLoading;
 
-  // 今日の記録数
-  const todayGlucoseCount = glucoseData?.filter(e => e.date === today).length ?? 0;
-  const todayInsulinCount = insulinData?.filter(e => e.date === today).length ?? 0;
-  const todayTotal = todayGlucoseCount + todayInsulinCount;
-
   // 直近7日間の平均血糖値
   const recentGlucose = glucoseData?.filter(e => e.date >= sevenDaysAgo) ?? [];
   const avgGlucose = recentGlucose.length > 0
     ? Math.round(recentGlucose.reduce((sum, e) => sum + e.glucoseLevel, 0) / recentGlucose.length)
     : null;
 
-  // 直近7日間の最新血糖値（今日の最後）
+  // 今日の血糖値エントリ
   const todayGlucoseEntries = glucoseData?.filter(e => e.date === today) ?? [];
   const latestGlucose = todayGlucoseEntries.length > 0
     ? todayGlucoseEntries[todayGlucoseEntries.length - 1]?.glucoseLevel
     : null;
 
-  // 直近7日間の記録日リスト
+  // 低血糖アラート
+  const lowGlucoseToday = todayGlucoseEntries.some(e => e.glucoseLevel < 70);
+
+  // 今日の投与状況（4タイムスロット）
+  const todayInsulinEntries = insulinData?.filter(e => e.date === today) ?? [];
+  const doseSlots: { slot: string; label: string; icon: string }[] = [
+    { slot: "Breakfast", label: "朝", icon: "☀️" },
+    { slot: "Lunch",     label: "昼", icon: "🌤️" },
+    { slot: "Dinner",    label: "夕", icon: "🌆" },
+    { slot: "Bedtime",   label: "眠前", icon: "🌙" },
+  ];
+  const doseStatus = doseSlots.map(({ slot, label, icon }) => {
+    const entry = todayInsulinEntries.find(e => e.timeSlot === slot);
+    return { label, icon, units: entry ? parseFloat(entry.units) : null };
+  });
+  const hasTodayInsulin = doseStatus.some(d => d.units !== null);
+
+  // 直近7日間カレンダー（日ごとの平均血糖値付き）
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = format(subDays(new Date(), 6 - i), "yyyy-MM-dd");
-    const hasGlucose = glucoseData?.some(e => e.date === date) ?? false;
+    const dayGlucose = glucoseData?.filter(e => e.date === date) ?? [];
+    const hasGlucose = dayGlucose.length > 0;
     const hasInsulin = insulinData?.some(e => e.date === date) ?? false;
-    return { date, hasRecord: hasGlucose || hasInsulin };
+    const dayAvg = dayGlucose.length > 0
+      ? Math.round(dayGlucose.reduce((sum, e) => sum + e.glucoseLevel, 0) / dayGlucose.length)
+      : null;
+    return { date, hasRecord: hasGlucose || hasInsulin, dayAvg };
   });
 
-  // 低血糖アラート（今日の血糖値で70未満がある）
-  const lowGlucoseToday = todayGlucoseEntries.some(e => e.glucoseLevel < 70);
+  // 連続記録ストリーク（今日から遡って記録がある連続日数）
+  const streak = (() => {
+    let count = 0;
+    for (let i = 0; i < 365; i++) {
+      const date = format(subDays(new Date(), i), "yyyy-MM-dd");
+      const hasGlucose = glucoseData?.some(e => e.date === date) ?? false;
+      const hasInsulin = insulinData?.some(e => e.date === date) ?? false;
+      if (hasGlucose || hasInsulin) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return count;
+  })();
 
   return (
     <AppLayout>
-      <div className="pt-6 px-6 pb-6 space-y-6">
+      <div className="pt-5 px-5 pb-6 space-y-4">
+
+        {/* ヘッダー：挨拶 + 日付 */}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight mb-2">ダッシュボード</h1>
-          <p className="text-muted-foreground text-sm">
-            {format(new Date(), "M月d日 (E)", { locale: ja })} の概要
-          </p>
+          <p className="text-xs text-muted-foreground">{getGreeting()}</p>
+          <h1 className="text-xl font-bold tracking-tight">
+            {format(new Date(), "M月d日 (E)", { locale: ja })}
+          </h1>
         </div>
 
         {/* 低血糖アラート */}
@@ -83,37 +132,91 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* 主要統計カード */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* 今日の投与チェック */}
+        <Card>
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              今日の投与状況
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4">
+            {isLoading ? (
+              <div className="grid grid-cols-4 gap-2">
+                {doseSlots.map(s => (
+                  <div key={s.slot} className="flex flex-col items-center gap-1">
+                    <div className="w-7 h-7 rounded-full bg-muted animate-pulse" />
+                    <div className="text-[10px] text-muted-foreground">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-4 gap-2">
+                  {doseStatus.map(({ label, icon, units }) => (
+                    <div key={label} className="flex flex-col items-center gap-1">
+                      <div className={`w-10 h-10 rounded-full flex flex-col items-center justify-center border-2 text-[10px] font-semibold transition-colors
+                        ${units !== null
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-muted bg-muted/30 text-muted-foreground"
+                        }`}
+                      >
+                        <span className="text-base leading-none">{icon}</span>
+                        {units !== null && (
+                          <span className="text-[9px] leading-none mt-0.5">{units}u</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">{label}</span>
+                      {units !== null ? (
+                        <CheckCircle2 className="w-3 h-3 text-primary" />
+                      ) : (
+                        <Circle className="w-3 h-3 text-muted-foreground/40" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {!hasTodayInsulin && (
+                  <p className="text-xs text-muted-foreground mt-3 text-center">
+                    今日はまだインスリンの記録がありません
+                  </p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 統計：最新血糖値 + 7日間平均 */}
+        <div className="grid grid-cols-2 gap-3">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Activity className="w-4 h-4 text-primary" />
-                今日の記録
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
+                <Activity className="w-3 h-3" />
+                最新血糖値
+              </p>
               {isLoading ? (
                 <div className="text-2xl font-bold text-muted-foreground">...</div>
+              ) : latestGlucose !== null ? (
+                <>
+                  <div className={`text-2xl font-bold ${getGlucoseBasicColor(latestGlucose)}`}>
+                    {latestGlucose}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">mg/dL</p>
+                </>
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{todayTotal}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {todayTotal === 0 ? "まだ記録がありません" : `血糖値${todayGlucoseCount}件・インスリン${todayInsulinCount}件`}
-                  </p>
+                  <div className="text-2xl font-bold text-muted-foreground">-</div>
+                  <p className="text-[10px] text-muted-foreground">今日の記録なし</p>
                 </>
               )}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-primary" />
-                7日間平均血糖値
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" />
+                7日間平均
+              </p>
               {isLoading ? (
                 <div className="text-2xl font-bold text-muted-foreground">...</div>
               ) : avgGlucose !== null ? (
@@ -121,68 +224,62 @@ export default function Dashboard() {
                   <div className={`text-2xl font-bold ${getGlucoseBasicColor(avgGlucose)}`}>
                     {avgGlucose}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">mg/dL（{recentGlucose.length}件の平均）</p>
+                  <p className="text-[10px] text-muted-foreground">mg/dL</p>
                 </>
               ) : (
                 <>
                   <div className="text-2xl font-bold text-muted-foreground">-</div>
-                  <p className="text-xs text-muted-foreground mt-1">データがありません</p>
+                  <p className="text-[10px] text-muted-foreground">データなし</p>
                 </>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* 本日の最新血糖値 */}
-        {latestGlucose !== null && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Activity className="w-4 h-4 text-primary" />
-                本日の最新血糖値
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-3xl font-bold ${getGlucoseBasicColor(latestGlucose)}`}>
-                {latestGlucose}
-                <span className="text-base font-normal text-muted-foreground ml-1">mg/dL</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 直近7日間の記録状況 */}
+        {/* 直近7日間カレンダー + ストリーク */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-primary" />
-              直近7日間の記録
-            </CardTitle>
+          <CardHeader className="pb-2 pt-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-primary" />
+                直近7日間の記録
+              </CardTitle>
+              {streak > 0 && (
+                <div className="flex items-center gap-1 text-xs font-semibold text-orange-500">
+                  <Flame className="w-4 h-4" />
+                  {streak}日連続
+                </div>
+              )}
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pb-4">
             <div className="grid grid-cols-7 gap-1">
-              {last7Days.map(({ date, hasRecord }) => {
+              {last7Days.map(({ date, hasRecord, dayAvg }) => {
                 const isToday = date === today;
                 const dayLabel = format(parseISO(date), "E", { locale: ja });
                 const dateLabel = format(parseISO(date), "d");
                 return (
                   <div key={date} className="flex flex-col items-center gap-1">
                     <span className="text-[10px] text-muted-foreground">{dayLabel}</span>
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold
-                        ${isToday ? "ring-2 ring-primary ring-offset-1" : ""}
-                        ${hasRecord ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                    >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold ${getDayDotStyle(hasRecord, dayAvg, isToday)}`}>
                       {dateLabel}
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="flex items-center gap-3 mt-3 text-[10px] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3 mt-3 text-[10px] text-muted-foreground">
               <div className="flex items-center gap-1">
-                <div className="w-2.5 h-2.5 rounded-full bg-primary"></div>
-                <span>記録あり</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                <span>良好（70-180）</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-orange-400"></div>
+                <span>高血糖（180超）</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                <span>低血糖（70未満）</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-2.5 h-2.5 rounded-full bg-muted"></div>
@@ -192,25 +289,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* クイックアクション */}
-        <div className="space-y-3">
-          <h3 className="font-semibold text-sm text-muted-foreground">クイックアクション</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/entry">
-              <Button className="w-full h-auto py-4 flex-col gap-2" size="lg">
-                <Plus className="w-5 h-5" />
-                <span className="text-sm">新規記録</span>
-              </Button>
-            </Link>
-            <Link href="/logbook">
-              <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2" size="lg">
-                <BookOpen className="w-5 h-5" />
-                <span className="text-sm">記録ノート</span>
-              </Button>
-            </Link>
-          </div>
-        </div>
-
         {/* ===== 広告バナー（ダッシュボード下部・1本のみ） =====
             Google AdSense 本番導入時:
             1. 下記の placeholder div を <ins class="adsbygoogle" ...> タグに差し替える
@@ -218,17 +296,17 @@ export default function Dashboard() {
                <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
             3. data-ad-client / data-ad-slot に発行されたIDを設定する
         ===== */}
-        <div className="mt-2 -mx-6 px-6 pt-3 border-t border-border/50">
-          <p className="text-[10px] text-muted-foreground/60 text-center mb-1 tracking-wide">広告</p>
-          {/* AdSense placeholder — 本番では <ins class="adsbygoogle"> に差し替え */}
-          <div
-            className="w-full h-[60px] bg-muted/30 rounded flex items-center justify-center text-xs text-muted-foreground/50 border border-dashed border-border/40"
-            aria-label="広告枠"
-          >
-            {/* 本番AdSenseコードをここに挿入 */}
-            広告スペース（320×60）
+        {showAds && (
+          <div className="mt-2 -mx-5 px-5 pt-3 border-t border-border/50">
+            <p className="text-[10px] text-muted-foreground/60 text-center mb-1 tracking-wide">広告</p>
+            <div
+              className="w-full h-[60px] bg-muted/30 rounded flex items-center justify-center text-xs text-muted-foreground/50 border border-dashed border-border/40"
+              aria-label="広告枠"
+            >
+              広告スペース（320×60）
+            </div>
           </div>
-        </div>
+        )}
         {/* ===== 広告バナーここまで ===== */}
       </div>
     </AppLayout>

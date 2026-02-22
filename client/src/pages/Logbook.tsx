@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity, Trash2, Edit2 } from "lucide-react";
+import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity, Trash2, Edit2, Download } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, parseISO } from "date-fns";
@@ -27,6 +27,8 @@ export default function Logbook() {
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState<{ date: string; glucoseIds: string[]; insulinIds: string[] } | null>(null);
+
+  const today = format(new Date(), "yyyy-MM-dd");
 
   const { data: glucoseData, isLoading: glucoseLoading } = useQuery({
     queryKey: ["glucose-entries"],
@@ -74,7 +76,8 @@ export default function Logbook() {
     },
   });
 
-  const processEntries = (): DailyEntry[] => {
+  // 全日程（記録なし含む）を返す
+  const processEntries = (): (DailyEntry & { hasAnyRecord: boolean })[] => {
     const days = viewMode === "week" ? 7 : 30;
     const entriesMap = new Map<string, DailyEntry>();
 
@@ -152,14 +155,16 @@ export default function Logbook() {
     }
 
     return Array.from(entriesMap.values())
-      .filter(entry =>
-        (entry.glucoseIds?.length ?? 0) > 0 || (entry.insulinIds?.length ?? 0) > 0 ||
-        entry.morning.glucoseBefore || entry.morning.glucoseAfter || entry.morning.insulin ||
-        entry.lunch.glucoseBefore || entry.lunch.glucoseAfter || entry.lunch.insulin ||
-        entry.dinner.glucoseBefore || entry.dinner.glucoseAfter || entry.dinner.insulin ||
-        entry.bedtime.glucose || entry.bedtime.insulin
-      )
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map(entry => ({
+        ...entry,
+        hasAnyRecord:
+          (entry.glucoseIds?.length ?? 0) > 0 || (entry.insulinIds?.length ?? 0) > 0 ||
+          !!entry.morning.glucoseBefore || !!entry.morning.glucoseAfter || !!entry.morning.insulin ||
+          !!entry.lunch.glucoseBefore || !!entry.lunch.glucoseAfter || !!entry.lunch.insulin ||
+          !!entry.dinner.glucoseBefore || !!entry.dinner.glucoseAfter || !!entry.dinner.insulin ||
+          !!entry.bedtime.glucose || !!entry.bedtime.insulin,
+      }));
   };
 
   const handleDeleteClick = (entry: DailyEntry, event: React.MouseEvent) => {
@@ -208,6 +213,54 @@ export default function Logbook() {
     window.location.href = `/entry?date=${date}&timeSlot=${timeSlot}`;
   };
 
+  // CSVエクスポート（ブラウザのみで完結）
+  const handleExportCSV = () => {
+    const entries = processEntries();
+    const header = [
+      "日付",
+      "朝食(食前血糖mg/dL)",
+      "朝食(食後血糖mg/dL)",
+      "朝食(インスリンu)",
+      "昼食(食前血糖mg/dL)",
+      "昼食(食後血糖mg/dL)",
+      "昼食(インスリンu)",
+      "夕食(食前血糖mg/dL)",
+      "夕食(食後血糖mg/dL)",
+      "夕食(インスリンu)",
+      "眠前(血糖mg/dL)",
+      "眠前(インスリンu)",
+    ].join(",");
+
+    const rows = entries.map(e =>
+      [
+        e.date,
+        e.morning.glucoseBefore ?? "",
+        e.morning.glucoseAfter ?? "",
+        e.morning.insulin ?? "",
+        e.lunch.glucoseBefore ?? "",
+        e.lunch.glucoseAfter ?? "",
+        e.lunch.insulin ?? "",
+        e.dinner.glucoseBefore ?? "",
+        e.dinner.glucoseAfter ?? "",
+        e.dinner.insulin ?? "",
+        e.bedtime.glucose ?? "",
+        e.bedtime.insulin ?? "",
+      ].join(",")
+    );
+
+    const csvContent = "\uFEFF" + [header, ...rows].join("\n"); // BOM付きでExcel対応
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const rangeLabel = viewMode === "week" ? "1週間" : "1ヶ月";
+    link.download = `血糖値記録_${rangeLabel}_${format(new Date(), "yyyyMMdd")}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast({ title: "CSV出力完了", description: "ファイルをダウンロードしました" });
+  };
+
   const isLoading = glucoseLoading || insulinLoading;
   const isDeleting = deleteGlucoseMutation.isPending || deleteInsulinMutation.isPending;
 
@@ -222,6 +275,7 @@ export default function Logbook() {
   }
 
   const entries = processEntries();
+  const hasAnyRecordAtAll = entries.some(e => e.hasAnyRecord);
 
   return (
     <AppLayout>
@@ -233,7 +287,7 @@ export default function Logbook() {
               日々の血糖値とインスリン記録
             </p>
           </div>
-          
+
           <Link href="/entry" data-testid="link-new-entry">
             <Button size="lg" className="shadow-lg" data-testid="button-new-entry">
               <Plus className="w-5 h-5 mr-2" />
@@ -242,23 +296,38 @@ export default function Logbook() {
           </Link>
         </div>
 
-        <div className="flex gap-2">
-          <Button
-            variant={viewMode === "week" ? "default" : "outline"}
-            onClick={() => setViewMode("week")}
-            data-testid="button-view-week"
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            1週間
-          </Button>
-          <Button
-            variant={viewMode === "month" ? "default" : "outline"}
-            onClick={() => setViewMode("month")}
-            data-testid="button-view-month"
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            1ヶ月
-          </Button>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === "week" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("week")}
+              data-testid="button-view-week"
+            >
+              <Calendar className="w-4 h-4 mr-1.5" />
+              1週間
+            </Button>
+            <Button
+              variant={viewMode === "month" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("month")}
+              data-testid="button-view-month"
+            >
+              <Calendar className="w-4 h-4 mr-1.5" />
+              1ヶ月
+            </Button>
+          </div>
+          {hasAnyRecordAtAll && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              className="text-muted-foreground"
+            >
+              <Download className="w-4 h-4 mr-1.5" />
+              CSV出力
+            </Button>
+          )}
         </div>
 
         <Card>
@@ -270,7 +339,7 @@ export default function Logbook() {
             <CardDescription>
               血糖値：食前/食後（mg/dL）、インスリン（u）
             </CardDescription>
-            
+
             <div className="pt-3 mt-3 border-t space-y-3">
               {/* 血糖値の目安 */}
               <div>
@@ -290,7 +359,7 @@ export default function Logbook() {
                   </div>
                 </div>
               </div>
-              
+
               {/* 単位の説明 */}
               <div className="flex items-center gap-2 text-xs bg-muted/30 p-2 rounded">
                 <span className="font-semibold text-muted-foreground">表示単位：</span>
@@ -305,7 +374,7 @@ export default function Logbook() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            {entries.length === 0 ? (
+            {!hasAnyRecordAtAll ? (
               <div className="text-center py-12 text-muted-foreground p-6" data-testid="empty-state">
                 <Activity className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                 <p className="mb-2" data-testid="text-empty-message">記録がまだありません</p>
@@ -348,141 +417,155 @@ export default function Logbook() {
                     </tr>
                   </thead>
                   <tbody>
-                    {entries.map((entry, index) => (
-                      <tr key={entry.date} className={index % 2 === 0 ? "bg-white dark:bg-background" : "bg-muted/20"} data-testid={`row-entry-${entry.date}`}>
-                        <td className="p-2 text-left font-medium border-b text-[11px] group">
-                          <div className="flex items-center justify-between gap-1">
-                            <div data-testid={`text-date-${entry.date}`}>
-                              {format(parseISO(entry.date), "M/d\n(E)", { locale: ja }).split('\n').map((line, i) => (
-                                <div key={i}>{line}</div>
-                              ))}
-                            </div>
-                            <button
-                              onClick={(e) => handleDeleteClick(entry, e)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
-                              title="この日の記録を削除"
-                              data-testid={`button-delete-${entry.date}`}
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                            </button>
-                          </div>
-                        </td>
-                        
-                        <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-morning-${entry.date}`}>
-                          <div className="flex flex-col items-center gap-0.5">
-                            <div className="flex items-center gap-1 text-[10px]">
-                              <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseBefore)}`} data-testid={`text-morning-glucose-before-${entry.date}`}>
-                                {entry.morning.glucoseBefore || "-"}
-                              </span>
-                              <span className="text-muted-foreground">/</span>
-                              <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseAfter)}`} data-testid={`text-morning-glucose-after-${entry.date}`}>
-                                {entry.morning.glucoseAfter || "-"}
-                              </span>
-                            </div>
-                            {entry.morning.insulin ? (
-                              <div className="flex items-center gap-1 group/insulin">
-                                <span className="text-[10px] text-primary font-semibold" data-testid={`text-morning-insulin-${entry.date}`}>
-                                  {entry.morning.insulin}u
-                                </span>
-                                <button
-                                  onClick={(e) => handleEditClick(entry.date, "BreakfastBefore", e)}
-                                  className="opacity-0 group-hover/insulin:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
-                                  title="編集"
-                                >
-                                  <Edit2 className="w-3 h-3 text-blue-600" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">-</span>
-                            )}
-                          </div>
-                        </td>
+                    {entries.map((entry) => {
+                      const isToday = entry.date === today;
+                      const rowBg = isToday
+                        ? "bg-primary/5"
+                        : entry.hasAnyRecord
+                          ? "bg-white dark:bg-background"
+                          : "bg-muted/10";
 
-                        <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-lunch-${entry.date}`}>
-                          <div className="flex flex-col items-center gap-0.5">
-                            <div className="flex items-center gap-1 text-[10px]">
-                              <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseBefore)}`} data-testid={`text-lunch-glucose-before-${entry.date}`}>
-                                {entry.lunch.glucoseBefore || "-"}
-                              </span>
-                              <span className="text-muted-foreground">/</span>
-                              <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseAfter)}`} data-testid={`text-lunch-glucose-after-${entry.date}`}>
-                                {entry.lunch.glucoseAfter || "-"}
-                              </span>
+                      return (
+                        <tr key={entry.date} className={rowBg} data-testid={`row-entry-${entry.date}`}>
+                          <td className={`p-2 text-left font-medium border-b text-[11px] ${isToday ? "border-l-2 border-l-primary" : ""}`}>
+                            <div className="flex items-center justify-between gap-1">
+                              <div data-testid={`text-date-${entry.date}`}>
+                                {isToday && (
+                                  <div className="text-[9px] text-primary font-bold mb-0.5">今日</div>
+                                )}
+                                {format(parseISO(entry.date), "M/d\n(E)", { locale: ja }).split('\n').map((line, i) => (
+                                  <div key={i} className={!entry.hasAnyRecord ? "text-muted-foreground/50" : ""}>{line}</div>
+                                ))}
+                              </div>
+                              {entry.hasAnyRecord && (
+                                <button
+                                  onClick={(e) => handleDeleteClick(entry, e)}
+                                  className="p-1 hover:bg-destructive/10 active:bg-destructive/20 rounded touch-manipulation"
+                                  title="この日の記録を削除"
+                                  data-testid={`button-delete-${entry.date}`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-destructive/50 hover:text-destructive" />
+                                </button>
+                              )}
                             </div>
-                            {entry.lunch.insulin ? (
-                              <div className="flex items-center gap-1 group/insulin">
-                                <span className="text-[10px] text-primary font-semibold" data-testid={`text-lunch-insulin-${entry.date}`}>
-                                  {entry.lunch.insulin}u
-                                </span>
-                                <button
-                                  onClick={(e) => handleEditClick(entry.date, "LunchBefore", e)}
-                                  className="opacity-0 group-hover/insulin:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
-                                  title="編集"
-                                >
-                                  <Edit2 className="w-3 h-3 text-blue-600" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">-</span>
-                            )}
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-dinner-${entry.date}`}>
-                          <div className="flex flex-col items-center gap-0.5">
-                            <div className="flex items-center gap-1 text-[10px]">
-                              <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseBefore)}`} data-testid={`text-dinner-glucose-before-${entry.date}`}>
-                                {entry.dinner.glucoseBefore || "-"}
-                              </span>
-                              <span className="text-muted-foreground">/</span>
-                              <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseAfter)}`} data-testid={`text-dinner-glucose-after-${entry.date}`}>
-                                {entry.dinner.glucoseAfter || "-"}
-                              </span>
+                          <td className="p-1.5 border-b border-l text-center" data-testid={`cell-morning-${entry.date}`}>
+                            <div className="flex flex-col items-center gap-0.5">
+                              <div className="flex items-center gap-1 text-[10px]">
+                                <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseBefore)}`} data-testid={`text-morning-glucose-before-${entry.date}`}>
+                                  {entry.morning.glucoseBefore || "-"}
+                                </span>
+                                <span className="text-muted-foreground">/</span>
+                                <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseAfter)}`} data-testid={`text-morning-glucose-after-${entry.date}`}>
+                                  {entry.morning.glucoseAfter || "-"}
+                                </span>
+                              </div>
+                              {entry.morning.insulin ? (
+                                <div className="flex items-center gap-0.5">
+                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-morning-insulin-${entry.date}`}>
+                                    {entry.morning.insulin}u
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleEditClick(entry.date, "BreakfastBefore", e)}
+                                    className="p-0.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
+                                    title="編集"
+                                  >
+                                    <Edit2 className="w-3 h-3 text-blue-400 hover:text-blue-600" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">-</span>
+                              )}
                             </div>
-                            {entry.dinner.insulin ? (
-                              <div className="flex items-center gap-1 group/insulin">
-                                <span className="text-[10px] text-primary font-semibold" data-testid={`text-dinner-insulin-${entry.date}`}>
-                                  {entry.dinner.insulin}u
-                                </span>
-                                <button
-                                  onClick={(e) => handleEditClick(entry.date, "DinnerBefore", e)}
-                                  className="opacity-0 group-hover/insulin:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
-                                  title="編集"
-                                >
-                                  <Edit2 className="w-3 h-3 text-blue-600" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">-</span>
-                            )}
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="p-1.5 border-b border-l text-center group" data-testid={`cell-bedtime-${entry.date}`}>
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className={`text-xs font-semibold ${getGlucoseBasicColor(entry.bedtime.glucose)}`} data-testid={`text-bedtime-glucose-${entry.date}`}>
-                              {entry.bedtime.glucose || "-"}
-                            </span>
-                            {entry.bedtime.insulin ? (
-                              <div className="flex items-center gap-1 group/insulin">
-                                <span className="text-[10px] text-primary font-semibold" data-testid={`text-bedtime-insulin-${entry.date}`}>
-                                  {entry.bedtime.insulin}u
+                          <td className="p-1.5 border-b border-l text-center" data-testid={`cell-lunch-${entry.date}`}>
+                            <div className="flex flex-col items-center gap-0.5">
+                              <div className="flex items-center gap-1 text-[10px]">
+                                <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseBefore)}`} data-testid={`text-lunch-glucose-before-${entry.date}`}>
+                                  {entry.lunch.glucoseBefore || "-"}
                                 </span>
-                                <button
-                                  onClick={(e) => handleEditClick(entry.date, "BeforeSleep", e)}
-                                  className="opacity-0 group-hover/insulin:opacity-100 transition-opacity p-0.5 hover:bg-blue-100 rounded"
-                                  title="編集"
-                                >
-                                  <Edit2 className="w-3 h-3 text-blue-600" />
-                                </button>
+                                <span className="text-muted-foreground">/</span>
+                                <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseAfter)}`} data-testid={`text-lunch-glucose-after-${entry.date}`}>
+                                  {entry.lunch.glucoseAfter || "-"}
+                                </span>
                               </div>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">-</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              {entry.lunch.insulin ? (
+                                <div className="flex items-center gap-0.5">
+                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-lunch-insulin-${entry.date}`}>
+                                    {entry.lunch.insulin}u
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleEditClick(entry.date, "LunchBefore", e)}
+                                    className="p-0.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
+                                    title="編集"
+                                  >
+                                    <Edit2 className="w-3 h-3 text-blue-400 hover:text-blue-600" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">-</span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-1.5 border-b border-l text-center" data-testid={`cell-dinner-${entry.date}`}>
+                            <div className="flex flex-col items-center gap-0.5">
+                              <div className="flex items-center gap-1 text-[10px]">
+                                <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseBefore)}`} data-testid={`text-dinner-glucose-before-${entry.date}`}>
+                                  {entry.dinner.glucoseBefore || "-"}
+                                </span>
+                                <span className="text-muted-foreground">/</span>
+                                <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseAfter)}`} data-testid={`text-dinner-glucose-after-${entry.date}`}>
+                                  {entry.dinner.glucoseAfter || "-"}
+                                </span>
+                              </div>
+                              {entry.dinner.insulin ? (
+                                <div className="flex items-center gap-0.5">
+                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-dinner-insulin-${entry.date}`}>
+                                    {entry.dinner.insulin}u
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleEditClick(entry.date, "DinnerBefore", e)}
+                                    className="p-0.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
+                                    title="編集"
+                                  >
+                                    <Edit2 className="w-3 h-3 text-blue-400 hover:text-blue-600" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">-</span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-1.5 border-b border-l text-center" data-testid={`cell-bedtime-${entry.date}`}>
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className={`text-xs font-semibold ${getGlucoseBasicColor(entry.bedtime.glucose)}`} data-testid={`text-bedtime-glucose-${entry.date}`}>
+                                {entry.bedtime.glucose || "-"}
+                              </span>
+                              {entry.bedtime.insulin ? (
+                                <div className="flex items-center gap-0.5">
+                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-bedtime-insulin-${entry.date}`}>
+                                    {entry.bedtime.insulin}u
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleEditClick(entry.date, "BeforeSleep", e)}
+                                    className="p-0.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
+                                    title="編集"
+                                  >
+                                    <Edit2 className="w-3 h-3 text-blue-400 hover:text-blue-600" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">-</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

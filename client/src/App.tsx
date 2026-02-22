@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Logbook from "@/pages/Logbook";
@@ -12,6 +13,11 @@ import Settings from "@/pages/Settings";
 import AdjustmentRules from "@/pages/AdjustmentRules";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import AdminLogin from "@/pages/admin/AdminLogin";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminFeatureFlags from "@/pages/admin/AdminFeatureFlags";
+import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
 
 function Router() {
   return (
@@ -53,6 +59,37 @@ function Router() {
           </ProtectedRoute>
         )}
       </Route>
+      {/* 管理者ルート */}
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin/users">
+        {() => (
+          <AdminProtectedRoute>
+            <AdminUsers />
+          </AdminProtectedRoute>
+        )}
+      </Route>
+      <Route path="/admin/feature-flags">
+        {() => (
+          <AdminProtectedRoute>
+            <AdminFeatureFlags />
+          </AdminProtectedRoute>
+        )}
+      </Route>
+      <Route path="/admin/audit-logs">
+        {() => (
+          <AdminProtectedRoute>
+            <AdminAuditLogs />
+          </AdminProtectedRoute>
+        )}
+      </Route>
+      <Route path="/admin">
+        {() => (
+          <AdminProtectedRoute>
+            <AdminDashboard />
+          </AdminProtectedRoute>
+        )}
+      </Route>
+
       <Route component={NotFound} />
     </Switch>
   );
