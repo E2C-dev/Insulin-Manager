@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { isAdmin, isAdminWritable } from "./auth";
 import { adminStorage } from "./admin-storage";
 import { createAuditLog } from "./audit";
+import { storage } from "./storage";
 import type { UserWithRole } from "@shared/schema";
 
 export function registerAdminRoutes(app: Express): void {
@@ -229,6 +230,42 @@ export function registerAdminRoutes(app: Express): void {
       } catch (error) {
         console.error("監査ログ取得エラー:", error);
         res.status(500).json({ message: "監査ログの取得に失敗しました" });
+      }
+    }
+  );
+
+  // ===== ユーザーフィードバック管理 =====
+
+  // GET /api/admin/feedback - フィードバック一覧
+  app.get("/api/admin/feedback", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const feedbacks = await storage.getFeedbacks(status);
+      res.json({ feedbacks });
+    } catch (error) {
+      console.error("フィードバック取得エラー:", error);
+      res.status(500).json({ message: "フィードバックの取得に失敗しました" });
+    }
+  });
+
+  // PATCH /api/admin/feedback/:id/status - ステータス更新
+  app.patch(
+    "/api/admin/feedback/:id/status",
+    isAdmin,
+    isAdminWritable,
+    async (req: Request, res: Response) => {
+      try {
+        const { status } = req.body;
+        const allowed = ["open", "in_review", "done", "closed"];
+        if (!status || !allowed.includes(status)) {
+          return res.status(400).json({ message: "無効なステータスです" });
+        }
+        const updated = await storage.updateFeedbackStatus(req.params.id, status);
+        if (!updated) return res.status(404).json({ message: "フィードバックが見つかりません" });
+        return res.json({ feedback: updated });
+      } catch (error) {
+        console.error("フィードバックステータス更新エラー:", error);
+        return res.status(500).json({ message: "更新に失敗しました" });
       }
     }
   );

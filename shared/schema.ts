@@ -204,3 +204,28 @@ export const insertAdjustmentRuleSchema = createInsertSchema(adjustmentRules, {
 
 export type AdjustmentRule = typeof adjustmentRules.$inferSelect;
 export type InsertAdjustmentRule = z.infer<typeof insertAdjustmentRuleSchema>;
+
+// ユーザーフィードバックテーブル（β期間中の改善要望・バグ報告）
+export const userFeedback = pgTable("user_feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }), // 非ログインでも受付
+  category: text("category").notNull(), // "bug" | "feature" | "improvement" | "other"
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  contactEmail: text("contact_email"),   // 返信先（任意）
+  status: text("status").notNull().default("open"), // "open" | "in_review" | "done" | "closed"
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertUserFeedbackSchema = z.object({
+  category: z.enum(["bug", "feature", "improvement", "other"], {
+    errorMap: () => ({ message: "カテゴリを選択してください" }),
+  }),
+  title: z.string().min(1, "タイトルを入力してください").max(100),
+  body: z.string().min(1, "内容を入力してください").max(2000),
+  contactEmail: z.string().email("メールアドレスの形式が正しくありません").optional().or(z.literal("")),
+});
+
+export type UserFeedback = typeof userFeedback.$inferSelect;
+export type InsertUserFeedback = z.infer<typeof insertUserFeedbackSchema>;

@@ -8,6 +8,7 @@ import {
   insertAdjustmentRuleSchema,
   insertInsulinEntrySchema,
   insertGlucoseEntrySchema,
+  insertUserFeedbackSchema,
   users,
   type User
 } from "@shared/schema";
@@ -618,6 +619,23 @@ export async function registerRoutes(
     } catch (error) {
       console.error("❌ プリセット削除エラー:", error);
       return res.status(500).json({ message: "プリセットの削除に失敗しました" });
+    }
+  });
+
+  // ===== ユーザーフィードバック =====
+  // フィードバック送信（認証不要 — ログイン前のユーザーからも受付）
+  app.post("/api/feedback", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertUserFeedbackSchema.parse(req.body);
+      const userId = req.isAuthenticated() ? (req.user as User).id : undefined;
+      const feedback = await storage.createFeedback({ ...validatedData, userId });
+      return res.status(201).json({ message: "フィードバックを送信しました", feedback });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "入力内容が正しくありません", errors: error.errors });
+      }
+      console.error("❌ フィードバック送信エラー:", error);
+      return res.status(500).json({ message: "フィードバックの送信に失敗しました" });
     }
   });
 

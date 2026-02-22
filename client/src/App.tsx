@@ -5,8 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
+import { useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
+import LandingPage from "@/pages/LandingPage";
 import Logbook from "@/pages/Logbook";
 import Entry from "@/pages/Entry";
 import Settings from "@/pages/Settings";
@@ -18,19 +20,22 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminFeatureFlags from "@/pages/admin/AdminFeatureFlags";
 import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
+import AdminFeedback from "@/pages/admin/AdminFeedback";
+
+// 未認証 → LP、認証済み → Dashboard
+function HomeRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!isAuthenticated) return <LandingPage />;
+  return <Dashboard />;
+}
 
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
-      <Route path="/">
-        {() => (
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        )}
-      </Route>
+      <Route path="/" component={HomeRoute} />
       <Route path="/logbook">
         {() => (
           <ProtectedRoute>
@@ -72,6 +77,13 @@ function Router() {
         {() => (
           <AdminProtectedRoute>
             <AdminFeatureFlags />
+          </AdminProtectedRoute>
+        )}
+      </Route>
+      <Route path="/admin/feedback">
+        {() => (
+          <AdminProtectedRoute>
+            <AdminFeedback />
           </AdminProtectedRoute>
         )}
       </Route>

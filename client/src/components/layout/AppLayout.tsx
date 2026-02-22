@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FeedbackButton } from "@/components/FeedbackButton";
 
 
 interface AppLayoutProps {
@@ -80,6 +81,9 @@ export function AppLayout({ children }: AppLayoutProps) {
       <main className="flex-1 overflow-y-auto overflow-x-hidden pb-24 no-scrollbar">
         {children}
       </main>
+
+      {/* フィードバックボタン */}
+      <FeedbackButton />
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-lg border-t border-border z-50 max-w-md mx-auto safe-area-bottom">

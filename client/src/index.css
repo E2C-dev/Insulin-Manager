@@ -83,6 +83,10 @@
   --status-high: 0 84% 60%;     /* Red */
   --status-low: 200 90% 50%;    /* Blue-ish */
   --status-ok: 142 76% 36%;     /* Green */
+
+  /* Landing Page Extras */
+  --hero-glow: hsl(221 83% 50% / 0.4);
+  --surface-alt: hsl(214 60% 97%);
 }
 
 .dark {

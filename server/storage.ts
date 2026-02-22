@@ -9,11 +9,14 @@ import {
   type InsertInsulinEntry,
   type GlucoseEntry,
   type InsertGlucoseEntry,
+  type UserFeedback,
+  type InsertUserFeedback,
   users,
   adjustmentRules,
   insulinPresets,
   insulinEntries,
-  glucoseEntries
+  glucoseEntries,
+  userFeedback
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -54,6 +57,11 @@ export interface IStorage {
   createGlucoseEntry(entry: InsertGlucoseEntry & { userId: string }): Promise<GlucoseEntry>;
   updateGlucoseEntry(id: string, userId: string, entry: Partial<InsertGlucoseEntry>): Promise<GlucoseEntry | undefined>;
   deleteGlucoseEntry(id: string, userId: string): Promise<boolean>;
+
+  // Feedback methods
+  createFeedback(data: InsertUserFeedback & { userId?: string }): Promise<UserFeedback>;
+  getFeedbacks(status?: string): Promise<UserFeedback[]>;
+  updateFeedbackStatus(id: string, status: string): Promise<UserFeedback | undefined>;
 }
 
 export class DbStorage implements IStorage {
@@ -322,8 +330,36 @@ export class DbStorage implements IStorage {
         eq(glucoseEntries.userId, userId)
       ))
       .returning();
-    
+
     return result.length > 0;
+  }
+
+  // Feedback methods
+  async createFeedback(data: InsertUserFeedback & { userId?: string }): Promise<UserFeedback> {
+    const result = await db
+      .insert(userFeedback)
+      .values(data)
+      .returning();
+    return result[0];
+  }
+
+  async getFeedbacks(status?: string): Promise<UserFeedback[]> {
+    const query = db.select().from(userFeedback).orderBy(desc(userFeedback.createdAt));
+    if (status) {
+      return db.select().from(userFeedback)
+        .where(eq(userFeedback.status, status))
+        .orderBy(desc(userFeedback.createdAt));
+    }
+    return query;
+  }
+
+  async updateFeedbackStatus(id: string, status: string): Promise<UserFeedback | undefined> {
+    const result = await db
+      .update(userFeedback)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(userFeedback.id, id))
+      .returning();
+    return result[0];
   }
 }
 

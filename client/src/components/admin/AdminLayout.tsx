@@ -4,6 +4,7 @@ import {
   Users,
   Flag,
   ScrollText,
+  MessageSquare,
   LogOut,
   ShieldCheck,
 } from "lucide-react";
@@ -16,6 +17,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "概要", href: "/admin" },
   { icon: Users, label: "ユーザー管理", href: "/admin/users" },
   { icon: Flag, label: "機能フラグ", href: "/admin/feature-flags" },
+  { icon: MessageSquare, label: "フィードバック", href: "/admin/feedback" },
   { icon: ScrollText, label: "監査ログ", href: "/admin/audit-logs" },
 ];
 
