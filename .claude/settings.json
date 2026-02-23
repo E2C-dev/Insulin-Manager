@@ -3,7 +3,11 @@
     "allow": [
       "WebFetch(domain:github.com)",
       "Bash(npm view:*)",
-      "Bash(npm info:*)"
+      "Bash(npm info:*)",
+      "Bash(sh)",
+      "Read(//home/runner/.claude/plugins/**)",
+      "Read(//home/runner/.config/**)",
+      "Read(//home/runner/**)"
     ]
   },
   "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
