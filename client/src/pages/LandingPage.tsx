@@ -32,6 +32,7 @@ import {
   Twitter,
   ChevronRight,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -183,11 +184,18 @@ const faqs = [
 // ---- 機能カード データ ----
 const features = [
   {
-    icon: <Zap className="w-7 h-7 text-yellow-300" />,
-    title: "自動計算ルール",
-    desc: "「血糖値140以上なら+1単位」など条件を事前設定。血糖値を入力するだけで投与量を自動提案します。",
+    icon: <FileText className="w-7 h-7 text-blue-200" />,
+    title: "A4横型PDF出力",
+    desc: "大きな文字で見やすく設計されたA4横型PDF。血糖値・インスリン記録をそのまま栄養士・医師へ提出できます。",
     bg: "bg-gradient-to-br from-primary to-blue-700",
     isHero: true,
+  },
+  {
+    icon: <Zap className="w-6 h-6 text-yellow-500" />,
+    title: "自動計算ルール",
+    desc: "「血糖値140以上なら+1単位」など条件を事前設定。血糖値を入力するだけで投与量を自動提案します。",
+    bg: "bg-yellow-50 dark:bg-yellow-950/20",
+    isHero: false,
   },
   {
     icon: <Activity className="w-6 h-6 text-green-500" />,
@@ -196,14 +204,6 @@ const features = [
     bg: "bg-green-50 dark:bg-green-950/20",
     isHero: false,
     img: "/images/screenshot-dashboard.png",
-  },
-  {
-    icon: <BookOpen className="w-6 h-6 text-blue-500" />,
-    title: "ログブック",
-    desc: "食前・食後・投与量を一覧表示。PDF/CSVで出力して、そのまま医師に渡せます。",
-    bg: "bg-blue-50 dark:bg-blue-950/20",
-    isHero: false,
-    img: "/images/screenshot-logbook.png",
   },
   {
     icon: <Settings2 className="w-6 h-6 text-purple-500" />,
@@ -323,15 +323,15 @@ const steps = [
   {
     step: "2",
     icon: <Activity className="w-6 h-6" />,
-    title: "血糖値を入力",
-    desc: "朝食前・食後・眠前など8つのタイミングに対応。毎日の測定値を入力するだけ。",
+    title: "血糖値と投与量を記録",
+    desc: "朝食前・食後・眠前など8つのタイミングに対応。入力はシンプルで、毎日の習慣になります。",
     img: "/images/screenshot-dashboard.png",
   },
   {
     step: "3",
-    icon: <Zap className="w-6 h-6" />,
-    title: "投与量が自動計算",
-    desc: "事前に設定したルールが血糖値に応じてインスリン量を自動提案。迷わず投与できます。",
+    icon: <FileText className="w-6 h-6" />,
+    title: "PDF出力で共有",
+    desc: "A4横型・大きな文字のPDFで出力。栄養士・医師にそのまま提出でき、説明にかかる時間を大幅に短縮できます。",
     img: "/images/screenshot-logbook.png",
   },
 ];
@@ -420,19 +420,19 @@ export default function LandingPage() {
               >
                 <Badge className="bg-white/15 text-white border-white/25 text-xs backdrop-blur-sm gap-1.5">
                   <Sparkles className="w-3 h-3" />
-                  インスリン療法中の糖尿病患者向け管理アプリ
+                  妊娠糖尿病・インスリン療法中の方の記録アプリ
                 </Badge>
               </motion.div>
 
               <motion.h1
-                className="text-5xl sm:text-6xl font-bold leading-[1.08] tracking-tight text-white"
+                className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.15] tracking-tight text-white"
                 variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
               >
-                インスリン量の
+                迷わない記録。
                 <br />
                 <span className="relative inline-block">
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-cyan-200">
-                    迷い
+                    伝わる
                   </span>
                   <motion.span
                     className="absolute -bottom-1 left-0 right-0 h-[3px] rounded-full bg-gradient-to-r from-blue-300 to-cyan-300"
@@ -441,15 +441,14 @@ export default function LandingPage() {
                     transition={{ duration: 0.8, delay: 1.0 }}
                   />
                 </span>
-                を、なくす。
+                共有。
               </motion.h1>
 
               <motion.p
-                className="text-lg text-white/75 max-w-xl mx-auto lg:mx-0 leading-relaxed"
+                className="text-base sm:text-lg text-white/75 max-w-xl mx-auto lg:mx-0 leading-relaxed"
                 variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
               >
-                血糖値を入力するだけ。自動計算ルールがあなた専用の投与量を導き出す。
-                日本で唯一、<strong className="text-white">インスリン調整ルール</strong>機能を持つ管理アプリです。
+                血糖値と投与量を入力するだけ。自動計算ルールで投与量を提案し、<strong className="text-white">A4横型PDF</strong>で栄養士・医師へすぐに共有できます。記録ノートの説明に費やしていた時間を、本質的な指導の時間へ。
               </motion.p>
 
               <motion.div
@@ -579,7 +578,7 @@ export default function LandingPage() {
                   className="bg-background rounded-3xl border border-border p-7 flex flex-col gap-4 cursor-default"
                 >
                   <div className="text-6xl leading-none text-primary/20 font-serif select-none">"</div>
-                  <p className="text-base leading-relaxed text-foreground flex-1 -mt-6">
+                  <p className="text-base sm:text-lg leading-relaxed text-foreground flex-1 -mt-6">
                     {t.text}
                   </p>
                   <div className="flex items-center gap-3 pt-3 border-t border-border">
@@ -623,17 +622,17 @@ export default function LandingPage() {
               </FadeInSection>
               <div className="space-y-3">
                 {[
-                  "血糖値が毎日違うのに、投与量をどう変えればいいか迷う",
-                  "「なんとなく今日は増やそうかな」と感覚で決めてしまう",
-                  "診察前に記録をまとめようとしたら、ノートがバラバラで大変だった",
-                  "複数のインスリンの管理が複雑で、ノートではカオスになる",
+                  "栄養士への説明だけで診察・相談時間の大半が終わってしまう",
+                  "手書きノートの書き方がバラバラで、第三者にはなかなか伝わらない",
+                  "デジタル化が進む時代なのに、血糖管理だけはアナログのまま",
+                  "投与量をどう調整すればいいか、毎回「なんとなく」で決めてしまう",
                 ].map((text, i) => (
                   <FadeInSection key={i} delay={i * 0.08} type="slideLeft">
                     <div className="flex gap-4 items-start p-5 rounded-2xl bg-red-50/70 border border-red-100 hover:border-red-200 hover:shadow-sm transition-all duration-200">
                       <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
                         <XCircle className="w-4 h-4 text-red-500" />
                       </div>
-                      <span className="text-sm leading-relaxed">{text}</span>
+                      <span className="text-base leading-relaxed">{text}</span>
                     </div>
                   </FadeInSection>
                 ))}
@@ -673,8 +672,8 @@ export default function LandingPage() {
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
                 インスリアが解決します
               </h2>
-              <p className="text-muted-foreground text-lg">
-                たった3ステップで、毎日のインスリン管理がスマートになります。
+              <p className="text-muted-foreground text-base sm:text-lg">
+                たった3ステップで、毎日の記録と栄養士・医師への共有がスマートになります。
               </p>
             </div>
           </FadeInSection>
@@ -799,34 +798,54 @@ export default function LandingPage() {
             </h2>
           </FadeInSection>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Hero カード: 自動計算ルール */}
+            {/* Hero カード: A4横型PDF出力 */}
             <FadeInSection className="sm:col-span-2" delay={0} type="fadeUp">
               <motion.div
                 whileHover={{ y: -4, boxShadow: "0 20px 60px hsl(221 83% 53% / 0.4)" }}
                 transition={{ duration: 0.2 }}
-                className="bg-gradient-to-br from-primary to-blue-700 rounded-3xl p-8 text-white relative overflow-hidden h-full min-h-[220px]"
+                className="bg-gradient-to-br from-primary to-blue-700 rounded-3xl p-5 sm:p-8 text-white relative overflow-hidden h-full min-h-[220px]"
               >
                 <div className="absolute right-0 top-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/3 translate-x-1/3" />
                 <div className="absolute right-8 bottom-6 opacity-10">
-                  <Zap className="w-32 h-32" />
+                  <FileText className="w-32 h-32" />
                 </div>
                 <div className="relative z-10">
                   <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-5">
-                    <Zap className="w-6 h-6 text-yellow-300" />
+                    <FileText className="w-6 h-6 text-blue-200" />
                   </div>
-                  <h3 className="text-2xl font-bold mb-2">自動計算ルール</h3>
-                  <p className="text-white/80 leading-relaxed max-w-md">
-                    「血糖値140以上なら+1単位」など条件を事前設定。血糖値を入力するだけで投与量を自動提案します。
+                  <h3 className="text-xl sm:text-2xl font-bold mb-2">A4横型PDF出力</h3>
+                  <p className="text-white/80 leading-relaxed text-sm sm:text-base max-w-md">
+                    大きな文字で見やすく設計されたA4横型PDF。血糖値・インスリン記録をそのまま栄養士・医師へ提出でき、
+                    説明にかかる時間を大幅に短縮します。
                   </p>
-                  <div className="mt-5 bg-white/10 rounded-xl p-4 max-w-xs backdrop-blur-sm">
-                    <div className="text-xs text-white/60 mb-1.5">血糖値: 162 mg/dL</div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">ノボラピッド</span>
-                      <span className="text-xl font-bold tabular-nums">
-                        6<span className="text-sm font-normal text-white/60 ml-1">単位</span>
-                      </span>
+                  {/* PDFプレビュー */}
+                  <div className="mt-4 sm:mt-5 bg-white/10 rounded-xl p-3 sm:p-4 w-full max-w-xs backdrop-blur-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="bg-white/25 text-white text-[10px] font-bold px-2 py-0.5 rounded">A4横型</span>
+                      <span className="text-white/60 text-[10px]">大きな文字・見やすいレイアウト</span>
                     </div>
-                    <div className="text-xs text-white/40 mt-1">150以上 → 標準量 +2単位</div>
+                    <div className="border border-white/20 rounded-lg overflow-hidden text-[10px]">
+                      <div className="bg-white/10 px-2 py-1 text-white/80 font-semibold">
+                        血糖・インスリン記録
+                      </div>
+                      <div className="divide-y divide-white/10">
+                        <div className="grid grid-cols-3 px-2 py-1 text-white/50 font-medium">
+                          <span>日付</span><span>血糖値</span><span>投与量</span>
+                        </div>
+                        {[
+                          { date: "1/15（水）", bs: "138 mg", dose: "4 単位" },
+                          { date: "1/16（木）", bs: "162 mg", dose: "6 単位" },
+                        ].map((row) => (
+                          <div key={row.date} className="grid grid-cols-3 px-2 py-1 text-white/70">
+                            <span>{row.date}</span><span>{row.bs}</span><span>{row.dose}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mt-1.5 text-[10px] text-white/40 flex items-center gap-1">
+                      <FileText className="w-3 h-3" />
+                      そのまま栄養士・医師へ提出
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -845,13 +864,13 @@ export default function LandingPage() {
                       <img src={img} alt={title} className="w-full h-full object-cover object-top" />
                     </div>
                   )}
-                  <div className="p-7 flex flex-col gap-4">
+                  <div className="p-6 sm:p-7 flex flex-col gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-white/70 flex items-center justify-center">
                       {icon}
                     </div>
                     <div>
                       <h3 className="font-bold text-lg mb-1.5">{title}</h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+                      <p className="text-base text-muted-foreground leading-relaxed">{desc}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -869,10 +888,10 @@ export default function LandingPage() {
               他のアプリとの違い
             </h2>
           </FadeInSection>
-          <div className="grid sm:grid-cols-2 gap-6">
+          <div className="grid sm:grid-cols-2 gap-8">
             {/* 左: 一般アプリ */}
             <FadeInSection delay={0} type="slideLeft">
-              <div className="rounded-3xl border-2 border-muted p-7 space-y-0.5 opacity-60">
+              <div className="rounded-3xl border-2 border-muted p-6 sm:p-7 space-y-0.5 opacity-60">
                 <div className="text-lg font-bold text-muted-foreground mb-5 pb-3 border-b border-muted">
                   一般的な記録アプリ
                 </div>
@@ -896,13 +915,13 @@ export default function LandingPage() {
 
             {/* 右: インスリア */}
             <FadeInSection delay={0.1} type="slideRight">
-              <div className="rounded-3xl border-2 border-primary p-7 space-y-0.5 shadow-2xl shadow-primary/20 relative">
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <Badge className="bg-primary text-white px-5 py-1.5 text-sm shadow-lg shadow-primary/30">
+              <div className="rounded-3xl border-2 border-primary p-6 sm:p-7 space-y-0.5 shadow-2xl shadow-primary/20 relative mt-6 sm:mt-0">
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2">
+                  <Badge className="bg-primary text-white px-5 py-1.5 text-sm shadow-lg shadow-primary/30 whitespace-nowrap">
                     インスリア
                   </Badge>
                 </div>
-                <div className="text-lg font-bold text-primary mb-5 pb-3 border-b border-primary/20 mt-2">
+                <div className="text-lg font-bold text-primary mb-5 pb-3 border-b border-primary/20 mt-3">
                   インスリン特化設計
                 </div>
                 {comparisonRows.map((r, i) => (
@@ -967,10 +986,13 @@ export default function LandingPage() {
             </div>
           </FadeInSection>
 
+          {/* モバイル向けスクロールヒント */}
+          <p className="text-center text-xs text-muted-foreground mb-3 sm:hidden">← スワイプして比較 →</p>
+
           {/* プランカード — モバイル横スクロール */}
-          <div className="flex gap-5 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 sm:grid sm:grid-cols-3 sm:overflow-visible sm:snap-none sm:pb-0 sm:mx-0 sm:px-0">
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-6 -mx-4 px-4 sm:grid sm:grid-cols-3 sm:overflow-visible sm:snap-none sm:pb-0 sm:mx-0 sm:px-0 no-scrollbar">
             {plans.map((plan, i) => (
-              <FadeInSection key={plan.name} delay={i * 0.1} className="shrink-0 w-[280px] sm:w-auto snap-center">
+              <FadeInSection key={plan.name} delay={i * 0.1} className="shrink-0 w-[calc(85vw-1rem)] max-w-[300px] sm:w-auto snap-center">
                 <motion.div
                   whileHover={{ scale: plan.badge ? 1.03 : 1.02 }}
                   transition={{ duration: 0.2 }}
@@ -1119,7 +1141,7 @@ export default function LandingPage() {
       <section className="py-24 sm:py-32 px-4">
         <div className="max-w-3xl mx-auto">
           <FadeInSection type="scale">
-            <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 to-blue-50 p-8 lg:p-12">
+            <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 to-blue-50 p-6 sm:p-8 lg:p-12">
               <div className="flex flex-col sm:flex-row gap-6 items-start">
                 {/* 開発者アバター */}
                 <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white shadow-lg shrink-0 bg-primary/10 flex items-center justify-center">
@@ -1135,20 +1157,24 @@ export default function LandingPage() {
                     <Heart className="w-4 h-4 text-rose-500" />
                     インスリアが生まれた理由
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-bold leading-snug tracking-tight">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold leading-snug tracking-tight">
                     妻が妊娠糖尿病と診断されたとき、<br />
                     すべてがアナログだった。
                   </h2>
-                  <div className="space-y-3 text-muted-foreground leading-relaxed">
+                  <div className="space-y-3 text-muted-foreground leading-relaxed text-sm sm:text-base">
                     <p>
-                      妻が妊娠中に糖尿病と診断され、初めてインスリンを渡されました。
+                      妻が妊娠糖尿病と診断され、初めてインスリンを手渡されました。
                       そのとき管理ツールとして渡されたのは、<strong className="text-foreground">1冊のノート</strong>だけでした。
-                      血糖値を測るたびに手書きでメモして、診察でそのノートを見せる。
-                      うまく伝えられないもどかしさが積み重なっていきました。
                     </p>
                     <p>
-                      「血糖値とインスリンの記録を、誰もがすぐ理解できる形で共有できたら。」
-                      それがインスリアを作り始めたきっかけです。
+                      デジタル化やDXが目覚ましく進む現代でも、血糖管理だけは依然としてアナログのまま。
+                      栄養相談に通う中で実感したのは、記録ノートの読み解きだけで
+                      <strong className="text-foreground">数十分もの貴重な時間が失われる</strong>現実でした。
+                      その時間があれば、もっと本質的な栄養指導を受けられるはずなのに。
+                    </p>
+                    <p>
+                      本来必要ではない説明の時間を削り、患者さんが<strong className="text-foreground">本当に必要な指導と向き合える環境</strong>を作りたい。
+                      そんな思いからインスリアは生まれました。
                     </p>
                   </div>
                   <div className="pt-3 border-t border-primary/15 text-xs text-muted-foreground">
@@ -1187,7 +1213,7 @@ export default function LandingPage() {
                       <span>{faq.q}</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground leading-relaxed pb-5">
+                  <AccordionContent className="text-base text-muted-foreground leading-relaxed pb-5">
                     {faq.a}
                   </AccordionContent>
                 </AccordionItem>
@@ -1207,6 +1233,42 @@ export default function LandingPage() {
                   {icon} {label}
                 </span>
               ))}
+            </div>
+          </FadeInSection>
+        </div>
+      </section>
+
+      {/* ⑩.5 サービスについての重要なご案内 */}
+      <section className="py-14 px-4 bg-amber-50/80 border-y border-amber-100">
+        <div className="max-w-3xl mx-auto">
+          <FadeInSection>
+            <div className="flex flex-col sm:flex-row items-start gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base sm:text-lg text-amber-800 mb-3">
+                  インスリアについての重要なご案内
+                </h3>
+                <ul className="space-y-2.5 text-sm sm:text-base text-amber-700 leading-relaxed">
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-500 shrink-0 mt-0.5">•</span>
+                    本アプリは<strong>個人が開発した「記録のためのノート」</strong>です。医療機器ではありません。
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-500 shrink-0 mt-0.5">•</span>
+                    開発者は医療関係者ではなく、<strong>医療行為・医療アドバイスは一切行いません</strong>。
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-500 shrink-0 mt-0.5">•</span>
+                    インスリン投与量は、<strong>必ず担当医師の指示に従ってください</strong>。自動計算はあくまで記録補助の参考値です。
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-500 shrink-0 mt-0.5">•</span>
+                    記録データの解釈や治療方針については、必ず医療専門家にご相談ください。
+                  </li>
+                </ul>
+              </div>
             </div>
           </FadeInSection>
         </div>
@@ -1252,14 +1314,14 @@ export default function LandingPage() {
           </FadeInSection>
 
           <FadeInSection delay={0.1}>
-            <h2 className="text-4xl sm:text-5xl font-bold text-white tracking-tight leading-[1.1]">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-[1.15]">
               今日から、迷わない<br />
               インスリン管理を。
             </h2>
           </FadeInSection>
 
           <FadeInSection delay={0.2}>
-            <p className="text-white/75 text-lg leading-relaxed">
+            <p className="text-white/75 text-base sm:text-lg leading-relaxed">
               血糖値を見るたびに、インスリン量が決まる。<br />
               あなた専用のルールで、毎日を自信を持って過ごそう。
             </p>

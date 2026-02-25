@@ -4,8 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --font-sans: 'Noto Sans JP', 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body: 'Noto Sans JP', 'Inter', sans-serif;
   
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
@@ -119,9 +119,13 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground selection:bg-primary/20;
+    /* 60歳以上のユーザーを想定した可読性優先の設定 */
+    font-size: 1.0625rem; /* 17px ベース */
+    line-height: 1.75;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
+    line-height: 1.3;
   }
 }
 
