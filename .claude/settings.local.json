@@ -14,7 +14,16 @@
       "Bash(npx tsc:*)",
       "Bash(ls:*)",
       "Bash(cat:*)",
-      "Bash(npx skills:*)"
+      "Bash(npx skills:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsx:*)",
+      "Bash(nix-env -iA:*)",
+      "Bash(ldconfig:*)",
+      "Read(//nix/store/**)",
+      "Bash(chromium:*)"
+    ],
+    "additionalDirectories": [
+      "/home/runner/workspace/script"
     ]
   }
 }

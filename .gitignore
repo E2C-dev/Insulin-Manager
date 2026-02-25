@@ -4,3 +4,6 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Replit: Claude Code のユーザー設定・プラグインキャッシュ（永続化用、コミットしない）
+.claude-user

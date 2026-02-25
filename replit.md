@@ -65,3 +65,17 @@ Preferred communication style: Simple, everyday language.
 - Vite with React plugin
 - TypeScript for type safety
 - Tailwind CSS v4 with `@tailwindcss/vite` plugin
+
+## Claude Code プラグイン（開発者向け）
+
+Replit 等のエフェメラル環境では、ユーザースコープで入れたプラグインはセッションごとに消えるため「毎回表示されない」ことがあります。**プロジェクトスコープ**でプラグインを有効にすると、設定が `.claude/settings.json` に保存され、リポジトリにコミットすれば永続化されます。
+
+- **推奨**: プラグインは `/plugin` の UI で「プロジェクトスコープ」を選んでインストールするか、`--scope project` 付きでインストールする。
+- **インストール例**（公式マーケットプレイス）:
+  - `/plugin install commit-commands@claude-plugins-official`（プロジェクトスコープの場合は UI でスコープを選択）
+- インストール後は `.claude/settings.json` の `enabledPlugins` が更新されるため、その変更をコミットする。
+- プラグインが一覧に表示されない場合は、キャッシュ削除後に再起動・再インストールを試す: `rm -rf ~/.claude/plugins/cache`
+
+**Replit での永続化**: このリポジトリでは、起動時に `~/.claude` をワークスペース内の `.claude-user` へシンボリックリンクする [script/setup-claude-home.sh](script/setup-claude-home.sh) を `.replit` の `run` で実行しています。これにより、Claude Code のプラグイン・キャッシュがワークスペースに保存され、毎回の設定は不要です。
+
+詳細は [docs/development/claude-code-plugins.md](docs/development/claude-code-plugins.md) を参照。

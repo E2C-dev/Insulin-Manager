@@ -195,6 +195,7 @@ const features = [
     desc: "7日間の血糖カレンダーと連続記録ストリークで、日々の管理状況を一目で把握できます。",
     bg: "bg-green-50 dark:bg-green-950/20",
     isHero: false,
+    img: "/images/screenshot-dashboard.png",
   },
   {
     icon: <BookOpen className="w-6 h-6 text-blue-500" />,
@@ -202,6 +203,7 @@ const features = [
     desc: "食前・食後・投与量を一覧表示。PDF/CSVで出力して、そのまま医師に渡せます。",
     bg: "bg-blue-50 dark:bg-blue-950/20",
     isHero: false,
+    img: "/images/screenshot-logbook.png",
   },
   {
     icon: <Settings2 className="w-6 h-6 text-purple-500" />,
@@ -323,14 +325,14 @@ const steps = [
     icon: <Activity className="w-6 h-6" />,
     title: "血糖値を入力",
     desc: "朝食前・食後・眠前など8つのタイミングに対応。毎日の測定値を入力するだけ。",
-    img: "/images/step-2-glucose-input.png",
+    img: "/images/screenshot-dashboard.png",
   },
   {
     step: "3",
     icon: <Zap className="w-6 h-6" />,
     title: "投与量が自動計算",
     desc: "事前に設定したルールが血糖値に応じてインスリン量を自動提案。迷わず投与できます。",
-    img: "/images/step-3-auto-calculate.png",
+    img: "/images/screenshot-logbook.png",
   },
 ];
 
@@ -516,9 +518,9 @@ export default function LandingPage() {
               </motion.p>
             </motion.div>
 
-            {/* 右：モックアップカード */}
+            {/* 右：スマホフレーム＋実スクリーンショット */}
             <motion.div
-              className="flex-shrink-0 w-full max-w-[280px] sm:max-w-sm lg:max-w-sm mx-auto lg:mx-0"
+              className="flex-shrink-0 w-full max-w-[220px] sm:max-w-[260px] lg:max-w-[260px] mx-auto lg:mx-0"
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
@@ -530,45 +532,29 @@ export default function LandingPage() {
                 }}
                 transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
                 style={{
-                  filter: "drop-shadow(0 30px 60px rgba(0,0,0,0.5))",
+                  filter: "drop-shadow(0 30px 60px rgba(0,0,0,0.45))",
                 }}
               >
-                <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-6 space-y-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Droplets className="w-5 h-5 text-blue-300" />
-                      <span className="text-white/80 text-sm font-medium">朝食前の血糖値</span>
-                    </div>
-                    <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs">
-                      正常範囲
-                    </Badge>
-                  </div>
-
-                  <div className="text-center py-2">
-                    <div className="text-5xl font-bold text-white tabular-nums">126</div>
-                    <div className="text-white/50 text-sm mt-1">mg/dL</div>
-                  </div>
-
-                  <div className="bg-white/10 rounded-2xl p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-white/70 text-xs font-medium">
-                      <Zap className="w-4 h-4 text-yellow-400" />
-                      調整ルール適用
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-white text-sm">ノボラピッド</span>
-                      <span className="text-2xl font-bold text-white tabular-nums">
-                        4<span className="text-sm font-normal text-white/60 ml-1">単位</span>
-                      </span>
-                    </div>
-                    <div className="text-white/40 text-xs">血糖値 110〜149 → 標準量 +0単位</div>
-                  </div>
-
-                  <motion.div
-                    className="bg-white/20 rounded-xl py-3 text-center text-white text-sm font-semibold cursor-default"
-                    whileHover={{ backgroundColor: "rgba(255,255,255,0.3)" }}
+                {/* スマホ外枠（ライトシルバー） */}
+                <div className="relative bg-gray-200 rounded-[44px] p-[5px] shadow-2xl">
+                  {/* サイドボタン */}
+                  <div className="absolute -right-[7px] top-[72px] w-[5px] h-9 bg-gray-300 rounded-r-sm" />
+                  <div className="absolute -left-[7px] top-[60px] w-[5px] h-6 bg-gray-300 rounded-l-sm" />
+                  <div className="absolute -left-[7px] top-[100px] w-[5px] h-10 bg-gray-300 rounded-l-sm" />
+                  {/* スクリーン */}
+                  <div
+                    className="relative bg-white rounded-[40px] overflow-hidden"
+                    style={{ aspectRatio: "390/844" }}
                   >
-                    記録する
-                  </motion.div>
+                    {/* ダイナミックアイランド */}
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[72px] h-[22px] bg-gray-200 rounded-full z-10" />
+                    {/* 実スクリーンショット */}
+                    <img
+                      src="/images/screenshot-dashboard.png"
+                      alt="インスリア ダッシュボード"
+                      className="w-full h-full object-cover object-top"
+                    />
+                  </div>
                 </div>
               </motion.div>
             </motion.div>
@@ -659,7 +645,7 @@ export default function LandingPage() {
               <div className="relative">
                 <div className="rounded-3xl overflow-hidden shadow-2xl bg-muted aspect-[4/3] flex items-center justify-center">
                   <ImageWithFallback
-                    src="/images/problem-notebook.png"
+                    src="/images/problem-notebook.jpg"
                     alt="手書きのインスリン記録ノート"
                     className="w-full h-full object-cover"
                     fallback={
@@ -847,19 +833,26 @@ export default function LandingPage() {
             </FadeInSection>
 
             {/* サブカード 3枚 */}
-            {features.slice(1).map(({ icon, title, desc, bg }, i) => (
+            {features.slice(1).map(({ icon, title, desc, bg, img }, i) => (
               <FadeInSection key={title} delay={(i + 1) * 0.1} type="scale">
                 <motion.div
                   whileHover={{ y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
                   transition={{ duration: 0.2 }}
-                  className={`${bg} rounded-3xl p-7 flex flex-col gap-4 h-full cursor-default`}
+                  className={`${bg} rounded-3xl overflow-hidden flex flex-col h-full cursor-default`}
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-white/70 flex items-center justify-center">
-                    {icon}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg mb-1.5">{title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+                  {img && (
+                    <div className="h-36 overflow-hidden">
+                      <img src={img} alt={title} className="w-full h-full object-cover object-top" />
+                    </div>
+                  )}
+                  <div className="p-7 flex flex-col gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-white/70 flex items-center justify-center">
+                      {icon}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg mb-1.5">{title}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+                    </div>
                   </div>
                 </motion.div>
               </FadeInSection>
