@@ -229,3 +229,22 @@ export const insertUserFeedbackSchema = z.object({
 
 export type UserFeedback = typeof userFeedback.$inferSelect;
 export type InsertUserFeedback = z.infer<typeof insertUserFeedbackSchema>;
+
+// パスワード変更スキーマ（ユーザー用）
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "現在のパスワードを入力してください"),
+  newPassword: z.string().min(8, "新しいパスワードは8文字以上で入力してください"),
+  confirmPassword: z.string().min(1, "確認用パスワードを入力してください"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "新しいパスワードと確認用パスワードが一致しません",
+  path: ["confirmPassword"],
+});
+
+export type ChangePassword = z.infer<typeof changePasswordSchema>;
+
+// 管理者によるパスワードリセットスキーマ
+export const adminResetPasswordSchema = z.object({
+  newPassword: z.string().min(8, "新しいパスワードは8文字以上で入力してください"),
+});
+
+export type AdminResetPassword = z.infer<typeof adminResetPasswordSchema>;

@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import passport, { hashPassword, isAuthenticated } from "./auth";
+import passport, { hashPassword, verifyPassword, isAuthenticated } from "./auth";
 import {
   insertUserSchema,
   insertInsulinPresetSchema,
@@ -9,6 +9,7 @@ import {
   insertInsulinEntrySchema,
   insertGlucoseEntrySchema,
   insertUserFeedbackSchema,
+  changePasswordSchema,
   users,
   type User
 } from "@shared/schema";
@@ -105,7 +106,7 @@ export async function registerRoutes(
         console.error("   スタックトレース:", error.stack);
       }
       console.log("===========================================\n");
-      res.status(500).json({ 
+      return res.status(500).json({
         message: "サーバーエラーが発生しました: " + (error instanceof Error ? error.message : String(error))
       });
     }
@@ -401,7 +402,8 @@ export async function registerRoutes(
   app.get("/api/insulin-entries", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const user = req.user as User;
-      const entries = await storage.getInsulinEntries(user.id);
+      const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      const entries = await storage.getInsulinEntries(user.id, startDate, endDate);
       return res.json({ entries });
     } catch (error) {
       console.error("❌ インスリン記録取得エラー:", error);
@@ -483,7 +485,8 @@ export async function registerRoutes(
   app.get("/api/glucose-entries", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const user = req.user as User;
-      const entries = await storage.getGlucoseEntries(user.id);
+      const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      const entries = await storage.getGlucoseEntries(user.id, startDate, endDate);
       return res.json({ entries });
     } catch (error) {
       console.error("❌ 血糖値記録取得エラー:", error);
@@ -652,6 +655,31 @@ export async function registerRoutes(
       console.error("フィーチャーフラグ取得エラー:", error);
       // エラー時はデフォルト値を返す
       res.json({ flags: { show_ads: false, enable_user_registration: true } });
+    }
+  });
+
+  // パスワード変更（ユーザー本人）
+  app.put("/api/auth/password", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      const validated = changePasswordSchema.parse(req.body);
+
+      // 現在のパスワード検証
+      const isValid = await verifyPassword(validated.currentPassword, user.password);
+      if (!isValid) {
+        return res.status(400).json({ message: "現在のパスワードが正しくありません" });
+      }
+
+      const hashed = await hashPassword(validated.newPassword);
+      await storage.updateUserPassword(user.id, hashed);
+
+      return res.json({ message: "パスワードを変更しました" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "入力内容を確認してください", errors: error.errors });
+      }
+      console.error("パスワード変更エラー:", error);
+      return res.status(500).json({ message: "パスワードの変更に失敗しました" });
     }
   });
 

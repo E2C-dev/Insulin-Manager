@@ -1,5 +1,6 @@
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, NotebookPen, PlusCircle, Settings, LogOut, User, Activity } from "lucide-react";
+import { Home, NotebookPen, PlusCircle, Settings, LogOut, User, Activity, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,24 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const [location] = useLocation();
   const { user, logout, isLoggingOut } = useAuth();
+  const [diseaseInfo, setDiseaseInfo] = useState<string>("");
+
+  useEffect(() => {
+    const diseaseType = localStorage.getItem("diseaseType") ?? "";
+    const diagnosisYear = localStorage.getItem("diagnosisYear") ?? "";
+    const diseaseLabels: Record<string, string> = {
+      type1: "1型糖尿病",
+      type2: "2型糖尿病",
+      gestational: "妊娠糖尿病",
+      other: "その他の糖尿病",
+    };
+    const label = diseaseLabels[diseaseType];
+    if (label && diagnosisYear) {
+      setDiseaseInfo(`${label} · ${diagnosisYear}年から`);
+    } else if (label) {
+      setDiseaseInfo(label);
+    }
+  }, []);
 
   const navItems = [
     { icon: Home, label: "ホーム", href: "/" },
@@ -31,7 +50,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans max-w-md mx-auto shadow-2xl overflow-hidden border-x border-border">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+      <header className="sticky top-0 z-40 bg-white dark:bg-background border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -39,7 +58,9 @@ export function AppLayout({ children }: AppLayoutProps) {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-medium">{user?.username}</span>
-              <span className="text-xs text-muted-foreground">ようこそ</span>
+              <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+                {diseaseInfo || "設定から病名を登録"}
+              </span>
             </div>
           </div>
           <DropdownMenu>
@@ -61,6 +82,12 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <Link href="/adjustment-rules" className="flex items-center gap-2 cursor-pointer">
                   <Activity className="w-4 h-4" />
                   調整ルール
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings/security" className="flex items-center gap-2 cursor-pointer">
+                  <Shield className="w-4 h-4" />
+                  セキュリティ設定
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -86,7 +113,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <FeedbackButton />
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-lg border-t border-border z-50 max-w-md mx-auto safe-area-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-background border-t border-border z-50 max-w-md mx-auto safe-area-bottom">
         <div className="flex justify-around items-center h-16 px-2">
           {navItems.map((item) => {
             const isActive = location === item.href;

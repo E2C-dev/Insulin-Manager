@@ -146,7 +146,7 @@ export default function Dashboard() {
                 {doseSlots.map(s => (
                   <div key={s.slot} className="flex flex-col items-center gap-1">
                     <div className="w-7 h-7 rounded-full bg-muted animate-pulse" />
-                    <div className="text-[10px] text-muted-foreground">{s.label}</div>
+                    <div className="text-xs text-muted-foreground">{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -155,7 +155,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-4 gap-2">
                   {doseStatus.map(({ label, icon, units }) => (
                     <div key={label} className="flex flex-col items-center gap-1">
-                      <div className={`w-10 h-10 rounded-full flex flex-col items-center justify-center border-2 text-[10px] font-semibold transition-colors
+                      <div className={`w-10 h-10 rounded-full flex flex-col items-center justify-center border-2 text-xs font-semibold transition-colors
                         ${units !== null
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-muted bg-muted/30 text-muted-foreground"
@@ -163,10 +163,10 @@ export default function Dashboard() {
                       >
                         <span className="text-base leading-none">{icon}</span>
                         {units !== null && (
-                          <span className="text-[9px] leading-none mt-0.5">{units}u</span>
+                          <span className="text-xs leading-none mt-0.5">{units}u</span>
                         )}
                       </div>
-                      <span className="text-[10px] text-muted-foreground">{label}</span>
+                      <span className="text-xs text-muted-foreground">{label}</span>
                       {units !== null ? (
                         <CheckCircle2 className="w-3 h-3 text-primary" />
                       ) : (
@@ -189,7 +189,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-3">
           <Card>
             <CardContent className="pt-4 pb-4">
-              <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
+              <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                 <Activity className="w-3 h-3" />
                 最新血糖値
               </p>
@@ -200,12 +200,14 @@ export default function Dashboard() {
                   <div className={`text-2xl font-bold ${getGlucoseBasicColor(latestGlucose)}`}>
                     {latestGlucose}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">mg/dL</p>
+                  {latestGlucose < 70 && <span className="text-xs font-semibold text-red-600">低</span>}
+                  {latestGlucose > 180 && <span className="text-xs font-semibold text-orange-500">高</span>}
+                  <p className="text-xs text-muted-foreground">mg/dL</p>
                 </>
               ) : (
                 <>
                   <div className="text-2xl font-bold text-muted-foreground">-</div>
-                  <p className="text-[10px] text-muted-foreground">今日の記録なし</p>
+                  <p className="text-xs text-muted-foreground">今日の記録なし</p>
                 </>
               )}
             </CardContent>
@@ -213,7 +215,7 @@ export default function Dashboard() {
 
           <Card>
             <CardContent className="pt-4 pb-4">
-              <p className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
+              <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" />
                 7日間平均
               </p>
@@ -224,12 +226,14 @@ export default function Dashboard() {
                   <div className={`text-2xl font-bold ${getGlucoseBasicColor(avgGlucose)}`}>
                     {avgGlucose}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">mg/dL</p>
+                  {avgGlucose < 70 && <span className="text-xs font-semibold text-red-600">低</span>}
+                  {avgGlucose > 180 && <span className="text-xs font-semibold text-orange-500">高</span>}
+                  <p className="text-xs text-muted-foreground">mg/dL</p>
                 </>
               ) : (
                 <>
                   <div className="text-2xl font-bold text-muted-foreground">-</div>
-                  <p className="text-[10px] text-muted-foreground">データなし</p>
+                  <p className="text-xs text-muted-foreground">データなし</p>
                 </>
               )}
             </CardContent>
@@ -260,15 +264,15 @@ export default function Dashboard() {
                 const dateLabel = format(parseISO(date), "d");
                 return (
                   <div key={date} className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] text-muted-foreground">{dayLabel}</span>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold ${getDayDotStyle(hasRecord, dayAvg, isToday)}`}>
+                    <span className="text-xs text-muted-foreground">{dayLabel}</span>
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-xs font-semibold ${getDayDotStyle(hasRecord, dayAvg, isToday)}`}>
                       {dateLabel}
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="flex flex-wrap items-center gap-3 mt-3 text-[10px] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
                 <span>良好（70-180）</span>
@@ -298,7 +302,7 @@ export default function Dashboard() {
         ===== */}
         {showAds && (
           <div className="mt-2 -mx-5 px-5 pt-3 border-t border-border/50">
-            <p className="text-[10px] text-muted-foreground/60 text-center mb-1 tracking-wide">広告</p>
+            <p className="text-xs text-muted-foreground/60 text-center mb-1 tracking-wide">広告</p>
             <div
               className="w-full h-[60px] bg-muted/30 rounded flex items-center justify-center text-xs text-muted-foreground/50 border border-dashed border-border/40"
               aria-label="広告枠"

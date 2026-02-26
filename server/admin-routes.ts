@@ -1,8 +1,9 @@
 import type { Express, Request, Response } from "express";
-import { isAdmin, isAdminWritable } from "./auth";
+import { isAdmin, isAdminWritable, hashPassword } from "./auth";
 import { adminStorage } from "./admin-storage";
 import { createAuditLog } from "./audit";
 import { storage } from "./storage";
+import { adminResetPasswordSchema } from "@shared/schema";
 import type { UserWithRole } from "@shared/schema";
 
 export function registerAdminRoutes(app: Express): void {
@@ -135,6 +136,45 @@ export function registerAdminRoutes(app: Express): void {
       } catch (error) {
         console.error("ユーザー削除エラー:", error);
         res.status(500).json({ message: "ユーザーの削除に失敗しました" });
+      }
+    }
+  );
+
+  // POST /api/admin/users/:id/reset-password - ユーザーのパスワードリセット
+  app.post(
+    "/api/admin/users/:id/reset-password",
+    isAdminWritable,
+    async (req: Request, res: Response) => {
+      try {
+        const adminUser = req.user as UserWithRole;
+        const targetId = req.params.id;
+
+        // 自分自身へは操作不可
+        if (adminUser.id === targetId) {
+          return res.status(400).json({ message: "自分自身のパスワードはここからは変更できません" });
+        }
+
+        const target = await storage.getUser(targetId);
+        if (!target) {
+          return res.status(404).json({ message: "ユーザーが見つかりません" });
+        }
+
+        const validated = adminResetPasswordSchema.parse(req.body);
+        const hashed = await hashPassword(validated.newPassword);
+        await storage.updateUserPassword(targetId, hashed);
+
+        await createAuditLog(req, {
+          adminId: adminUser.id,
+          action: "user.reset_password",
+          targetType: "user",
+          targetId,
+          previousValue: JSON.stringify({ username: target.username }),
+        });
+
+        res.json({ message: "パスワードをリセットしました" });
+      } catch (error) {
+        console.error("パスワードリセットエラー:", error);
+        res.status(500).json({ message: "パスワードのリセットに失敗しました" });
       }
     }
   );

@@ -417,6 +417,7 @@ export default function Entry() {
             size="icon"
             data-testid="button-back"
             onClick={() => setLocation("/logbook")}
+            className="p-2.5"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>

@@ -8,12 +8,20 @@
       "Read(//home/runner/.claude/plugins/**)",
       "Read(//home/runner/.config/**)",
       "Read(//home/runner/**)",
-      "Bash(env)"
+      "Bash(env)",
+      "Bash(npm run check)",
+      "Bash(lsof -i -P -n)",
+      "Bash(ss -tlnp)",
+      "Bash(netstat -tlnp)",
+      "Bash(printenv)",
+      "Bash(tsx /tmp/create_user.ts)",
+      "Bash(tsx script/create-test-user.ts)"
     ],
     "additionalDirectories": [
-      "/home/runner/.claude"
+      "/home/runner/.claude",
+      "/tmp"
     ]
   },
-  "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-  "enabledPlugins": {}
+  "enabledPlugins": {},
+  "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
 }

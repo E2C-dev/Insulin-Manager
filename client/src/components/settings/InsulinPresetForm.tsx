@@ -29,6 +29,7 @@ interface InsulinPresetFormProps {
   onSubmit: (data: InsulinPresetFormData) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
+  onBack?: () => void;  // called when user wants to go back to brand selection
 }
 
 const SLOT_TO_FIELD: Record<string, keyof Pick<InsulinPresetFormData, "defaultBreakfastUnits" | "defaultLunchUnits" | "defaultDinnerUnits" | "defaultBedtimeUnits">> = {
@@ -39,7 +40,7 @@ const SLOT_TO_FIELD: Record<string, keyof Pick<InsulinPresetFormData, "defaultBr
 };
 
 // カテゴリを表示用グループにマッピング
-const DISPLAY_GROUPS: { label: string; categories: InsulinCategory[] }[] = [
+export const DISPLAY_GROUPS: { label: string; categories: InsulinCategory[] }[] = [
   { label: "食事時に使うインスリン（速効型）", categories: ["超速効型", "速効型"] },
   { label: "就寝・基礎インスリン（長時間型）", categories: ["持効型", "超持効型", "中間型"] },
   { label: "混合型", categories: ["混合型"] },
@@ -54,11 +55,23 @@ function findBrandOption(brandName: string): { category: InsulinCategory; option
   return null;
 }
 
-export function InsulinPresetForm({ initialValues, onSubmit, onCancel, isSubmitting }: InsulinPresetFormProps) {
+// 病名別おすすめカテゴリマッピング
+export const DISEASE_SUGGESTED_CATEGORIES: Record<string, InsulinCategory[]> = {
+  type1: ["超速効型", "速効型", "持効型", "超持効型"],
+  type2: ["持効型", "超持効型", "混合型", "超速効型"],
+  gestational: ["超速効型", "速効型", "持効型"],
+  other: [],
+};
+
+export function InsulinPresetForm({ initialValues, onSubmit, onCancel, isSubmitting, onBack }: InsulinPresetFormProps) {
   // 編集モード時は brand から selectedBrand を復元
   const initialBrand = initialValues?.brand
     ? findBrandOption(initialValues.brand)
     : null;
+
+  // localStorage から病名を読み込んでおすすめカテゴリを決定
+  const savedDisease = typeof window !== "undefined" ? (localStorage.getItem("diseaseType") ?? "other") : "other";
+  const suggestedCategories = DISEASE_SUGGESTED_CATEGORIES[savedDisease] ?? [];
 
   const [wizardStep, setWizardStep] = useState<1 | 2>(initialValues?.brand ? 2 : 1);
   const [selectedCategory, setSelectedCategory] = useState<InsulinCategory | null>(
@@ -120,27 +133,44 @@ export function InsulinPresetForm({ initialValues, onSubmit, onCancel, isSubmitt
             <p className="text-xs text-muted-foreground">ブランド名をタップすると詳細と投与量を設定できます</p>
           </div>
 
+          {suggestedCategories.length > 0 && (
+            <div className="flex items-center gap-1.5 px-2 py-1.5 bg-primary/5 rounded-md border border-primary/20 mb-1">
+              <span className="text-xs text-muted-foreground font-medium">病名に応じてよく処方されるインスリンを上に表示しています</span>
+            </div>
+          )}
+
           <div className="space-y-4">
             {DISPLAY_GROUPS.map((group) => {
               const brandsInGroup = group.categories.flatMap(cat =>
-                INSULIN_CATALOG[cat].map(opt => ({ category: cat, option: opt }))
+                (INSULIN_CATALOG[cat] ?? []).map(opt => ({ category: cat, option: opt, isSuggested: suggestedCategories.includes(cat) }))
               );
               if (brandsInGroup.length === 0) return null;
+              // おすすめを先頭に
+              const sorted = [...brandsInGroup].sort((a, b) => (b.isSuggested ? 1 : 0) - (a.isSuggested ? 1 : 0));
               return (
                 <div key={group.label}>
                   <p className="text-xs font-medium text-muted-foreground mb-2 pb-1 border-b">
                     {group.label}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {brandsInGroup.map(({ category, option }) => (
+                    {sorted.map(({ category, option, isSuggested }) => (
                       <button
                         key={option.brand}
                         type="button"
                         onClick={() => handleBrandSelect(category, option)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-white dark:bg-gray-900 hover:border-primary hover:bg-primary/5 transition-colors text-left"
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-colors text-left ${
+                          isSuggested
+                            ? "border-primary/50 bg-primary/5 hover:border-primary hover:bg-primary/10"
+                            : "border-border bg-white dark:bg-gray-900 hover:border-primary hover:bg-primary/5"
+                        }`}
                       >
                         <span className="text-base">{option.icon}</span>
-                        <span className="text-sm font-medium">{option.shortName}</span>
+                        <div className="flex flex-col items-start">
+                          <span className="text-sm font-medium">{option.shortName}</span>
+                          {isSuggested && (
+                            <span className="text-[10px] text-primary font-semibold leading-none mt-0.5">処方例</span>
+                          )}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -205,10 +235,10 @@ export function InsulinPresetForm({ initialValues, onSubmit, onCancel, isSubmitt
                 </div>
               </div>
 
-              {!initialValues?.brand && (
+              {(!initialValues?.brand || onBack) && (
                 <button
                   type="button"
-                  onClick={handleBackToStep1}
+                  onClick={onBack ?? handleBackToStep1}
                   className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300 hover:underline"
                 >
                   <ChevronLeft className="w-3 h-3" />

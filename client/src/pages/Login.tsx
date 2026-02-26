@@ -131,7 +131,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
-      <Card className="w-full max-w-md shadow-xl">
+      <Card className="w-full max-w-md shadow-xl bg-white dark:bg-gray-900">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">ログイン</CardTitle>
           <CardDescription className="text-center">

@@ -19,7 +19,7 @@ import {
   userFeedback
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, lte } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -29,6 +29,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserPassword(userId: string, hashedPassword: string): Promise<void>;
 
   // Insulin Preset methods
   getInsulinPresets(userId: string): Promise<InsulinPreset[]>;
@@ -91,8 +92,15 @@ export class DbStorage implements IStorage {
       .insert(users)
       .values(insertUser)
       .returning();
-    
+
     return result[0];
+  }
+
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ password: hashedPassword })
+      .where(eq(users.id, userId));
   }
 
   // Insulin Preset methods
@@ -208,14 +216,18 @@ export class DbStorage implements IStorage {
 
   // Insulin Entry methods
   async getInsulinEntries(userId: string, startDate?: string, endDate?: string): Promise<InsulinEntry[]> {
-    let query = db
+    const conditions = [eq(insulinEntries.userId, userId)];
+    if (startDate) {
+      conditions.push(gte(insulinEntries.date, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(insulinEntries.date, endDate));
+    }
+    const result = await db
       .select()
       .from(insulinEntries)
-      .where(eq(insulinEntries.userId, userId))
+      .where(and(...conditions))
       .orderBy(desc(insulinEntries.date), desc(insulinEntries.createdAt));
-    
-    // Date filtering can be added here if needed
-    const result = await query;
     return result;
   }
 
@@ -272,14 +284,18 @@ export class DbStorage implements IStorage {
 
   // Glucose Entry methods
   async getGlucoseEntries(userId: string, startDate?: string, endDate?: string): Promise<GlucoseEntry[]> {
-    let query = db
+    const conditions = [eq(glucoseEntries.userId, userId)];
+    if (startDate) {
+      conditions.push(gte(glucoseEntries.date, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(glucoseEntries.date, endDate));
+    }
+    const result = await db
       .select()
       .from(glucoseEntries)
-      .where(eq(glucoseEntries.userId, userId))
+      .where(and(...conditions))
       .orderBy(desc(glucoseEntries.date), desc(glucoseEntries.createdAt));
-    
-    // Date filtering can be added here if needed
-    const result = await query;
     return result;
   }
 

@@ -3,7 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity, Trash2, Edit2, Download } from "lucide-react";
+import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity, Trash2, Edit2, Download, FileText, Sheet } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { format, subDays, parseISO } from "date-fns";
@@ -207,6 +213,14 @@ export default function Logbook() {
     }
   };
 
+  // 血糖値レベルのラベルを返す（異常値のみ）
+  const getGlucoseLabel = (value?: number) => {
+    if (!value) return null;
+    if (value < 70) return <span className="text-xs font-semibold text-red-600 ml-0.5">低</span>;
+    if (value > 180) return <span className="text-xs font-semibold text-amber-600 ml-0.5">高</span>;
+    return null;
+  };
+
   // 編集画面に遷移（記録入力画面で編集）
   const handleEditClick = (date: string, timeSlot: string, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -259,6 +273,16 @@ export default function Logbook() {
     URL.revokeObjectURL(url);
 
     toast({ title: "CSV出力完了", description: "ファイルをダウンロードしました" });
+  };
+
+  const handleExportPDF = () => {
+    toast({
+      title: "印刷ダイアログが開きます",
+      description: "印刷ダイアログが開きます。PDFとして保存してください。",
+    });
+    setTimeout(() => {
+      window.print();
+    }, 500);
   };
 
   const isLoading = glucoseLoading || insulinLoading;
@@ -318,15 +342,29 @@ export default function Logbook() {
             </Button>
           </div>
           {hasAnyRecordAtAll && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              className="text-muted-foreground"
-            >
-              <Download className="w-4 h-4 mr-1.5" />
-              CSV出力
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-muted-foreground"
+                  data-testid="button-export-dropdown"
+                >
+                  <Download className="w-4 h-4 mr-1.5" />
+                  出力
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportCSV} data-testid="menu-item-export-csv">
+                  <Sheet className="w-4 h-4 mr-2" />
+                  CSVで出力
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPDF} data-testid="menu-item-export-pdf">
+                  <FileText className="w-4 h-4 mr-2" />
+                  PDFで出力
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
 
@@ -393,25 +431,25 @@ export default function Logbook() {
                       <th className="p-2 text-center font-semibold border-l">
                         <div className="flex flex-col items-center gap-1">
                           <Coffee className="w-3 h-3 text-orange-500" />
-                          <span className="text-[10px]">朝食</span>
+                          <span className="text-xs">朝食</span>
                         </div>
                       </th>
                       <th className="p-2 text-center font-semibold border-l">
                         <div className="flex flex-col items-center gap-1">
                           <Sun className="w-3 h-3 text-yellow-500" />
-                          <span className="text-[10px]">昼食</span>
+                          <span className="text-xs">昼食</span>
                         </div>
                       </th>
                       <th className="p-2 text-center font-semibold border-l">
                         <div className="flex flex-col items-center gap-1">
                           <Sunset className="w-3 h-3 text-purple-500" />
-                          <span className="text-[10px]">夕食</span>
+                          <span className="text-xs">夕食</span>
                         </div>
                       </th>
                       <th className="p-2 text-center font-semibold border-l">
                         <div className="flex flex-col items-center gap-1">
                           <Moon className="w-3 h-3 text-blue-500" />
-                          <span className="text-[10px]">眠前</span>
+                          <span className="text-xs">眠前</span>
                         </div>
                       </th>
                     </tr>
@@ -431,7 +469,7 @@ export default function Logbook() {
                             <div className="flex items-center justify-between gap-1">
                               <div data-testid={`text-date-${entry.date}`}>
                                 {isToday && (
-                                  <div className="text-[9px] text-primary font-bold mb-0.5">今日</div>
+                                  <div className="text-xs text-primary font-bold mb-0.5">今日</div>
                                 )}
                                 {format(parseISO(entry.date), "M/d\n(E)", { locale: ja }).split('\n').map((line, i) => (
                                   <div key={i} className={!entry.hasAnyRecord ? "text-muted-foreground/50" : ""}>{line}</div>
@@ -440,11 +478,11 @@ export default function Logbook() {
                               {entry.hasAnyRecord && (
                                 <button
                                   onClick={(e) => handleDeleteClick(entry, e)}
-                                  className="p-1 hover:bg-destructive/10 active:bg-destructive/20 rounded touch-manipulation"
+                                  className="p-2.5 hover:bg-destructive/10 active:bg-destructive/20 rounded touch-manipulation"
                                   title="この日の記録を削除"
                                   data-testid={`button-delete-${entry.date}`}
                                 >
-                                  <Trash2 className="w-3.5 h-3.5 text-destructive/50 hover:text-destructive" />
+                                  <Trash2 className="w-4 h-4 text-destructive/50 hover:text-destructive" />
                                 </button>
                               )}
                             </div>
@@ -452,114 +490,132 @@ export default function Logbook() {
 
                           <td className="p-1.5 border-b border-l text-center" data-testid={`cell-morning-${entry.date}`}>
                             <div className="flex flex-col items-center gap-0.5">
-                              <div className="flex items-center gap-1 text-[10px]">
-                                <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseBefore)}`} data-testid={`text-morning-glucose-before-${entry.date}`}>
-                                  {entry.morning.glucoseBefore || "-"}
-                                </span>
-                                <span className="text-muted-foreground">/</span>
-                                <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseAfter)}`} data-testid={`text-morning-glucose-after-${entry.date}`}>
-                                  {entry.morning.glucoseAfter || "-"}
-                                </span>
+                              <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex items-center gap-0.5 text-xs">
+                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseBefore)}`} data-testid={`text-morning-glucose-before-${entry.date}`}>
+                                    {entry.morning.glucoseBefore || "-"}
+                                  </span>
+                                  {getGlucoseLabel(entry.morning.glucoseBefore)}
+                                </div>
+                                <div className="flex items-center gap-0.5 text-xs">
+                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseAfter)}`} data-testid={`text-morning-glucose-after-${entry.date}`}>
+                                    {entry.morning.glucoseAfter || "-"}
+                                  </span>
+                                  {getGlucoseLabel(entry.morning.glucoseAfter)}
+                                </div>
                               </div>
                               {entry.morning.insulin ? (
                                 <div className="flex items-center gap-0.5">
-                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-morning-insulin-${entry.date}`}>
+                                  <span className="text-xs text-primary font-semibold" data-testid={`text-morning-insulin-${entry.date}`}>
                                     {entry.morning.insulin}u
                                   </span>
                                   <button
                                     onClick={(e) => handleEditClick(entry.date, "BreakfastBefore", e)}
-                                    className="p-0.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
+                                    className="p-2.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
                                     title="編集"
                                   >
-                                    <Edit2 className="w-3 h-3 text-blue-400 hover:text-blue-600" />
+                                    <Edit2 className="w-4 h-4 text-blue-400 hover:text-blue-600" />
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-muted-foreground">-</span>
+                                <span className="text-xs text-muted-foreground">-</span>
                               )}
                             </div>
                           </td>
 
                           <td className="p-1.5 border-b border-l text-center" data-testid={`cell-lunch-${entry.date}`}>
                             <div className="flex flex-col items-center gap-0.5">
-                              <div className="flex items-center gap-1 text-[10px]">
-                                <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseBefore)}`} data-testid={`text-lunch-glucose-before-${entry.date}`}>
-                                  {entry.lunch.glucoseBefore || "-"}
-                                </span>
-                                <span className="text-muted-foreground">/</span>
-                                <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseAfter)}`} data-testid={`text-lunch-glucose-after-${entry.date}`}>
-                                  {entry.lunch.glucoseAfter || "-"}
-                                </span>
+                              <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex items-center gap-0.5 text-xs">
+                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseBefore)}`} data-testid={`text-lunch-glucose-before-${entry.date}`}>
+                                    {entry.lunch.glucoseBefore || "-"}
+                                  </span>
+                                  {getGlucoseLabel(entry.lunch.glucoseBefore)}
+                                </div>
+                                <div className="flex items-center gap-0.5 text-xs">
+                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseAfter)}`} data-testid={`text-lunch-glucose-after-${entry.date}`}>
+                                    {entry.lunch.glucoseAfter || "-"}
+                                  </span>
+                                  {getGlucoseLabel(entry.lunch.glucoseAfter)}
+                                </div>
                               </div>
                               {entry.lunch.insulin ? (
                                 <div className="flex items-center gap-0.5">
-                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-lunch-insulin-${entry.date}`}>
+                                  <span className="text-xs text-primary font-semibold" data-testid={`text-lunch-insulin-${entry.date}`}>
                                     {entry.lunch.insulin}u
                                   </span>
                                   <button
                                     onClick={(e) => handleEditClick(entry.date, "LunchBefore", e)}
-                                    className="p-0.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
+                                    className="p-2.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
                                     title="編集"
                                   >
-                                    <Edit2 className="w-3 h-3 text-blue-400 hover:text-blue-600" />
+                                    <Edit2 className="w-4 h-4 text-blue-400 hover:text-blue-600" />
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-muted-foreground">-</span>
+                                <span className="text-xs text-muted-foreground">-</span>
                               )}
                             </div>
                           </td>
 
                           <td className="p-1.5 border-b border-l text-center" data-testid={`cell-dinner-${entry.date}`}>
                             <div className="flex flex-col items-center gap-0.5">
-                              <div className="flex items-center gap-1 text-[10px]">
-                                <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseBefore)}`} data-testid={`text-dinner-glucose-before-${entry.date}`}>
-                                  {entry.dinner.glucoseBefore || "-"}
-                                </span>
-                                <span className="text-muted-foreground">/</span>
-                                <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseAfter)}`} data-testid={`text-dinner-glucose-after-${entry.date}`}>
-                                  {entry.dinner.glucoseAfter || "-"}
-                                </span>
+                              <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex items-center gap-0.5 text-xs">
+                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseBefore)}`} data-testid={`text-dinner-glucose-before-${entry.date}`}>
+                                    {entry.dinner.glucoseBefore || "-"}
+                                  </span>
+                                  {getGlucoseLabel(entry.dinner.glucoseBefore)}
+                                </div>
+                                <div className="flex items-center gap-0.5 text-xs">
+                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseAfter)}`} data-testid={`text-dinner-glucose-after-${entry.date}`}>
+                                    {entry.dinner.glucoseAfter || "-"}
+                                  </span>
+                                  {getGlucoseLabel(entry.dinner.glucoseAfter)}
+                                </div>
                               </div>
                               {entry.dinner.insulin ? (
                                 <div className="flex items-center gap-0.5">
-                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-dinner-insulin-${entry.date}`}>
+                                  <span className="text-xs text-primary font-semibold" data-testid={`text-dinner-insulin-${entry.date}`}>
                                     {entry.dinner.insulin}u
                                   </span>
                                   <button
                                     onClick={(e) => handleEditClick(entry.date, "DinnerBefore", e)}
-                                    className="p-0.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
+                                    className="p-2.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
                                     title="編集"
                                   >
-                                    <Edit2 className="w-3 h-3 text-blue-400 hover:text-blue-600" />
+                                    <Edit2 className="w-4 h-4 text-blue-400 hover:text-blue-600" />
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-muted-foreground">-</span>
+                                <span className="text-xs text-muted-foreground">-</span>
                               )}
                             </div>
                           </td>
 
                           <td className="p-1.5 border-b border-l text-center" data-testid={`cell-bedtime-${entry.date}`}>
                             <div className="flex flex-col items-center gap-0.5">
-                              <span className={`text-xs font-semibold ${getGlucoseBasicColor(entry.bedtime.glucose)}`} data-testid={`text-bedtime-glucose-${entry.date}`}>
-                                {entry.bedtime.glucose || "-"}
-                              </span>
+                              <div className="flex items-center gap-0.5 text-xs">
+                                <span className={`font-semibold ${getGlucoseBasicColor(entry.bedtime.glucose)}`} data-testid={`text-bedtime-glucose-${entry.date}`}>
+                                  {entry.bedtime.glucose || "-"}
+                                </span>
+                                {getGlucoseLabel(entry.bedtime.glucose)}
+                              </div>
                               {entry.bedtime.insulin ? (
                                 <div className="flex items-center gap-0.5">
-                                  <span className="text-[10px] text-primary font-semibold" data-testid={`text-bedtime-insulin-${entry.date}`}>
+                                  <span className="text-xs text-primary font-semibold" data-testid={`text-bedtime-insulin-${entry.date}`}>
                                     {entry.bedtime.insulin}u
                                   </span>
                                   <button
                                     onClick={(e) => handleEditClick(entry.date, "BeforeSleep", e)}
-                                    className="p-0.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
+                                    className="p-2.5 hover:bg-blue-100 active:bg-blue-200 rounded touch-manipulation"
                                     title="編集"
                                   >
-                                    <Edit2 className="w-3 h-3 text-blue-400 hover:text-blue-600" />
+                                    <Edit2 className="w-4 h-4 text-blue-400 hover:text-blue-600" />
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-muted-foreground">-</span>
+                                <span className="text-xs text-muted-foreground">-</span>
                               )}
                             </div>
                           </td>
@@ -572,6 +628,22 @@ export default function Logbook() {
             )}
           </CardContent>
         </Card>
+
+        {/* ===== AdSense広告スペース ===== */}
+        <div className="mt-6 pt-4 border-t">
+          <p className="text-xs text-muted-foreground text-center mb-2">広告</p>
+          <div className="w-full min-h-[100px] bg-muted/30 rounded-lg flex items-center justify-center border border-dashed border-muted-foreground/20">
+            {/* AdSense: ca-pub-8606804226935323 */}
+            <ins
+              className="adsbygoogle"
+              style={{ display: "block", width: "100%", minHeight: "100px" } as React.CSSProperties}
+              data-ad-client="ca-pub-8606804226935323"
+              data-ad-slot="auto"
+              data-ad-format="auto"
+              data-full-width-responsive="true"
+            />
+          </div>
+        </div>
       </div>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

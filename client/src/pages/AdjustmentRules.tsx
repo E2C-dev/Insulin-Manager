@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -301,8 +301,8 @@ export default function AdjustmentRules() {
     // ルール名が空の場合、自動生成
     const finalFormData = {
       ...formData,
-      name: formData.name || 
-        `${formData.timeSlot}の${formData.conditionType}${formData.threshold}${formData.comparison}→${formData.targetTimeSlot}${formData.adjustmentAmount > 0 ? '+' : ''}${formData.adjustmentAmount}単位`
+      name: formData.name ||
+        `${formData.threshold}mg/dL${formData.comparison} → ${formData.adjustmentAmount > 0 ? '+' : ''}${formData.adjustmentAmount}単位`
     };
     
     if (editingRule) {
@@ -736,20 +736,15 @@ export default function AdjustmentRules() {
                   <div className="space-y-4">
                     {timeSlotRules.map((rule) => (
                       <Card key={rule.id} className="hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <CardTitle className="text-lg">{rule.name}</CardTitle>
-                              <CardDescription className="mt-1">
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                                  {rule.timeSlot}
-                                </span>
-                              </CardDescription>
-                            </div>
-                            <div className="flex gap-2">
+                        <CardContent className="p-4 space-y-2">
+                          {/* ルール名 + ボタン */}
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-semibold text-base leading-tight flex-1">{rule.name}</p>
+                            <div className="flex gap-1 shrink-0">
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-8 w-8"
                                 onClick={() => handleEdit(rule)}
                               >
                                 <Edit2 className="w-4 h-4" />
@@ -757,6 +752,7 @@ export default function AdjustmentRules() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-8 w-8"
                                 onClick={() => {
                                   if (confirm("このルールを削除しますか？")) {
                                     deleteMutation.mutate(rule.id);
@@ -767,23 +763,25 @@ export default function AdjustmentRules() {
                               </Button>
                             </div>
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-muted-foreground">条件:</span>
-                              <span>
-                                {getConditionTypeLabel(rule.conditionType)} {rule.threshold}mg/dL{rule.comparison}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-muted-foreground">調整:</span>
-                              <span className={rule.adjustmentAmount > 0 ? "text-blue-600 font-semibold" : "text-red-600 font-semibold"}>
-                                {getTargetTimeSlotLabel(rule.targetTimeSlot)}の
-                                {rule.presetId ? (presets.find(p => p.id === rule.presetId)?.name ?? "インスリン") : "インスリン"}
-                                {" "}{formatAdjustmentAmount(rule.adjustmentAmount)}単位
-                              </span>
-                            </div>
+                          {/* 条件 */}
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-xs font-medium text-muted-foreground w-10 shrink-0 pt-0.5">条件</span>
+                            <span>{getConditionTypeLabel(rule.conditionType)} {rule.threshold}mg/dL{rule.comparison}</span>
+                          </div>
+                          {/* 薬 */}
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-xs font-medium text-muted-foreground w-10 shrink-0">薬</span>
+                            <span className="flex items-center gap-1">
+                              <Syringe className="w-3.5 h-3.5 text-muted-foreground" />
+                              {rule.presetId ? (presets.find(p => p.id === rule.presetId)?.name ?? "インスリン") : "未設定"}
+                            </span>
+                          </div>
+                          {/* 調整 */}
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-xs font-medium text-muted-foreground w-10 shrink-0">調整</span>
+                            <span className={`font-semibold ${rule.adjustmentAmount > 0 ? "text-blue-600" : "text-red-600"}`}>
+                              {getTargetTimeSlotLabel(rule.targetTimeSlot)}を {Math.abs(rule.adjustmentAmount)}単位{rule.adjustmentAmount > 0 ? "増量" : "減量"}
+                            </span>
                           </div>
                         </CardContent>
                       </Card>
@@ -794,6 +792,22 @@ export default function AdjustmentRules() {
             );
           })}
         </Tabs>
+
+        {/* ===== AdSense広告スペース ===== */}
+        <div className="mt-6 pt-4 border-t">
+          <p className="text-xs text-muted-foreground text-center mb-2">広告</p>
+          <div className="w-full min-h-[100px] bg-muted/30 rounded-lg flex items-center justify-center border border-dashed border-muted-foreground/20">
+            {/* AdSense: ca-pub-8606804226935323 */}
+            <ins
+              className="adsbygoogle"
+              style={{ display: "block", width: "100%", minHeight: "100px" } as React.CSSProperties}
+              data-ad-client="ca-pub-8606804226935323"
+              data-ad-slot="auto"
+              data-ad-format="auto"
+              data-full-width-responsive="true"
+            />
+          </div>
+        </div>
       </div>
     </AppLayout>
   );

@@ -9,6 +9,7 @@ import {
   AnimatePresence,
   type Variants,
 } from "framer-motion";
+
 import {
   Zap,
   BarChart2,
@@ -44,6 +45,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+// prefers-reduced-motion サポート
+const prefersReducedMotion =
+  typeof window !== "undefined"
+    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    : false;
+
 // ---- カウントアップアニメーション ----
 function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
   const count = useMotionValue(0);
@@ -54,7 +61,7 @@ function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
   useEffect(() => {
     if (!inView) return;
     const controls = animate(count, to, {
-      duration: 2,
+      duration: prefersReducedMotion ? 0 : 2,
       ease: "easeOut",
       onUpdate: (v) => setDisplay(Math.round(v).toLocaleString()),
     });
@@ -67,28 +74,36 @@ function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
 // ---- スクロールアニメーション共通ラッパー ----
 type AnimationType = "fadeUp" | "fadeIn" | "slideLeft" | "slideRight" | "scale";
 
-const animVariants: Record<AnimationType, Variants> = {
-  fadeUp: {
-    hidden: { opacity: 0, y: 40 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
-  },
-  fadeIn: {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.8 } },
-  },
-  slideLeft: {
-    hidden: { opacity: 0, x: -40 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
-  },
-  slideRight: {
-    hidden: { opacity: 0, x: 40 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
-  },
-  scale: {
-    hidden: { opacity: 0, scale: 0.88 },
-    visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
-  },
-};
+const animVariants: Record<AnimationType, Variants> = prefersReducedMotion
+  ? {
+      fadeUp:    { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } },
+      fadeIn:    { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } },
+      slideLeft: { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } },
+      slideRight:{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } },
+      scale:     { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } },
+    }
+  : {
+      fadeUp: {
+        hidden: { opacity: 0, y: 40 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+      },
+      fadeIn: {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0.8 } },
+      },
+      slideLeft: {
+        hidden: { opacity: 0, x: -40 },
+        visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+      },
+      slideRight: {
+        hidden: { opacity: 0, x: 40 },
+        visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+      },
+      scale: {
+        hidden: { opacity: 0, scale: 0.88 },
+        visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+      },
+    };
 
 function FadeInSection({
   children,
@@ -391,8 +406,8 @@ export default function LandingPage() {
         {/* アニメーション背景メッシュ */}
         <motion.div
           className="absolute inset-0 pointer-events-none"
-          animate={{ backgroundPosition: ["0% 0%", "100% 100%"] }}
-          transition={{ duration: 25, repeat: Infinity, repeatType: "reverse" }}
+          animate={prefersReducedMotion ? {} : { backgroundPosition: ["0% 0%", "100% 100%"] }}
+          transition={prefersReducedMotion ? { duration: 0 } : { duration: 25, repeat: Infinity, repeatType: "reverse" }}
           style={{
             backgroundImage:
               "radial-gradient(circle at 20% 80%, hsl(221 83% 40% / 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, hsl(174 72% 40% / 0.2) 0%, transparent 50%)",
@@ -410,13 +425,14 @@ export default function LandingPage() {
               className="flex-1 text-center lg:text-left space-y-7 z-10"
               initial="hidden"
               animate="visible"
-              variants={{
-                hidden: {},
-                visible: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
-              }}
+              variants={
+                prefersReducedMotion
+                  ? { hidden: {}, visible: { transition: { staggerChildren: 0, delayChildren: 0 } } }
+                  : { hidden: {}, visible: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } } }
+              }
             >
               <motion.div
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
+                variants={prefersReducedMotion ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } } : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
               >
                 <Badge className="bg-white/15 text-white border-white/25 text-xs backdrop-blur-sm gap-1.5">
                   <Sparkles className="w-3 h-3" />
@@ -426,7 +442,7 @@ export default function LandingPage() {
 
               <motion.h1
                 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.15] tracking-tight text-white"
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
+                variants={prefersReducedMotion ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } } : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
               >
                 迷わない記録。
                 <br />
@@ -436,9 +452,9 @@ export default function LandingPage() {
                   </span>
                   <motion.span
                     className="absolute -bottom-1 left-0 right-0 h-[3px] rounded-full bg-gradient-to-r from-blue-300 to-cyan-300"
-                    initial={{ scaleX: 0, originX: 0 }}
+                    initial={{ scaleX: prefersReducedMotion ? 1 : 0, originX: 0 }}
                     animate={{ scaleX: 1 }}
-                    transition={{ duration: 0.8, delay: 1.0 }}
+                    transition={{ duration: prefersReducedMotion ? 0 : 0.8, delay: prefersReducedMotion ? 0 : 1.0 }}
                   />
                 </span>
                 共有。
@@ -446,16 +462,16 @@ export default function LandingPage() {
 
               <motion.p
                 className="text-base sm:text-lg text-white/75 max-w-xl mx-auto lg:mx-0 leading-relaxed"
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
+                variants={prefersReducedMotion ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } } : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
               >
                 血糖値と投与量を入力するだけ。自動計算ルールで投与量を提案し、<strong className="text-white">A4横型PDF</strong>で栄養士・医師へすぐに共有できます。記録ノートの説明に費やしていた時間を、本質的な指導の時間へ。
               </motion.p>
 
               <motion.div
                 className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start"
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
+                variants={prefersReducedMotion ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } } : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
               >
-                <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+                <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.04 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}>
                   <Button
                     size="lg"
                     onClick={() => setLocation("/register")}
@@ -477,7 +493,7 @@ export default function LandingPage() {
               {/* アバタースタック + 統計 */}
               <motion.div
                 className="flex items-center justify-center lg:justify-start gap-4"
-                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.6 } } }}
+                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: prefersReducedMotion ? 0 : 0.6 } } }}
               >
                 <div className="flex -space-x-2.5">
                   {[1, 2, 3, 4].map((i) => (
@@ -511,7 +527,7 @@ export default function LandingPage() {
 
               <motion.p
                 className="text-xs text-white/40"
-                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.6 } } }}
+                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: prefersReducedMotion ? 0 : 0.6 } } }}
               >
                 メールアドレス不要・クレジットカード不要
               </motion.p>
@@ -520,12 +536,12 @@ export default function LandingPage() {
             {/* 右：スマホフレーム＋実スクリーンショット */}
             <motion.div
               className="flex-shrink-0 w-full max-w-[220px] sm:max-w-[260px] lg:max-w-[260px] mx-auto lg:mx-0"
-              initial={{ opacity: 0, x: 30 }}
+              initial={{ opacity: 0, x: prefersReducedMotion ? 0 : 30 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.8, delay: prefersReducedMotion ? 0 : 0.3, ease: "easeOut" }}
             >
               <motion.div
-                animate={{
+                animate={prefersReducedMotion ? {} : {
                   y: [0, -12, 0],
                   rotateZ: [0, 0.5, 0, -0.5, 0],
                 }}
@@ -573,7 +589,7 @@ export default function LandingPage() {
             {testimonials.map((t, i) => (
               <FadeInSection key={i} delay={i * 0.1} type="fadeUp">
                 <motion.div
-                  whileHover={{ y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.12)" }}
+                  whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.12)" }}
                   transition={{ duration: 0.2 }}
                   className="bg-background rounded-3xl border border-border p-7 flex flex-col gap-4 cursor-default"
                 >
@@ -708,7 +724,7 @@ export default function LandingPage() {
                     }`}
                     onMouseEnter={() => setActiveStep(i)}
                     onClick={() => setActiveStep(i)}
-                    whileHover={{ x: 4 }}
+                    whileHover={prefersReducedMotion ? {} : { x: 4 }}
                     transition={{ duration: 0.15 }}
                   >
                     <div className="flex items-start gap-4">
@@ -754,10 +770,10 @@ export default function LandingPage() {
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeStep}
-                  initial={{ opacity: 0, x: 20, scale: 0.96 }}
+                  initial={{ opacity: 0, x: prefersReducedMotion ? 0 : 20, scale: prefersReducedMotion ? 1 : 0.96 }}
                   animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -20, scale: 0.96 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  exit={{ opacity: 0, x: prefersReducedMotion ? 0 : -20, scale: prefersReducedMotion ? 1 : 0.96 }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.3, ease: "easeOut" }}
                   className="relative aspect-[9/16] max-w-[260px] mx-auto"
                 >
                   <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-primary/20 to-blue-900/40 border border-white/10 flex items-center justify-center">
@@ -801,7 +817,7 @@ export default function LandingPage() {
             {/* Hero カード: A4横型PDF出力 */}
             <FadeInSection className="sm:col-span-2" delay={0} type="fadeUp">
               <motion.div
-                whileHover={{ y: -4, boxShadow: "0 20px 60px hsl(221 83% 53% / 0.4)" }}
+                whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 20px 60px hsl(221 83% 53% / 0.4)" }}
                 transition={{ duration: 0.2 }}
                 className="bg-gradient-to-br from-primary to-blue-700 rounded-3xl p-5 sm:p-8 text-white relative overflow-hidden h-full min-h-[220px]"
               >
@@ -855,7 +871,7 @@ export default function LandingPage() {
             {features.slice(1).map(({ icon, title, desc, bg, img }, i) => (
               <FadeInSection key={title} delay={(i + 1) * 0.1} type="scale">
                 <motion.div
-                  whileHover={{ y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
+                  whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
                   transition={{ duration: 0.2 }}
                   className={`${bg} rounded-3xl overflow-hidden flex flex-col h-full cursor-default`}
                 >
@@ -970,7 +986,7 @@ export default function LandingPage() {
                 <motion.div
                   className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md"
                   animate={{ x: isYearly ? 28 : 0 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 30 }}
                 />
               </button>
               <span
@@ -994,7 +1010,7 @@ export default function LandingPage() {
             {plans.map((plan, i) => (
               <FadeInSection key={plan.name} delay={i * 0.1} className="shrink-0 w-[calc(85vw-1rem)] max-w-[300px] sm:w-auto snap-center">
                 <motion.div
-                  whileHover={{ scale: plan.badge ? 1.03 : 1.02 }}
+                  whileHover={prefersReducedMotion ? {} : { scale: plan.badge ? 1.03 : 1.02 }}
                   transition={{ duration: 0.2 }}
                   className="h-full"
                 >
@@ -1019,10 +1035,10 @@ export default function LandingPage() {
                           <motion.span
                             key={isYearly ? "yearly" : "monthly"}
                             className="text-4xl font-bold tabular-nums"
-                            initial={{ opacity: 0, y: -8 }}
+                            initial={{ opacity: 0, y: prefersReducedMotion ? 0 : -8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 8 }}
-                            transition={{ duration: 0.2 }}
+                            exit={{ opacity: 0, y: prefersReducedMotion ? 0 : 8 }}
+                            transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
                           >
                             ¥{(isYearly ? plan.yearlyPrice : plan.monthlyPrice).toLocaleString()}
                           </motion.span>
@@ -1105,7 +1121,7 @@ export default function LandingPage() {
             ].map(({ icon, img, title, desc, color }, i) => (
               <FadeInSection key={title} delay={i * 0.1}>
                 <motion.div
-                  whileHover={{ y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.1)" }}
+                  whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.1)" }}
                   transition={{ duration: 0.2 }}
                   className="rounded-3xl border border-border bg-background overflow-hidden group cursor-default"
                 >
@@ -1286,7 +1302,7 @@ export default function LandingPage() {
           <motion.div
             key={i}
             className="absolute w-1.5 h-1.5 rounded-full bg-blue-300/40"
-            animate={{
+            animate={prefersReducedMotion ? { opacity: 0 } : {
               y: [0, -120, 0],
               x: [0, (i % 2 === 0 ? 1 : -1) * 20, 0],
               opacity: [0, 1, 0],
@@ -1329,7 +1345,7 @@ export default function LandingPage() {
 
           <FadeInSection delay={0.3}>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
+              <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.05 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}>
                 <Button
                   size="lg"
                   onClick={() => setLocation("/register")}

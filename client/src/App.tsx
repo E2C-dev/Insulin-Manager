@@ -13,6 +13,7 @@ import Logbook from "@/pages/Logbook";
 import Entry from "@/pages/Entry";
 import Settings from "@/pages/Settings";
 import AdjustmentRules from "@/pages/AdjustmentRules";
+import SecuritySettings from "@/pages/SecuritySettings";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import AdminLogin from "@/pages/admin/AdminLogin";
@@ -61,6 +62,13 @@ function Router() {
         {() => (
           <ProtectedRoute>
             <AdjustmentRules />
+          </ProtectedRoute>
+        )}
+      </Route>
+      <Route path="/settings/security">
+        {() => (
+          <ProtectedRoute>
+            <SecuritySettings />
           </ProtectedRoute>
         )}
       </Route>

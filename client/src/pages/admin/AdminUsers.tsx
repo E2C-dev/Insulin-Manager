@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Trash2, ChevronLeft, ChevronRight, KeyRound, Eye, EyeOff } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -25,6 +26,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserItem {
@@ -64,6 +73,9 @@ export default function AdminUsers() {
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<UserItem | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<UserItem | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const { data, isLoading } = useQuery<UsersResponse>({
     queryKey: ["admin", "users", { page, search }],
@@ -105,6 +117,19 @@ export default function AdminUsers() {
       setDeleteTarget(null);
       setDeleteConfirmText("");
       toast({ title: "ユーザーを削除しました" });
+    },
+    onError: (err: Error) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ id, newPassword }: { id: string; newPassword: string }) =>
+      apiRequest("POST", `/api/admin/users/${id}/reset-password`, { newPassword }),
+    onSuccess: () => {
+      setResetPasswordTarget(null);
+      setNewPassword("");
+      toast({ title: "✅ パスワードをリセットしました" });
     },
     onError: (err: Error) => {
       toast({ title: err.message, variant: "destructive" });
@@ -244,17 +269,32 @@ export default function AdminUsers() {
                     {isWritable && (
                       <TableCell className="text-right">
                         {user.role === "user" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => {
-                              setDeleteTarget(user);
-                              setDeleteConfirmText("");
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                              title="パスワードをリセット"
+                              onClick={() => {
+                                setResetPasswordTarget(user);
+                                setNewPassword("");
+                                setShowNewPassword(false);
+                              }}
+                            >
+                              <KeyRound className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => {
+                                setDeleteTarget(user);
+                                setDeleteConfirmText("");
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     )}
@@ -351,6 +391,61 @@ export default function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* パスワードリセットダイアログ */}
+      <Dialog
+        open={!!resetPasswordTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setResetPasswordTarget(null);
+            setNewPassword("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>パスワードリセット</DialogTitle>
+            <DialogDescription>
+              <span className="font-semibold text-foreground">{resetPasswordTarget?.username}</span> の新しいパスワードを設定してください。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label htmlFor="admin-new-password" className="text-sm">新しいパスワード（8文字以上）</Label>
+            <div className="relative">
+              <Input
+                id="admin-new-password"
+                type={showNewPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="新しいパスワードを入力"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPasswordTarget(null)}>
+              キャンセル
+            </Button>
+            <Button
+              onClick={() => {
+                if (resetPasswordTarget) {
+                  resetPasswordMutation.mutate({ id: resetPasswordTarget.id, newPassword });
+                }
+              }}
+              disabled={newPassword.length < 8 || resetPasswordMutation.isPending}
+            >
+              <KeyRound className="w-4 h-4 mr-2" />
+              {resetPasswordMutation.isPending ? "リセット中..." : "リセットする"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
