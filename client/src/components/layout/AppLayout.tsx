@@ -59,7 +59,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="flex flex-col">
               <span className="text-sm font-medium">{user?.username}</span>
               <span className="text-xs text-muted-foreground truncate max-w-[140px]">
-                {diseaseInfo || "設定から病名を登録"}
+                {diseaseInfo || "治療設定から病名を登録"}
               </span>
             </div>
           </div>
@@ -75,7 +75,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <DropdownMenuItem asChild>
                 <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
                   <Settings className="w-4 h-4" />
-                  設定
+                  治療設定
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
