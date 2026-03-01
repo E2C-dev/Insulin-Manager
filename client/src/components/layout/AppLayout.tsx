@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, NotebookPen, PlusCircle, Settings, LogOut, User, Activity, Shield } from "lucide-react";
+import {
+  Home,
+  NotebookPen,
+  PlusCircle,
+  Settings,
+  LogOut,
+  User,
+  Activity,
+  Shield,
+  BookOpen,
+  MessageSquarePlus,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -12,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { TutorialModal } from "@/components/TutorialModal";
 import { FeedbackButton } from "@/components/FeedbackButton";
 
 
@@ -23,6 +35,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [location] = useLocation();
   const { user, logout, isLoggingOut } = useAuth();
   const [diseaseInfo, setDiseaseInfo] = useState<string>("");
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     const diseaseType = localStorage.getItem("diseaseType") ?? "";
@@ -40,6 +54,23 @@ export function AppLayout({ children }: AppLayoutProps) {
       setDiseaseInfo(label);
     }
   }, []);
+
+  // 初回ログイン時にチュートリアルを表示
+  useEffect(() => {
+    if (user?.id) {
+      const seen = localStorage.getItem(`tutorial_seen_${user.id}`);
+      if (!seen) {
+        setShowTutorial(true);
+      }
+    }
+  }, [user?.id]);
+
+  function handleTutorialClose() {
+    if (user?.id) {
+      localStorage.setItem(`tutorial_seen_${user.id}`, "true");
+    }
+    setShowTutorial(false);
+  }
 
   const navItems = [
     { icon: Home, label: "ホーム", href: "/" },
@@ -72,6 +103,14 @@ export function AppLayout({ children }: AppLayoutProps) {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>アカウント</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setShowTutorial(true)}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4" />
+                使い方を見る
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
                   <Settings className="w-4 h-4" />
@@ -92,6 +131,14 @@ export function AppLayout({ children }: AppLayoutProps) {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
+                onClick={() => setFeedbackOpen(true)}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <MessageSquarePlus className="w-4 h-4" />
+                フィードバックを送る
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
                 onClick={logout}
                 disabled={isLoggingOut}
                 className="text-red-600 focus:text-red-600 cursor-pointer"
@@ -109,8 +156,11 @@ export function AppLayout({ children }: AppLayoutProps) {
         {children}
       </main>
 
-      {/* フィードバックボタン */}
-      <FeedbackButton />
+      {/* チュートリアルモーダル */}
+      <TutorialModal open={showTutorial} onClose={handleTutorialClose} />
+
+      {/* フィードバックダイアログ（設定メニューから呼び出し） */}
+      <FeedbackButton open={feedbackOpen} onOpenChange={setFeedbackOpen} />
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-background border-t border-border z-50 max-w-md mx-auto safe-area-bottom">
@@ -118,7 +168,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           {navItems.map((item) => {
             const isActive = location === item.href;
             const Icon = item.icon;
-            
+
             if (item.isPrimary) {
               return (
                 <Link key={item.href} href={item.href} className="relative -top-5">
