@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").notNull().default(true),  // アカウント無効化用
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   lastLoginAt: timestamp("last_login_at"),
+  tutorialSeenAt: timestamp("tutorial_seen_at"),            // チュートリアル初回表示管理
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({

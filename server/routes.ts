@@ -212,6 +212,21 @@ export async function registerRoutes(
     }
   });
 
+  // チュートリアル閲覧済みを記録
+  console.log("✅ POST /api/auth/tutorial-seen");
+  app.post("/api/auth/tutorial-seen", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as User;
+      await db.update(users)
+        .set({ tutorialSeenAt: new Date() })
+        .where(eq(users.id, user.id));
+      return res.json({ ok: true });
+    } catch (error) {
+      console.error("❌ tutorial-seen更新エラー:", error);
+      return res.status(500).json({ message: "サーバーエラーが発生しました" });
+    }
+  });
+
   // 保護されたエンドポイントの例
   console.log("✅ GET /api/protected");
   app.get("/api/protected", isAuthenticated, (req: Request, res: Response) => {

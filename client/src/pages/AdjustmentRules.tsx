@@ -162,6 +162,10 @@ export default function AdjustmentRules() {
   const [activeTab, setActiveTab] = useState<string>("朝");
   const { presets } = useInsulinPresets();
 
+  // URLクエリパラメータからインスリンフィルターを取得
+  const filterPresetId = new URLSearchParams(window.location.search).get("presetId");
+  const filterPreset = filterPresetId ? presets.find(p => p.id === filterPresetId) : null;
+
   // ルール一覧取得
   const { data: rulesData, isLoading } = useQuery({
     queryKey: ["adjustmentRules"],
@@ -329,10 +333,11 @@ export default function AdjustmentRules() {
 
   const handleOpenDialog = () => {
     console.log("新規ルール追加: 時間帯 =", activeTab);
-    // 現在のタブの時間帯を初期値に設定
+    // 現在のタブの時間帯を初期値に設定（インスリンフィルターがあれば事前選択）
     setFormData({
       ...initialFormData,
       timeSlot: activeTab,
+      presetId: filterPresetId ?? null,
     });
     setIsDialogOpen(true);
   };
@@ -382,7 +387,11 @@ export default function AdjustmentRules() {
     );
   }
 
-  const rules = rulesData?.rules || [];
+  const allRules = rulesData?.rules || [];
+  // インスリンフィルターが指定されている場合は絞り込む
+  const rules = filterPresetId
+    ? allRules.filter(r => r.presetId === filterPresetId)
+    : allRules;
   const groupedRules = groupRulesByTimeSlot(rules);
 
   return (
@@ -694,6 +703,16 @@ export default function AdjustmentRules() {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* インスリン別フィルターバナー */}
+        {filterPreset && (
+          <div className="flex items-center justify-between px-3 py-2 bg-primary/10 rounded-lg border border-primary/20 text-sm">
+            <span className="font-medium text-primary">{filterPreset.name} のルール</span>
+            <Link href="/adjustment-rules" className="text-xs text-muted-foreground hover:text-foreground underline">
+              すべて表示
+            </Link>
+          </div>
+        )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-6">

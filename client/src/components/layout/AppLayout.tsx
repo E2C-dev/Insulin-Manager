@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import {
   Home,
@@ -34,6 +35,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const [location] = useLocation();
   const { user, logout, isLoggingOut } = useAuth();
+  const queryClient = useQueryClient();
   const [diseaseInfo, setDiseaseInfo] = useState<string>("");
   const [showTutorial, setShowTutorial] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -55,21 +57,28 @@ export function AppLayout({ children }: AppLayoutProps) {
     }
   }, []);
 
-  // 初回ログイン時にチュートリアルを表示
+  // 初回ログイン時にチュートリアルを表示（サーバーサイドで管理）
   useEffect(() => {
-    if (user?.id) {
-      const seen = localStorage.getItem(`tutorial_seen_${user.id}`);
-      if (!seen) {
-        setShowTutorial(true);
-      }
+    if (user && !user.tutorialSeenAt) {
+      setShowTutorial(true);
     }
-  }, [user?.id]);
+  }, [user]);
+
+  const tutorialSeenMutation = useMutation({
+    mutationFn: async () => {
+      await fetch("/api/auth/tutorial-seen", {
+        method: "POST",
+        credentials: "include",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
+    },
+  });
 
   function handleTutorialClose() {
-    if (user?.id) {
-      localStorage.setItem(`tutorial_seen_${user.id}`, "true");
-    }
     setShowTutorial(false);
+    tutorialSeenMutation.mutate();
   }
 
   const navItems = [

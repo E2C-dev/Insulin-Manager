@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, TrendingUp, BookOpen, Flame, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
@@ -28,7 +27,6 @@ function getDayDotStyle(hasRecord: boolean, avgGlucose: number | null, isToday: 
 export default function Dashboard() {
   const today = format(new Date(), "yyyy-MM-dd");
   const sevenDaysAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
-  const { showAds } = useFeatureFlags();
 
   const { data: glucoseData, isLoading: glucoseLoading } = useQuery({
     queryKey: ["glucose-entries"],
@@ -293,25 +291,20 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* ===== 広告バナー（ダッシュボード下部・1本のみ） =====
-            Google AdSense 本番導入時:
-            1. 下記の placeholder div を <ins class="adsbygoogle" ...> タグに差し替える
-            2. index.html の <head> に AdSense スクリプトを追加:
-               <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
-            3. data-ad-client / data-ad-slot に発行されたIDを設定する
-        ===== */}
-        {showAds && (
-          <div className="mt-2 -mx-5 px-5 pt-3 border-t border-border/50">
-            <p className="text-xs text-muted-foreground/60 text-center mb-1 tracking-wide">広告</p>
-            <div
-              className="w-full h-[60px] bg-muted/30 rounded flex items-center justify-center text-xs text-muted-foreground/50 border border-dashed border-border/40"
-              aria-label="広告枠"
-            >
-              広告スペース（320×60）
-            </div>
+        {/* ===== AdSense広告スペース ===== */}
+        <div className="mt-6 pt-4 border-t">
+          <p className="text-xs text-muted-foreground text-center mb-2">広告</p>
+          <div className="w-full min-h-[100px] bg-muted/30 rounded-lg flex items-center justify-center border border-dashed border-muted-foreground/20">
+            <ins
+              className="adsbygoogle"
+              style={{ display: "block", width: "100%", minHeight: "100px" }}
+              data-ad-client="ca-pub-8606804226935323"
+              data-ad-slot="auto"
+              data-ad-format="auto"
+              data-full-width-responsive="true"
+            />
           </div>
-        )}
-        {/* ===== 広告バナーここまで ===== */}
+        </div>
       </div>
     </AppLayout>
   );

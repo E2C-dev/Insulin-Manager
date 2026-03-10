@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ChevronRight } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,6 +92,15 @@ export function InsulinPresetCard({ preset, onUpdate, onDelete, isUpdating, isDe
                   );
                 })}
               </div>
+
+              {/* 調整ルール設定リンク */}
+              <Link
+                href={`/adjustment-rules?presetId=${preset.id}`}
+                className="mt-2 flex items-center justify-between text-xs text-muted-foreground hover:text-primary transition-colors pt-2 border-t border-border/40"
+              >
+                <span>調整ルールを設定</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
 
             <div className="flex gap-1 shrink-0">

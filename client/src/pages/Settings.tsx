@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
-  LogOut, ChevronRight,
+  LogOut,
   Save, Activity, Plus, Syringe,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -330,14 +330,6 @@ export default function Settings() {
                 </Button>
               )}
 
-              {/* 調整ルール管理リンク */}
-              <Link
-                href="/adjustment-rules"
-                className="flex items-center justify-between p-3 rounded-lg bg-card border hover:bg-muted/50 transition-colors cursor-pointer"
-              >
-                <span className="text-sm font-medium">調整ルール管理</span>
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              </Link>
             </div>
           </CardContent>
         </Card>
