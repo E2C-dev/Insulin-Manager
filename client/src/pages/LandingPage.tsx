@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   motion,
@@ -12,28 +12,25 @@ import {
 
 import {
   Zap,
-  BarChart2,
-  BookOpen,
   Settings2,
   CheckCircle2,
   XCircle,
   ArrowRight,
-  Syringe,
   Activity,
   FileText,
   ShieldCheck,
   Heart,
-  Users,
   Star,
   Lock,
   UtensilsCrossed,
   Gauge,
   Stethoscope,
-  Droplets,
   Twitter,
   ChevronRight,
   Sparkles,
   AlertCircle,
+  BookOpen,
+  FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -196,47 +193,6 @@ const faqs = [
   },
 ];
 
-// ---- 機能カード データ ----
-const features = [
-  {
-    icon: <FileText className="w-7 h-7 text-blue-200" />,
-    title: "A4横型PDF出力",
-    desc: "大きな文字で見やすく設計されたA4横型PDF。血糖値・インスリン記録をそのまま栄養士・医師へ提出できます。",
-    bg: "bg-gradient-to-br from-primary to-blue-700",
-    isHero: true,
-  },
-  {
-    icon: <Zap className="w-6 h-6 text-yellow-500" />,
-    title: "自動計算ルール",
-    desc: "「血糖値140以上なら+1単位」など条件を事前設定。血糖値を入力するだけで投与量を自動提案します。",
-    bg: "bg-yellow-50 dark:bg-yellow-950/20",
-    isHero: false,
-  },
-  {
-    icon: <Activity className="w-6 h-6 text-green-500" />,
-    title: "ダッシュボード",
-    desc: "7日間の血糖カレンダーと連続記録ストリークで、日々の管理状況を一目で把握できます。",
-    bg: "bg-green-50 dark:bg-green-950/20",
-    isHero: false,
-    img: "/images/screenshot-dashboard.png",
-  },
-  {
-    icon: <Settings2 className="w-6 h-6 text-orange-500" />,
-    title: "調整ルール設定",
-    desc: "血糖値の条件に応じたインスリン調整ルールを事前設定。血糖値を入力するだけで自動提案します。",
-    bg: "bg-orange-50 dark:bg-orange-950/20",
-    isHero: false,
-    img: "/images/screenshot-adjustment-rules.png",
-  },
-  {
-    icon: <Settings2 className="w-6 h-6 text-purple-500" />,
-    title: "複数インスリン管理",
-    desc: "超速効型・持効型など複数のインスリンを時間帯別に設定。個別管理が可能です。",
-    bg: "bg-purple-50 dark:bg-purple-950/20",
-    isHero: false,
-  },
-];
-
 // ---- 比較表データ ----
 const comparisonRows = [
   { feature: "投与量自動計算", us: true, others: false },
@@ -388,6 +344,11 @@ export default function LandingPage() {
               <img src="/images/hero-icon-insulia.png" alt="インスリア" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-lg tracking-tight">インスリア</span>
+            {/* β版バッジ */}
+            <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px] px-2 py-0.5 font-semibold hidden sm:inline-flex">
+              <FlaskConical className="w-2.5 h-2.5 mr-1" />
+              β版運用中
+            </Badge>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -442,10 +403,16 @@ export default function LandingPage() {
               <motion.div
                 variants={prefersReducedMotion ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } } : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
               >
-                <Badge className="bg-white/15 text-white border-white/25 text-xs backdrop-blur-sm gap-1.5">
-                  <Sparkles className="w-3 h-3" />
-                  妊娠糖尿病・インスリン療法中の方の記録アプリ
-                </Badge>
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
+                  <Badge className="bg-white/15 text-white border-white/25 text-xs backdrop-blur-sm gap-1.5">
+                    <Sparkles className="w-3 h-3" />
+                    妊娠糖尿病・インスリン療法中の方の記録アプリ
+                  </Badge>
+                  <Badge className="bg-amber-400/20 text-amber-200 border-amber-300/30 text-xs backdrop-blur-sm gap-1.5">
+                    <FlaskConical className="w-3 h-3" />
+                    β版運用中
+                  </Badge>
+                </div>
               </motion.div>
 
               <motion.h1
@@ -496,41 +463,6 @@ export default function LandingPage() {
                 >
                   ログイン
                 </Button>
-              </motion.div>
-
-              {/* アバタースタック + 統計 */}
-              <motion.div
-                className="flex items-center justify-center lg:justify-start gap-4"
-                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: prefersReducedMotion ? 0 : 0.6 } } }}
-              >
-                <div className="flex -space-x-2.5">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="w-9 h-9 rounded-full border-2 border-[hsl(221,83%,12%)] bg-primary/40 flex items-center justify-center text-white text-xs font-bold overflow-hidden"
-                    >
-                      <ImageWithFallback
-                        src={`/images/avatar-user-${i}.png`}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        fallback={
-                          <span className="text-white/80 text-[10px]">{["妊", "1型", "2型", "療"][i - 1]}</span>
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div className="text-left">
-                  <div className="text-white font-bold text-sm">
-                    <CountUp to={500} suffix="名以上" />が利用中
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: 5 }).map((_, j) => (
-                      <Star key={j} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    ))}
-                    <span className="text-white/60 text-xs ml-1">4.8</span>
-                  </div>
-                </div>
               </motion.div>
 
               <motion.p
@@ -663,13 +595,13 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* 右: 画像 */}
+            {/* 右: 本物の手書きノート画像 */}
             <FadeInSection delay={0.2} type="slideRight">
               <div className="relative">
                 <div className="rounded-3xl overflow-hidden shadow-2xl bg-muted aspect-[4/3] flex items-center justify-center">
                   <ImageWithFallback
                     src="/images/problem-notebook.jpg"
-                    alt="手書きのインスリン記録ノート"
+                    alt="実際の手書きインスリン記録ノート"
                     className="w-full h-full object-cover"
                     fallback={
                       <div className="flex flex-col items-center gap-4 text-muted-foreground p-8">
@@ -681,6 +613,11 @@ export default function LandingPage() {
                 </div>
                 <div className="absolute -top-4 -right-4 bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg">
                   Before
+                </div>
+                {/* 実際の記録ノートであることを示すラベル */}
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-background border border-border rounded-full px-4 py-2 text-xs text-muted-foreground shadow-md whitespace-nowrap flex items-center gap-1.5">
+                  <BookOpen className="w-3 h-3 text-primary" />
+                  実際に使われていた記録ノート
                 </div>
               </div>
             </FadeInSection>
@@ -773,7 +710,7 @@ export default function LandingPage() {
               ))}
             </div>
 
-            {/* 右: スクリーンショット */}
+            {/* 右: スクリーンショット（スマホフレーム付き） */}
             <FadeInSection delay={0.2} type="scale">
               <AnimatePresence mode="wait">
                 <motion.div
@@ -782,30 +719,35 @@ export default function LandingPage() {
                   animate={{ opacity: 1, x: 0, scale: 1 }}
                   exit={{ opacity: 0, x: prefersReducedMotion ? 0 : -20, scale: prefersReducedMotion ? 1 : 0.96 }}
                   transition={{ duration: prefersReducedMotion ? 0 : 0.3, ease: "easeOut" }}
-                  className="relative aspect-[9/16] max-w-[260px] mx-auto"
+                  className="relative max-w-[260px] mx-auto"
                 >
-                  <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-primary/20 to-blue-900/40 border border-white/10 flex items-center justify-center">
-                    <ImageWithFallback
-                      src={steps[activeStep].img}
-                      alt={steps[activeStep].title}
-                      className="w-full h-full object-cover"
-                      fallback={
-                        <div className="flex flex-col items-center gap-4 text-white/50 p-8">
-                          <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center">
-                            <span className="text-white/70">{steps[activeStep].icon}</span>
+                  {/* スマホフレーム */}
+                  <div className="relative bg-gray-800 rounded-[40px] p-[5px] shadow-2xl">
+                    <div className="absolute -right-[6px] top-[68px] w-[4px] h-8 bg-gray-700 rounded-r-sm" />
+                    <div className="absolute -left-[6px] top-[56px] w-[4px] h-5 bg-gray-700 rounded-l-sm" />
+                    <div className="absolute -left-[6px] top-[92px] w-[4px] h-9 bg-gray-700 rounded-l-sm" />
+                    <div
+                      className="relative bg-white rounded-[36px] overflow-hidden"
+                      style={{ aspectRatio: "9/16" }}
+                    >
+                      <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-16 h-5 bg-gray-900 rounded-full z-10" />
+                      <ImageWithFallback
+                        src={steps[activeStep].img}
+                        alt={steps[activeStep].title}
+                        className="w-full h-full object-cover object-top"
+                        fallback={
+                          <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 bg-gradient-to-br from-primary/5 to-blue-50 h-full">
+                            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mt-12">
+                              <span className="text-primary">{steps[activeStep].icon}</span>
+                            </div>
+                            <p className="text-sm text-center font-medium text-foreground">
+                              {steps[activeStep].title}
+                            </p>
                           </div>
-                          <p className="text-sm text-center font-medium text-white/70">
-                            {steps[activeStep].title}
-                          </p>
-                          <p className="text-xs text-center text-white/40">
-                            スクリーンショット準備中
-                          </p>
-                        </div>
-                      }
-                    />
+                        }
+                      />
+                    </div>
                   </div>
-                  {/* スマホフレーム装飾 */}
-                  <div className="absolute inset-0 rounded-3xl border-2 border-white/10 pointer-events-none" />
                 </motion.div>
               </AnimatePresence>
             </FadeInSection>
@@ -821,13 +763,15 @@ export default function LandingPage() {
               主な機能
             </h2>
           </FadeInSection>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+          {/* Row 1: Hero(2/3) + サブ(1/3) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             {/* Hero カード: A4横型PDF出力 */}
-            <FadeInSection className="sm:col-span-2 lg:col-span-2" delay={0} type="fadeUp">
+            <FadeInSection className="sm:col-span-2" delay={0} type="fadeUp">
               <motion.div
                 whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 20px 60px hsl(221 83% 53% / 0.4)" }}
                 transition={{ duration: 0.2 }}
-                className="bg-gradient-to-br from-primary to-blue-700 rounded-3xl p-5 sm:p-8 text-white relative overflow-hidden h-full min-h-[220px]"
+                className="bg-gradient-to-br from-primary to-blue-700 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden h-full min-h-[240px]"
               >
                 <div className="absolute right-0 top-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/3 translate-x-1/3" />
                 <div className="absolute right-8 bottom-6 opacity-10">
@@ -875,31 +819,93 @@ export default function LandingPage() {
               </motion.div>
             </FadeInSection>
 
-            {/* サブカード */}
-            {features.slice(1, 5).map(({ icon, title, desc, bg, img }, i) => (
-              <FadeInSection key={title} delay={(i + 1) * 0.1} type="scale">
-                <motion.div
-                  whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
-                  transition={{ duration: 0.2 }}
-                  className={`${bg} rounded-3xl overflow-hidden flex flex-col h-full cursor-default`}
-                >
-                  {img && (
-                    <div className="h-36 overflow-hidden">
-                      <img src={img} alt={title} className="w-full h-full object-cover object-top" />
-                    </div>
-                  )}
-                  <div className="p-6 sm:p-7 flex flex-col gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-white/70 flex items-center justify-center">
-                      {icon}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-lg mb-1.5">{title}</h3>
-                      <p className="text-base text-muted-foreground leading-relaxed">{desc}</p>
-                    </div>
+            {/* 自動計算ルール */}
+            <FadeInSection delay={0.1} type="scale">
+              <motion.div
+                whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
+                transition={{ duration: 0.2 }}
+                className="bg-yellow-50 dark:bg-yellow-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
+              >
+                <div className="p-6 sm:p-7 flex flex-col gap-4 h-full">
+                  <div className="w-12 h-12 rounded-2xl bg-white/70 flex items-center justify-center">
+                    <Zap className="w-6 h-6 text-yellow-500" />
                   </div>
-                </motion.div>
-              </FadeInSection>
-            ))}
+                  <div>
+                    <h3 className="font-bold text-lg mb-1.5">自動計算ルール</h3>
+                    <p className="text-base text-muted-foreground leading-relaxed">「血糖値140以上なら+1単位」など条件を事前設定。血糖値を入力するだけで投与量を自動提案します。</p>
+                  </div>
+                </div>
+              </motion.div>
+            </FadeInSection>
+          </div>
+
+          {/* Row 2: サブ3枚（スクリーンショット付き） */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* ダッシュボード */}
+            <FadeInSection delay={0.1} type="scale">
+              <motion.div
+                whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
+                transition={{ duration: 0.2 }}
+                className="bg-green-50 dark:bg-green-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
+              >
+                <div className="h-40 overflow-hidden">
+                  <img src="/images/screenshot-dashboard.png" alt="ダッシュボード" className="w-full h-full object-cover object-top" />
+                </div>
+                <div className="p-6 flex flex-col gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
+                    <Activity className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base mb-1">ダッシュボード</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">7日間の血糖カレンダーと連続記録ストリークで、日々の管理状況を一目で把握できます。</p>
+                  </div>
+                </div>
+              </motion.div>
+            </FadeInSection>
+
+            {/* 記録ノート */}
+            <FadeInSection delay={0.2} type="scale">
+              <motion.div
+                whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
+                transition={{ duration: 0.2 }}
+                className="bg-blue-50 dark:bg-blue-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
+              >
+                <div className="h-40 overflow-hidden">
+                  <img src="/images/screenshot-logbook.png" alt="記録ノート" className="w-full h-full object-cover object-top" />
+                </div>
+                <div className="p-6 flex flex-col gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base mb-1">記録ノート</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">血糖値・インスリン投与量を8タイミングで記録。一覧で過去の記録をすぐに確認できます。</p>
+                  </div>
+                </div>
+              </motion.div>
+            </FadeInSection>
+
+            {/* 調整ルール設定 */}
+            <FadeInSection delay={0.3} type="scale">
+              <motion.div
+                whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
+                transition={{ duration: 0.2 }}
+                className="bg-orange-50 dark:bg-orange-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
+              >
+                <div className="h-40 overflow-hidden">
+                  <img src="/images/screenshot-adjustment-rules.png" alt="調整ルール設定" className="w-full h-full object-cover object-top" />
+                </div>
+                <div className="p-6 flex flex-col gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
+                    <Settings2 className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base mb-1">調整ルール設定</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">血糖値の条件に応じたインスリン調整ルールを事前設定。血糖値を入力するだけで自動提案します。</p>
+                  </div>
+                </div>
+              </motion.div>
+            </FadeInSection>
           </div>
         </div>
       </section>
@@ -962,7 +968,98 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ⑦ 料金プラン（月/年トグル） */}
+      {/* ⑦ 開発者ストーリー — フルワイド強調セクション */}
+      <section className="relative py-0 overflow-hidden">
+        {/* 背景: 左半分ダーク、右半分画像 */}
+        <div className="grid lg:grid-cols-2 min-h-[600px]">
+          {/* 左: ストーリーテキスト（ダーク背景） */}
+          <div className="relative bg-[hsl(221,83%,8%)] px-8 sm:px-12 lg:px-16 py-20 flex items-center">
+            {/* 装飾 */}
+            <div className="absolute top-0 left-0 w-64 h-64 bg-white/3 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-48 h-48 bg-primary/10 rounded-full translate-x-1/2 translate-y-1/2 pointer-events-none" />
+
+            <FadeInSection type="slideLeft" className="relative z-10 max-w-lg">
+              <div className="space-y-6">
+                {/* ラベル */}
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-[2px] bg-rose-400" />
+                  <span className="text-rose-400 text-sm font-semibold tracking-wide uppercase">
+                    インスリアが生まれた理由
+                  </span>
+                </div>
+
+                {/* 見出し */}
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-[1.2] tracking-tight">
+                  妻が妊娠糖尿病と<br />
+                  診断されたとき、<br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-cyan-300">
+                    すべてがアナログだった。
+                  </span>
+                </h2>
+
+                {/* 本文 */}
+                <div className="space-y-4 text-white/70 leading-relaxed text-base sm:text-lg">
+                  <p>
+                    妻が妊娠糖尿病と診断され、初めてインスリンを手渡されました。
+                    そのとき管理ツールとして渡されたのは、
+                    <strong className="text-white">1冊のノート</strong>だけでした。
+                  </p>
+                  <p>
+                    デジタル化やDXが目覚ましく進む現代でも、血糖管理だけは依然としてアナログのまま。
+                    栄養相談に通う中で実感したのは、記録ノートの読み解きだけで
+                    <strong className="text-white">数十分もの貴重な時間が失われる</strong>現実でした。
+                  </p>
+                  <p>
+                    本来必要ではない説明の時間を削り、患者さんが
+                    <strong className="text-white">本当に必要な指導と向き合える環境</strong>を作りたい。
+                    そんな思いからインスリアは生まれました。
+                  </p>
+                </div>
+
+                {/* 開発者署名 */}
+                <div className="flex items-center gap-4 pt-4 border-t border-white/10">
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white/20 shrink-0 bg-primary/20 flex items-center justify-center">
+                    <ImageWithFallback
+                      src="/images/developer-avatar.png"
+                      alt="開発者"
+                      className="w-full h-full object-cover"
+                      fallback={<Heart className="w-6 h-6 text-white/40" />}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-sm">インスリア 開発者より</p>
+                    <p className="text-white/40 text-xs mt-0.5">妻の妊娠糖尿病をきっかけに開発</p>
+                  </div>
+                </div>
+              </div>
+            </FadeInSection>
+          </div>
+
+          {/* 右: 本物の記録ノート画像 */}
+          <FadeInSection type="fadeIn" className="relative min-h-[400px] lg:min-h-0">
+            <div className="absolute inset-0">
+              <img
+                src="/images/problem-notebook.jpg"
+                alt="実際に使われていた手書きの血糖値記録ノート"
+                className="w-full h-full object-cover"
+              />
+              {/* グラデーションオーバーレイ */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[hsl(221,83%,8%)] via-transparent to-transparent lg:block hidden" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[hsl(221,83%,8%)] via-transparent to-transparent lg:hidden" />
+            </div>
+            {/* 画像上のキャプション */}
+            <div className="absolute bottom-6 right-6 bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 text-white text-xs max-w-[200px]">
+              <div className="flex items-center gap-1.5 mb-1">
+                <BookOpen className="w-3 h-3 text-blue-300" />
+                <span className="font-semibold text-blue-300">実際の記録ノート</span>
+              </div>
+              <p className="text-white/70 leading-relaxed">インスリアが生まれるきっかけとなった、実際に使われていた手書きの記録ノート</p>
+            </div>
+          </FadeInSection>
+        </div>
+      </section>
+
+      {/* ⑧ 料金プラン（月/年トグル） */}
       <section className="py-24 sm:py-32 px-4">
         <div className="max-w-5xl mx-auto">
           <FadeInSection>
@@ -1092,7 +1189,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ⑧ 関連サービス */}
+      {/* ⑨ 関連サービス */}
       <section className="py-24 sm:py-32 px-4" style={{ background: "var(--surface-alt)" }}>
         <div className="max-w-5xl mx-auto">
           <FadeInSection>
@@ -1161,58 +1258,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ⑨ 開発者ストーリー */}
-      <section className="py-24 sm:py-32 px-4">
-        <div className="max-w-3xl mx-auto">
-          <FadeInSection type="scale">
-            <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 to-blue-50 p-6 sm:p-8 lg:p-12">
-              <div className="flex flex-col sm:flex-row gap-6 items-start">
-                {/* 開発者アバター */}
-                <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white shadow-lg shrink-0 bg-primary/10 flex items-center justify-center">
-                  <ImageWithFallback
-                    src="/images/developer-avatar.png"
-                    alt="開発者"
-                    className="w-full h-full object-cover"
-                    fallback={<Heart className="w-8 h-8 text-primary/40" />}
-                  />
-                </div>
-                <div className="space-y-4 flex-1">
-                  <div className="flex items-center gap-2 text-primary text-sm font-semibold">
-                    <Heart className="w-4 h-4 text-rose-500" />
-                    インスリアが生まれた理由
-                  </div>
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold leading-snug tracking-tight">
-                    妻が妊娠糖尿病と診断されたとき、<br />
-                    すべてがアナログだった。
-                  </h2>
-                  <div className="space-y-3 text-muted-foreground leading-relaxed text-sm sm:text-base">
-                    <p>
-                      妻が妊娠糖尿病と診断され、初めてインスリンを手渡されました。
-                      そのとき管理ツールとして渡されたのは、<strong className="text-foreground">1冊のノート</strong>だけでした。
-                    </p>
-                    <p>
-                      デジタル化やDXが目覚ましく進む現代でも、血糖管理だけは依然としてアナログのまま。
-                      栄養相談に通う中で実感したのは、記録ノートの読み解きだけで
-                      <strong className="text-foreground">数十分もの貴重な時間が失われる</strong>現実でした。
-                      その時間があれば、もっと本質的な栄養指導を受けられるはずなのに。
-                    </p>
-                    <p>
-                      本来必要ではない説明の時間を削り、患者さんが<strong className="text-foreground">本当に必要な指導と向き合える環境</strong>を作りたい。
-                      そんな思いからインスリアは生まれました。
-                    </p>
-                  </div>
-                  <div className="pt-3 border-t border-primary/15 text-xs text-muted-foreground">
-                    — インスリア 開発者より
-                  </div>
-                </div>
-              </div>
-            </div>
-          </FadeInSection>
-        </div>
-      </section>
-
       {/* ⑩ FAQ */}
-      <section className="py-24 sm:py-32 px-4" style={{ background: "var(--surface-alt)" }}>
+      <section className="py-24 sm:py-32 px-4">
         <div className="max-w-2xl mx-auto">
           <FadeInSection>
             <h2 className="text-3xl sm:text-4xl font-bold text-center tracking-tight mb-14">
@@ -1329,29 +1376,21 @@ export default function LandingPage() {
         ))}
 
         <div className="relative max-w-3xl mx-auto text-center space-y-8">
-          {/* ライブ登録者数 */}
           <FadeInSection>
-            <div className="inline-flex items-center gap-2.5 bg-white/10 backdrop-blur-sm rounded-full px-5 py-2.5 text-white/80 text-sm border border-white/15">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              今週 <span className="text-white font-bold mx-1">23名</span> が新規登録
-            </div>
-          </FadeInSection>
-
-          <FadeInSection delay={0.1}>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-[1.15]">
               今日から、迷わない<br />
               インスリン管理を。
             </h2>
           </FadeInSection>
 
-          <FadeInSection delay={0.2}>
+          <FadeInSection delay={0.1}>
             <p className="text-white/75 text-base sm:text-lg leading-relaxed">
               血糖値を見るたびに、インスリン量が決まる。<br />
               あなた専用のルールで、毎日を自信を持って過ごそう。
             </p>
           </FadeInSection>
 
-          <FadeInSection delay={0.3}>
+          <FadeInSection delay={0.2}>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.05 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}>
                 <Button
@@ -1374,7 +1413,7 @@ export default function LandingPage() {
             </div>
           </FadeInSection>
 
-          <FadeInSection delay={0.4}>
+          <FadeInSection delay={0.3}>
             <p className="text-xs text-white/40">
               メールアドレス不要 · クレジットカード不要 · いつでも解約可能
             </p>
@@ -1391,6 +1430,9 @@ export default function LandingPage() {
                 <img src="/images/hero-icon-insulia.png" alt="インスリア" className="w-full h-full object-cover" />
               </div>
               <span className="font-semibold text-foreground">インスリア</span>
+              <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px] px-2 py-0.5 font-semibold">
+                β版
+              </Badge>
             </div>
             <div className="flex flex-wrap justify-center gap-5 text-xs">
               <button
