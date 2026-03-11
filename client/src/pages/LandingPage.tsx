@@ -297,7 +297,7 @@ const steps = [
     icon: <Settings2 className="w-6 h-6" />,
     title: "インスリンを登録",
     desc: "使用しているインスリン製品と標準投与量をプリセットとして登録。複数種類にも対応。",
-    img: "/images/step-1-preset-setup.png",
+    img: "/images/screenshot-insulin-setup.png",
   },
   {
     step: "2",
@@ -343,7 +343,7 @@ export default function LandingPage() {
             <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md shadow-primary/30">
               <img src="/images/hero-icon-insulia.png" alt="インスリア" className="w-full h-full object-cover" />
             </div>
-            <span className="font-bold text-lg tracking-tight">インスリア</span>
+            <span className="font-bold text-lg tracking-tight whitespace-nowrap">インスリア</span>
             {/* β版バッジ */}
             <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px] px-2 py-0.5 font-semibold hidden sm:inline-flex">
               <FlaskConical className="w-2.5 h-2.5 mr-1" />
@@ -734,7 +734,7 @@ export default function LandingPage() {
                       <ImageWithFallback
                         src={steps[activeStep].img}
                         alt={steps[activeStep].title}
-                        className="w-full h-full object-cover object-top"
+                        className="w-full h-full object-cover object-center"
                         fallback={
                           <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 bg-gradient-to-br from-primary/5 to-blue-50 h-full">
                             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mt-12">
