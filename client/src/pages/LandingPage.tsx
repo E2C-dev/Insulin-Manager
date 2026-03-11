@@ -848,8 +848,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.2 }}
                 className="bg-green-50 dark:bg-green-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="h-40 overflow-hidden">
-                  <img src="/images/screenshot-dashboard.png" alt="ダッシュボード" className="w-full h-full object-cover object-top" />
+                <div className="relative overflow-hidden" style={{ height: '320px' }}>
+                  <img src="/images/screenshot-dashboard.png" alt="ダッシュボード" className="w-full h-auto" style={{ marginTop: '-52px' }} />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
@@ -870,8 +870,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.2 }}
                 className="bg-blue-50 dark:bg-blue-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="h-40 overflow-hidden">
-                  <img src="/images/screenshot-logbook.png" alt="記録ノート" className="w-full h-full object-cover object-top" />
+                <div className="relative overflow-hidden" style={{ height: '320px' }}>
+                  <img src="/images/screenshot-logbook.png" alt="記録ノート" className="w-full h-auto" style={{ marginTop: '-52px' }} />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
@@ -892,8 +892,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.2 }}
                 className="bg-orange-50 dark:bg-orange-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="h-40 overflow-hidden">
-                  <img src="/images/screenshot-adjustment-rules.png" alt="調整ルール設定" className="w-full h-full object-cover object-top" />
+                <div className="relative overflow-hidden" style={{ height: '320px' }}>
+                  <img src="/images/screenshot-adjustment-rules.png" alt="調整ルール設定" className="w-full h-auto" style={{ marginTop: '-52px' }} />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
