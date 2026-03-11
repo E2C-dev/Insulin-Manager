@@ -221,6 +221,14 @@ const features = [
     img: "/images/screenshot-dashboard.png",
   },
   {
+    icon: <Settings2 className="w-6 h-6 text-orange-500" />,
+    title: "調整ルール設定",
+    desc: "血糖値の条件に応じたインスリン調整ルールを事前設定。血糖値を入力するだけで自動提案します。",
+    bg: "bg-orange-50 dark:bg-orange-950/20",
+    isHero: false,
+    img: "/images/screenshot-adjustment-rules.png",
+  },
+  {
     icon: <Settings2 className="w-6 h-6 text-purple-500" />,
     title: "複数インスリン管理",
     desc: "超速効型・持効型など複数のインスリンを時間帯別に設定。個別管理が可能です。",
@@ -340,7 +348,7 @@ const steps = [
     icon: <Activity className="w-6 h-6" />,
     title: "血糖値と投与量を記録",
     desc: "朝食前・食後・眠前など8つのタイミングに対応。入力はシンプルで、毎日の習慣になります。",
-    img: "/images/screenshot-dashboard.png",
+    img: "/images/step-2-glucose-input.png",
   },
   {
     step: "3",
@@ -376,8 +384,8 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-md shadow-primary/30">
-              <Syringe className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md shadow-primary/30">
+              <img src="/images/hero-icon-insulia.png" alt="インスリア" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-lg tracking-tight">インスリア</span>
           </div>
@@ -563,7 +571,7 @@ export default function LandingPage() {
                   >
                     {/* ダイナミックアイランド */}
                     <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[72px] h-[22px] bg-gray-200 rounded-full z-10" />
-                    {/* 実スクリーンショット */}
+                    {/* 実スクリーンショット (モザイク処理済) */}
                     <img
                       src="/images/screenshot-dashboard.png"
                       alt="インスリア ダッシュボード"
@@ -813,9 +821,9 @@ export default function LandingPage() {
               主な機能
             </h2>
           </FadeInSection>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Hero カード: A4横型PDF出力 */}
-            <FadeInSection className="sm:col-span-2" delay={0} type="fadeUp">
+            <FadeInSection className="sm:col-span-2 lg:col-span-2" delay={0} type="fadeUp">
               <motion.div
                 whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 20px 60px hsl(221 83% 53% / 0.4)" }}
                 transition={{ duration: 0.2 }}
@@ -867,8 +875,8 @@ export default function LandingPage() {
               </motion.div>
             </FadeInSection>
 
-            {/* サブカード 3枚 */}
-            {features.slice(1).map(({ icon, title, desc, bg, img }, i) => (
+            {/* サブカード */}
+            {features.slice(1, 5).map(({ icon, title, desc, bg, img }, i) => (
               <FadeInSection key={title} delay={(i + 1) * 0.1} type="scale">
                 <motion.div
                   whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
@@ -1379,8 +1387,8 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Syringe className="w-3.5 h-3.5 text-primary" />
+              <div className="w-7 h-7 rounded-lg overflow-hidden">
+                <img src="/images/hero-icon-insulia.png" alt="インスリア" className="w-full h-full object-cover" />
               </div>
               <span className="font-semibold text-foreground">インスリア</span>
             </div>
