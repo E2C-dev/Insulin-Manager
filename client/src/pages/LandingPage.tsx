@@ -848,8 +848,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.2 }}
                 className="bg-green-50 dark:bg-green-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="relative overflow-hidden" style={{ height: '320px' }}>
-                  <img src="/images/screenshot-dashboard.png" alt="ダッシュボード" className="w-full h-auto" style={{ marginTop: '-52px' }} />
+                <div className="flex items-center justify-center px-4 pt-5 pb-2" style={{ background: 'inherit' }}>
+                  <img src="/images/screenshot-dashboard.png" alt="ダッシュボード" className="w-full max-w-[220px] h-auto object-contain rounded-2xl shadow-md" />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
@@ -870,8 +870,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.2 }}
                 className="bg-blue-50 dark:bg-blue-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="relative overflow-hidden" style={{ height: '320px' }}>
-                  <img src="/images/screenshot-logbook.png" alt="記録ノート" className="w-full h-auto" style={{ marginTop: '-52px' }} />
+                <div className="flex items-center justify-center px-4 pt-5 pb-2" style={{ background: 'inherit' }}>
+                  <img src="/images/screenshot-logbook.png" alt="記録ノート" className="w-full max-w-[220px] h-auto object-contain rounded-2xl shadow-md" />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
@@ -892,8 +892,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.2 }}
                 className="bg-orange-50 dark:bg-orange-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="relative overflow-hidden" style={{ height: '320px' }}>
-                  <img src="/images/screenshot-adjustment-rules.png" alt="調整ルール設定" className="w-full h-auto" style={{ marginTop: '-52px' }} />
+                <div className="flex items-center justify-center px-4 pt-5 pb-2" style={{ background: 'inherit' }}>
+                  <img src="/images/screenshot-adjustment-rules.png" alt="調整ルール設定" className="w-full max-w-[220px] h-auto object-contain rounded-2xl shadow-md" />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
@@ -990,7 +990,7 @@ export default function LandingPage() {
 
                 {/* 見出し */}
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-[1.2] tracking-tight">
-                  妻が妊娠糖尿病と<br />
+                  パートナーが妊娠糖尿病と<br />
                   診断されたとき、<br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-cyan-300">
                     すべてがアナログだった。
@@ -1000,7 +1000,7 @@ export default function LandingPage() {
                 {/* 本文 */}
                 <div className="space-y-4 text-white/70 leading-relaxed text-base sm:text-lg">
                   <p>
-                    妻が妊娠糖尿病と診断され、初めてインスリンを手渡されました。
+                    パートナーが妊娠糖尿病と診断され、初めてインスリンを手渡されました。
                     そのとき管理ツールとして渡されたのは、
                     <strong className="text-white">1冊のノート</strong>だけでした。
                   </p>
@@ -1028,7 +1028,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <p className="text-white font-semibold text-sm">インスリア 開発者より</p>
-                    <p className="text-white/40 text-xs mt-0.5">妻の妊娠糖尿病をきっかけに開発</p>
+                    <p className="text-white/40 text-xs mt-0.5">パートナーの妊娠糖尿病をきっかけに開発</p>
                   </div>
                 </div>
               </div>
