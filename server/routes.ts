@@ -11,10 +11,12 @@ import {
   insertUserFeedbackSchema,
   changePasswordSchema,
   users,
+  termsVersions,
+  userConsents,
   type User
 } from "@shared/schema";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { registerAdminRoutes } from "./admin-routes";
 import { adminStorage } from "./admin-storage";
 import { db } from "./db";
@@ -27,6 +29,17 @@ export async function registerRoutes(
   console.log("🚀 APIルート登録開始");
   console.log("===========================================");
   
+  // 未認証でも取得できる：有効な規約バージョン一覧
+  app.get("/api/terms/active", async (_req: Request, res: Response) => {
+    try {
+      const active = await db.select().from(termsVersions).where(eq(termsVersions.isActive, true));
+      return res.json({ active });
+    } catch (err) {
+      console.error("[GET /api/terms/active]", err);
+      return res.status(500).json({ message: "サーバーエラーが発生しました" });
+    }
+  });
+
   // 登録エンドポイント
   console.log("✅ POST /api/auth/register");
   app.post("/api/auth/register", async (req: Request, res: Response) => {
@@ -69,23 +82,41 @@ export async function registerRoutes(
       });
       console.log(`✅ ユーザー作成成功: ${user.username} (ID: ${user.id})`);
 
+      // 同意記録
+      const versionIds: string[] = Array.isArray(req.body.version_ids) ? req.body.version_ids : [];
+      if (versionIds.length > 0) {
+        console.log("[STEP 5] 同意記録");
+        const active = await db.select().from(termsVersions).where(
+          and(eq(termsVersions.isActive, true), inArray(termsVersions.id, versionIds))
+        );
+        for (const v of active) {
+          await db.insert(userConsents).values({
+            userId: user.id,
+            termsVersionId: v.id,
+            ipAddress: req.ip ?? null,
+            userAgent: req.headers["user-agent"] ?? null,
+          });
+        }
+        console.log(`✅ 同意記録完了: ${active.length}件`);
+      }
+
       // 自動ログイン
-      console.log("[STEP 5] 自動ログイン処理");
+      console.log("[STEP 6] 自動ログイン処理");
       req.login(user, (err) => {
         if (err) {
           console.error("❌ ログインエラー:", err);
           console.log("===========================================\n");
           return res.status(500).json({ message: "ログインに失敗しました" });
         }
-        
+
         console.log("✅ ログイン成功");
         // パスワードを除外してレスポンス
         const { password, ...userWithoutPassword } = user;
         console.log("✅ 登録プロセス完全完了");
         console.log("===========================================\n");
-        return res.status(201).json({ 
+        return res.status(201).json({
           message: "アカウントが作成されました",
-          user: userWithoutPassword 
+          user: userWithoutPassword
         });
       });
     } catch (error) {
@@ -698,12 +729,80 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================================
+  // 同意フロー API
+  // ============================================================
+
+  // 未同意の規約バージョン一覧を返す
+  app.get("/api/consent/pending", isAuthenticated, async (req: Request, res: Response) => {
+    const user = req.user as User;
+    try {
+      // 有効な全バージョンを取得
+      const active = await db.select().from(termsVersions).where(eq(termsVersions.isActive, true));
+      if (active.length === 0) return res.json({ pending: [] });
+
+      // ユーザーが同意済みのバージョンIDを取得
+      const consented = await db
+        .select({ termsVersionId: userConsents.termsVersionId })
+        .from(userConsents)
+        .where(eq(userConsents.userId, user.id));
+      const consentedIds = new Set(consented.map((c) => c.termsVersionId));
+
+      const pending = active.filter((v) => !consentedIds.has(v.id));
+      return res.json({ pending });
+    } catch (err) {
+      console.error("[GET /api/consent/pending]", err);
+      return res.status(500).json({ message: "サーバーエラーが発生しました" });
+    }
+  });
+
+  // 同意を記録する（登録時・再同意時 共用）
+  app.post("/api/consent/agree", isAuthenticated, async (req: Request, res: Response) => {
+    const user = req.user as User;
+    const { version_ids } = req.body;
+
+    if (!Array.isArray(version_ids) || version_ids.length === 0) {
+      return res.status(400).json({ message: "version_ids が不正です" });
+    }
+
+    try {
+      // 有効なIDか検証
+      const active = await db.select().from(termsVersions).where(
+        and(eq(termsVersions.isActive, true), inArray(termsVersions.id, version_ids))
+      );
+      if (active.length !== version_ids.length) {
+        return res.status(400).json({ message: "無効な規約バージョンIDが含まれています" });
+      }
+
+      // 同意を記録（既存レコードはスキップ）
+      for (const vId of version_ids) {
+        const exists = await db
+          .select({ id: userConsents.id })
+          .from(userConsents)
+          .where(and(eq(userConsents.userId, user.id), eq(userConsents.termsVersionId, vId)));
+        if (exists.length === 0) {
+          await db.insert(userConsents).values({
+            userId: user.id,
+            termsVersionId: vId,
+            ipAddress: req.ip ?? null,
+            userAgent: req.headers["user-agent"] ?? null,
+          });
+        }
+      }
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("[POST /api/consent/agree]", err);
+      return res.status(500).json({ message: "サーバーエラーが発生しました" });
+    }
+  });
+
   // 管理者ルート登録
   registerAdminRoutes(app);
 
   console.log("===========================================");
   console.log("🎉 すべてのAPIルート登録完了");
   console.log("   - 認証: 4エンドポイント");
+  console.log("   - 同意フロー: 2エンドポイント");
   console.log("   - 調整ルール: 5エンドポイント");
   console.log("   - インスリン記録: 4エンドポイント");
   console.log("   - 血糖値記録: 4エンドポイント");

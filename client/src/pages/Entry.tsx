@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Calendar, Clock, Save, ArrowLeft, Activity, Info, TrendingUp, TrendingDown } from "lucide-react";
+import { Save, ArrowLeft, Activity, Info, TrendingUp, TrendingDown, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { InsulinPresetSelector } from "@/components/entry/InsulinPresetSelector";
@@ -18,7 +18,6 @@ import {
   type InsulinTimeSlot,
   type AdjustmentRule,
   TIME_SLOT_OPTIONS,
-  getPresetDefaultUnits,
 } from "@/lib/types";
 
 interface EntryFormData {
@@ -381,6 +380,85 @@ export default function Entry() {
   // 情報を表示するかどうか
   const shouldShowInfo = formData.date && formData.timeSlot;
 
+  // 「昨日と同じ」機能: formData.dateの1日前
+  const yesterdayDate = useMemo(() => {
+    return format(subDays(new Date(formData.date), 1), "yyyy-MM-dd");
+  }, [formData.date]);
+
+  // 昨日のインスリン記録を取得
+  const { data: yesterdayInsulinData } = useQuery({
+    queryKey: ["insulin-entries", yesterdayDate],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/insulin-entries?startDate=${yesterdayDate}&endDate=${yesterdayDate}`,
+        { credentials: "include" }
+      );
+      if (!response.ok) throw new Error("昨日のデータ取得に失敗しました");
+      return response.json();
+    },
+    enabled: !!formData.timeSlot,
+  });
+
+  // 選択タイミングに対応する昨日のインスリン記録
+  const yesterdayEntry = useMemo(() => {
+    if (!formData.timeSlot || !yesterdayInsulinData?.entries) return null;
+    const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
+    if (!selectedOption) return null;
+    return yesterdayInsulinData.entries.find((e: any) => e.timeSlot === selectedOption.insulinSlot) ?? null;
+  }, [formData.timeSlot, yesterdayInsulinData]);
+
+  // 「昨日と同じ」ワンタップ保存ハンドラ
+  const handleSameAsYesterday = async () => {
+    if (!yesterdayEntry || !formData.timeSlot) return;
+
+    const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
+    if (!selectedOption?.insulinSlot) return;
+
+    const units = String(parseFloat(yesterdayEntry.units));
+    const presetId = yesterdayEntry.presetId ?? null;
+
+    setIsSaving(true);
+    try {
+      if (isEditMode && editInsulinId) {
+        await updateInsulinMutation.mutateAsync({
+          id: editInsulinId,
+          units,
+          presetId: presetId ?? undefined,
+        });
+      } else {
+        await createInsulinMutation.mutateAsync({
+          date: formData.date,
+          timeSlot: selectedOption.insulinSlot,
+          units,
+          presetId: presetId ?? undefined,
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["insulin-entries"] });
+
+      const dateLabel = format(new Date(formData.date), "M月d日", { locale: ja });
+      const prevLabel = format(new Date(yesterdayDate), "M月d日", { locale: ja });
+
+      toast({
+        title: "✅ 保存成功",
+        description: `${dateLabel} ${selectedOption.label}：${prevLabel}と同じ ${units}単位を記録しました`,
+      });
+
+      if (!isEditMode) {
+        setFormData(prev => ({ ...prev, glucoseLevel: "", insulinUnits: "", note: "" }));
+        setSelectedPresetId(null);
+      }
+    } catch (error) {
+      toast({
+        title: "保存失敗",
+        description: error instanceof Error ? error.message : "記録の保存に失敗しました",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // 血糖値が入力されたら、ルールに基づいてインスリン量を自動計算
   useEffect(() => {
     // 編集モード中や手動でプリセットを選択した場合は自動計算しない
@@ -616,6 +694,24 @@ export default function Entry() {
               </div>
             </CardHeader>
             <CardContent className="pt-4 space-y-3 bg-green-50/30 dark:bg-green-950/10">
+              {/* 昨日と同じボタン */}
+              {formData.timeSlot && yesterdayEntry && (
+                <button
+                  type="button"
+                  onClick={handleSameAsYesterday}
+                  disabled={isSaving}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-amber-50 border-2 border-amber-400 hover:bg-amber-100 active:bg-amber-200 dark:bg-amber-950/30 dark:border-amber-600 dark:hover:bg-amber-950/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Zap className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span className="font-bold text-amber-800 dark:text-amber-200">
+                    昨日と同じ {parseFloat(yesterdayEntry.units)}単位を登録
+                  </span>
+                  <span className="text-xs text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                    （ワンタップで保存）
+                  </span>
+                </button>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="glucoseLevel" className="text-xs text-muted-foreground">

@@ -231,6 +231,31 @@ export const insertUserFeedbackSchema = z.object({
 export type UserFeedback = typeof userFeedback.$inferSelect;
 export type InsertUserFeedback = z.infer<typeof insertUserFeedbackSchema>;
 
+// 規約バージョン管理テーブル
+export const termsVersions = pgTable("terms_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  docType: text("doc_type").notNull(),          // "terms" | "privacy"
+  version: text("version").notNull(),            // "v1.0", "v1.1" など
+  summary: text("summary"),                      // 変更概要（ユーザー向け表示用）
+  isActive: boolean("is_active").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  activatedAt: timestamp("activated_at"),
+});
+
+export type TermsVersion = typeof termsVersions.$inferSelect;
+
+// ユーザー同意記録テーブル
+export const userConsents = pgTable("user_consents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  termsVersionId: varchar("terms_version_id").notNull().references(() => termsVersions.id),
+  consentedAt: timestamp("consented_at").notNull().default(sql`now()`),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+});
+
+export type UserConsent = typeof userConsents.$inferSelect;
+
 // パスワード変更スキーマ（ユーザー用）
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "現在のパスワードを入力してください"),
