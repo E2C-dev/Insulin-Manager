@@ -502,11 +502,11 @@ export default function LandingPage() {
                     style={{ aspectRatio: "390/844" }}
                   >
                     <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[72px] h-[22px] bg-gray-200 rounded-full z-10" />
-                    <div className="w-full h-full pt-[36px] px-[10px] pb-[10px]">
+                    <div className="w-full h-full pt-[36px] px-[10px] pb-[10px] bg-[#f5f7fa]">
                       <img
                         src="/images/screenshot-dashboard.png"
                         alt="インスリア ダッシュボード"
-                        className="w-full h-full object-cover object-top rounded-[30px]"
+                        className="w-full h-full object-contain object-top rounded-[30px]"
                       />
                     </div>
                   </div>
@@ -731,11 +731,11 @@ export default function LandingPage() {
                       style={{ aspectRatio: "9/16" }}
                     >
                       <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-16 h-5 bg-gray-900 rounded-full z-10" />
-                      <div className="w-full h-full pt-[32px] px-[10px] pb-[10px]">
+                      <div className="w-full h-full pt-[32px] px-[10px] pb-[10px] bg-[#f5f7fa]">
                         <ImageWithFallback
                           src={steps[activeStep].img}
                           alt={steps[activeStep].title}
-                          className="w-full h-full object-cover object-center rounded-[26px]"
+                          className="w-full h-full object-contain object-top rounded-[26px]"
                           fallback={
                             <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 bg-gradient-to-br from-primary/5 to-blue-50 h-full rounded-[32px]">
                               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mt-12">
