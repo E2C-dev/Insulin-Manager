@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AdBanner } from "@/components/AdBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, TrendingUp, BookOpen, Flame, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
 import { format, subDays, parseISO } from "date-fns";
@@ -109,7 +110,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="pt-5 px-5 pb-6 space-y-4">
+      <div className="pt-5 px-4 pb-6 space-y-4">
 
         {/* ヘッダー：挨拶 + 日付 */}
         <div>
@@ -254,7 +255,7 @@ export default function Dashboard() {
               )}
             </div>
           </CardHeader>
-          <CardContent className="pb-4">
+          <CardContent className="pb-4 px-4">
             <div className="grid grid-cols-7 gap-1">
               {last7Days.map(({ date, hasRecord, dayAvg }) => {
                 const isToday = date === today;
@@ -263,7 +264,7 @@ export default function Dashboard() {
                 return (
                   <div key={date} className="flex flex-col items-center gap-1">
                     <span className="text-xs text-muted-foreground">{dayLabel}</span>
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-xs font-semibold ${getDayDotStyle(hasRecord, dayAvg, isToday)}`}>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold ${getDayDotStyle(hasRecord, dayAvg, isToday)}`}>
                       {dateLabel}
                     </div>
                   </div>
@@ -291,20 +292,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* ===== AdSense広告スペース ===== */}
-        <div className="mt-6 pt-4 border-t">
-          <p className="text-xs text-muted-foreground text-center mb-2">広告</p>
-          <div className="w-full min-h-[100px] bg-muted/30 rounded-lg flex items-center justify-center border border-dashed border-muted-foreground/20">
-            <ins
-              className="adsbygoogle"
-              style={{ display: "block", width: "100%", minHeight: "100px" }}
-              data-ad-client="ca-pub-8606804226935323"
-              data-ad-slot="auto"
-              data-ad-format="auto"
-              data-full-width-responsive="true"
-            />
-          </div>
-        </div>
+        <AdBanner />
       </div>
     </AppLayout>
   );

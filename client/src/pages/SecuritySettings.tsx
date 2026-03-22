@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AdBanner } from "@/components/AdBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -139,21 +140,7 @@ export default function SecuritySettings() {
           </CardContent>
         </Card>
 
-        {/* ===== AdSense広告スペース ===== */}
-        <div className="mt-6 pt-4 border-t">
-          <p className="text-xs text-muted-foreground text-center mb-2">広告</p>
-          <div className="w-full min-h-[100px] bg-muted/30 rounded-lg flex items-center justify-center border border-dashed border-muted-foreground/20">
-            {/* AdSense: ca-pub-8606804226935323 */}
-            <ins
-              className="adsbygoogle"
-              style={{ display: "block", width: "100%", minHeight: "100px" } as React.CSSProperties}
-              data-ad-client="ca-pub-8606804226935323"
-              data-ad-slot="auto"
-              data-ad-format="auto"
-              data-full-width-responsive="true"
-            />
-          </div>
-        </div>
+        <AdBanner />
       </div>
     </AppLayout>
   );
