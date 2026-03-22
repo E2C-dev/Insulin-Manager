@@ -110,12 +110,12 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="pt-5 px-4 pb-6 space-y-4">
+      <div className="pt-3 px-3 pb-3 space-y-2.5">
 
         {/* ヘッダー：挨拶 + 日付 */}
         <div>
           <p className="text-xs text-muted-foreground">{getGreeting()}</p>
-          <h1 className="text-xl font-bold tracking-tight">
+          <h1 className="text-lg font-bold tracking-tight">
             {format(new Date(), "M月d日 (E)", { locale: ja })}
           </h1>
         </div>
@@ -133,13 +133,13 @@ export default function Dashboard() {
 
         {/* 今日の投与チェック */}
         <Card>
-          <CardHeader className="pb-2 pt-4">
+          <CardHeader className="pb-1.5 pt-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
               今日の投与状況
             </CardTitle>
           </CardHeader>
-          <CardContent className="pb-4">
+          <CardContent className="pb-3">
             {isLoading ? (
               <div className="grid grid-cols-4 gap-2">
                 {doseSlots.map(s => (
@@ -187,7 +187,7 @@ export default function Dashboard() {
         {/* 統計：最新血糖値 + 7日間平均 */}
         <div className="grid grid-cols-2 gap-3">
           <Card>
-            <CardContent className="pt-4 pb-4">
+            <CardContent className="pt-3 pb-3">
               <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                 <Activity className="w-3 h-3" />
                 最新血糖値
@@ -213,7 +213,7 @@ export default function Dashboard() {
           </Card>
 
           <Card>
-            <CardContent className="pt-4 pb-4">
+            <CardContent className="pt-3 pb-3">
               <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" />
                 7日間平均
@@ -241,7 +241,7 @@ export default function Dashboard() {
 
         {/* 直近7日間カレンダー + ストリーク */}
         <Card>
-          <CardHeader className="pb-2 pt-4">
+          <CardHeader className="pb-1.5 pt-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-primary" />
@@ -255,7 +255,7 @@ export default function Dashboard() {
               )}
             </div>
           </CardHeader>
-          <CardContent className="pb-4 px-4">
+          <CardContent className="pb-3 px-3">
             <div className="grid grid-cols-7 gap-1">
               {last7Days.map(({ date, hasRecord, dayAvg }) => {
                 const isToday = date === today;
@@ -271,7 +271,7 @@ export default function Dashboard() {
                 );
               })}
             </div>
-            <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
                 <span>良好（70-180）</span>
