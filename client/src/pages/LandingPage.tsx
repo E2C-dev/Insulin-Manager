@@ -501,14 +501,14 @@ export default function LandingPage() {
                     className="relative bg-white rounded-[40px] overflow-hidden"
                     style={{ aspectRatio: "390/844" }}
                   >
-                    {/* ダイナミックアイランド */}
                     <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[72px] h-[22px] bg-gray-200 rounded-full z-10" />
-                    {/* 実スクリーンショット (モザイク処理済) */}
-                    <img
-                      src="/images/screenshot-dashboard.png"
-                      alt="インスリア ダッシュボード"
-                      className="w-full h-full object-cover object-top"
-                    />
+                    <div className="w-full h-full pt-[36px] px-[4px] pb-[4px]">
+                      <img
+                        src="/images/screenshot-dashboard.png"
+                        alt="インスリア ダッシュボード"
+                        className="w-full h-full object-cover object-top rounded-[36px]"
+                      />
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -731,21 +731,23 @@ export default function LandingPage() {
                       style={{ aspectRatio: "9/16" }}
                     >
                       <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-16 h-5 bg-gray-900 rounded-full z-10" />
-                      <ImageWithFallback
-                        src={steps[activeStep].img}
-                        alt={steps[activeStep].title}
-                        className="w-full h-full object-cover object-center"
-                        fallback={
-                          <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 bg-gradient-to-br from-primary/5 to-blue-50 h-full">
-                            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mt-12">
-                              <span className="text-primary">{steps[activeStep].icon}</span>
+                      <div className="w-full h-full pt-[32px] px-[4px] pb-[4px]">
+                        <ImageWithFallback
+                          src={steps[activeStep].img}
+                          alt={steps[activeStep].title}
+                          className="w-full h-full object-cover object-center rounded-[32px]"
+                          fallback={
+                            <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 bg-gradient-to-br from-primary/5 to-blue-50 h-full rounded-[32px]">
+                              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mt-12">
+                                <span className="text-primary">{steps[activeStep].icon}</span>
+                              </div>
+                              <p className="text-sm text-center font-medium text-foreground">
+                                {steps[activeStep].title}
+                              </p>
                             </div>
-                            <p className="text-sm text-center font-medium text-foreground">
-                              {steps[activeStep].title}
-                            </p>
-                          </div>
-                        }
-                      />
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -848,8 +850,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.2 }}
                 className="bg-green-50 dark:bg-green-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="relative overflow-hidden" style={{ height: '320px' }}>
-                  <img src="/images/screenshot-dashboard.png" alt="ダッシュボード" className="w-full h-auto" style={{ marginTop: '-52px' }} />
+                <div className="relative overflow-hidden p-3 pt-4" style={{ height: '320px' }}>
+                  <img src="/images/screenshot-dashboard.png" alt="ダッシュボード" className="w-full h-auto rounded-xl shadow-sm" />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
@@ -870,8 +872,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.2 }}
                 className="bg-blue-50 dark:bg-blue-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="relative overflow-hidden" style={{ height: '320px' }}>
-                  <img src="/images/screenshot-logbook.png" alt="記録ノート" className="w-full h-auto" style={{ marginTop: '-52px' }} />
+                <div className="relative overflow-hidden p-3 pt-4" style={{ height: '320px' }}>
+                  <img src="/images/screenshot-logbook.png" alt="記録ノート" className="w-full h-auto rounded-xl shadow-sm" />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
@@ -892,8 +894,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.2 }}
                 className="bg-orange-50 dark:bg-orange-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="relative overflow-hidden" style={{ height: '320px' }}>
-                  <img src="/images/screenshot-adjustment-rules.png" alt="調整ルール設定" className="w-full h-auto" style={{ marginTop: '-52px' }} />
+                <div className="relative overflow-hidden p-3 pt-4" style={{ height: '320px' }}>
+                  <img src="/images/screenshot-adjustment-rules.png" alt="調整ルール設定" className="w-full h-auto rounded-xl shadow-sm" />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
