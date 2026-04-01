@@ -54,7 +54,7 @@ export default function Register() {
 
   const activeVersions = termsData?.active ?? [];
   const allConsented =
-    activeVersions.length > 0 &&
+    activeVersions.length === 0 ||
     activeVersions.every((v) => consentChecked[v.id] === true);
 
   const registerMutation = useMutation({
