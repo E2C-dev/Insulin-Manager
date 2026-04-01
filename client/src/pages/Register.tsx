@@ -43,7 +43,7 @@ export default function Register() {
   }, [isAuthenticated, isLoading, setLocation]);
 
   // 有効な規約バージョンを取得
-  const { data: termsData } = useQuery<{ active: TermsVersion[] }>({
+  const { data: termsData, isLoading: termsLoading } = useQuery<{ active: TermsVersion[] }>({
     queryKey: ["terms", "active"],
     queryFn: async () => {
       const res = await fetch("/api/terms/active");
@@ -54,8 +54,10 @@ export default function Register() {
 
   const activeVersions = termsData?.active ?? [];
   const allConsented =
-    activeVersions.length === 0 ||
-    activeVersions.every((v) => consentChecked[v.id] === true);
+    termsLoading
+      ? false
+      : activeVersions.length === 0 ||
+        activeVersions.every((v) => consentChecked[v.id] === true);
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string; version_ids: string[] }) => {
