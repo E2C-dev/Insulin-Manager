@@ -40,6 +40,25 @@ export async function registerRoutes(
     }
   });
 
+  // 規約本文を取得（未認証でもアクセス可能）
+  app.get("/api/terms/:docType/content", async (req: Request, res: Response) => {
+    try {
+      const { docType } = req.params;
+      const [version] = await db
+        .select()
+        .from(termsVersions)
+        .where(and(eq(termsVersions.docType, docType), eq(termsVersions.isActive, true)))
+        .limit(1);
+      if (!version) {
+        return res.status(404).json({ message: "ドキュメントが見つかりません" });
+      }
+      return res.json({ version });
+    } catch (err) {
+      console.error("[GET /api/terms/:docType/content]", err);
+      return res.status(500).json({ message: "サーバーエラーが発生しました" });
+    }
+  });
+
   // 登録エンドポイント
   console.log("✅ POST /api/auth/register");
   app.post("/api/auth/register", async (req: Request, res: Response) => {

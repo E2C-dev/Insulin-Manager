@@ -237,6 +237,7 @@ export const termsVersions = pgTable("terms_versions", {
   docType: text("doc_type").notNull(),          // "terms" | "privacy"
   version: text("version").notNull(),            // "v1.0", "v1.1" など
   summary: text("summary"),                      // 変更概要（ユーザー向け表示用）
+  content: text("content"),                       // 規約本文（Markdown）
   isActive: boolean("is_active").notNull().default(false),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   activatedAt: timestamp("activated_at"),

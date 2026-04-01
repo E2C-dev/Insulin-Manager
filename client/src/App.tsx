@@ -17,6 +17,7 @@ import AdjustmentRules from "@/pages/AdjustmentRules";
 import SecuritySettings from "@/pages/SecuritySettings";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import TermsViewer from "@/pages/TermsViewer";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminUsers from "@/pages/admin/AdminUsers";
@@ -37,6 +38,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/terms/:docType" component={TermsViewer} />
       <Route path="/" component={HomeRoute} />
       <Route path="/logbook">
         {() => (

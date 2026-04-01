@@ -122,9 +122,15 @@ export function ConsentGate({ children }: ConsentGateProps) {
                   disabled={agreeMutation.isPending}
                 />
                 <label htmlFor={`recon-${v.id}`} className="text-sm leading-tight cursor-pointer">
-                  <span className="font-medium">
+                  <a
+                    href={`/terms/${v.docType}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {DOC_TYPE_LABEL[v.docType] ?? v.docType} {v.version}
-                  </span>
+                  </a>
                   {v.summary && (
                     <span className="text-muted-foreground ml-1">（{v.summary}）</span>
                   )}

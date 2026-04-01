@@ -15,7 +15,9 @@
       "Bash(netstat -tlnp)",
       "Bash(printenv)",
       "Bash(tsx /tmp/create_user.ts)",
-      "Bash(tsx script/create-test-user.ts)"
+      "Bash(tsx script/create-test-user.ts)",
+      "Bash(find /home/runner/workspace/client/src -type d -name \"pages\" -exec ls -la {} \\\\;)",
+      "Bash(npx vite:*)"
     ],
     "additionalDirectories": [
       "/home/runner/.claude",

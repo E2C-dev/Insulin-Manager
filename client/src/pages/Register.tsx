@@ -236,9 +236,15 @@ export default function Register() {
                         htmlFor={`consent-${v.id}`}
                         className="text-sm leading-tight cursor-pointer"
                       >
-                        <span className="font-medium">
+                        <a
+                          href={`/terms/${v.docType}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {DOC_TYPE_LABEL[v.docType] ?? v.docType} {v.version}
-                        </span>
+                        </a>
                         {v.summary && (
                           <span className="text-gray-500 dark:text-gray-400 ml-1">（{v.summary}）</span>
                         )}
