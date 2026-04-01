@@ -65,7 +65,12 @@ function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
     return controls.stop;
   }, [inView, count, to]);
 
-  return <span ref={ref}>{display}{suffix}</span>;
+  return (
+    <span ref={ref}>
+      {display}
+      {suffix}
+    </span>
+  );
 }
 
 // ---- スクロールアニメーション共通ラッパー ----
@@ -73,16 +78,35 @@ type AnimationType = "fadeUp" | "fadeIn" | "slideLeft" | "slideRight" | "scale";
 
 const animVariants: Record<AnimationType, Variants> = prefersReducedMotion
   ? {
-      fadeUp:    { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } },
-      fadeIn:    { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } },
-      slideLeft: { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } },
-      slideRight:{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } },
-      scale:     { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } },
+      fadeUp: {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0 } },
+      },
+      fadeIn: {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0 } },
+      },
+      slideLeft: {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0 } },
+      },
+      slideRight: {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0 } },
+      },
+      scale: {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0 } },
+      },
     }
   : {
       fadeUp: {
         hidden: { opacity: 0, y: 40 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+        },
       },
       fadeIn: {
         hidden: { opacity: 0 },
@@ -90,15 +114,27 @@ const animVariants: Record<AnimationType, Variants> = prefersReducedMotion
       },
       slideLeft: {
         hidden: { opacity: 0, x: -40 },
-        visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+        visible: {
+          opacity: 1,
+          x: 0,
+          transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+        },
       },
       slideRight: {
         hidden: { opacity: 0, x: 40 },
-        visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+        visible: {
+          opacity: 1,
+          x: 0,
+          transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+        },
       },
       scale: {
         hidden: { opacity: 0, scale: 0.88 },
-        visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+        visible: {
+          opacity: 1,
+          scale: 1,
+          transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+        },
       },
     };
 
@@ -341,9 +377,15 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md shadow-primary/30">
-              <img src="/images/hero-icon-insulia.png" alt="インスリア" className="w-full h-full object-cover" />
+              <img
+                src="/images/hero-icon-insulia.png"
+                alt="インスリア"
+                className="w-full h-full object-cover"
+              />
             </div>
-            <span className="font-bold text-lg tracking-tight whitespace-nowrap">インスリア</span>
+            <span className="font-bold text-lg tracking-tight whitespace-nowrap">
+              インスリア
+            </span>
             {/* β版バッジ */}
             <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px] px-2 py-0.5 font-semibold hidden sm:inline-flex">
               <FlaskConical className="w-2.5 h-2.5 mr-1" />
@@ -375,8 +417,16 @@ export default function LandingPage() {
         {/* アニメーション背景メッシュ */}
         <motion.div
           className="absolute inset-0 pointer-events-none"
-          animate={prefersReducedMotion ? {} : { backgroundPosition: ["0% 0%", "100% 100%"] }}
-          transition={prefersReducedMotion ? { duration: 0 } : { duration: 25, repeat: Infinity, repeatType: "reverse" }}
+          animate={
+            prefersReducedMotion
+              ? {}
+              : { backgroundPosition: ["0% 0%", "100% 100%"] }
+          }
+          transition={
+            prefersReducedMotion
+              ? { duration: 0 }
+              : { duration: 25, repeat: Infinity, repeatType: "reverse" }
+          }
           style={{
             backgroundImage:
               "radial-gradient(circle at 20% 80%, hsl(221 83% 40% / 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, hsl(174 72% 40% / 0.2) 0%, transparent 50%)",
@@ -396,12 +446,39 @@ export default function LandingPage() {
               animate="visible"
               variants={
                 prefersReducedMotion
-                  ? { hidden: {}, visible: { transition: { staggerChildren: 0, delayChildren: 0 } } }
-                  : { hidden: {}, visible: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } } }
+                  ? {
+                      hidden: {},
+                      visible: {
+                        transition: { staggerChildren: 0, delayChildren: 0 },
+                      },
+                    }
+                  : {
+                      hidden: {},
+                      visible: {
+                        transition: {
+                          staggerChildren: 0.12,
+                          delayChildren: 0.1,
+                        },
+                      },
+                    }
               }
             >
               <motion.div
-                variants={prefersReducedMotion ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } } : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
+                variants={
+                  prefersReducedMotion
+                    ? {
+                        hidden: { opacity: 0 },
+                        visible: { opacity: 1, transition: { duration: 0 } },
+                      }
+                    : {
+                        hidden: { opacity: 0, y: 20 },
+                        visible: {
+                          opacity: 1,
+                          y: 0,
+                          transition: { duration: 0.6 },
+                        },
+                      }
+                }
               >
                 <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
                   <Badge className="bg-white/15 text-white border-white/25 text-xs backdrop-blur-sm gap-1.5">
@@ -417,7 +494,21 @@ export default function LandingPage() {
 
               <motion.h1
                 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.15] tracking-tight text-white"
-                variants={prefersReducedMotion ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } } : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
+                variants={
+                  prefersReducedMotion
+                    ? {
+                        hidden: { opacity: 0 },
+                        visible: { opacity: 1, transition: { duration: 0 } },
+                      }
+                    : {
+                        hidden: { opacity: 0, y: 20 },
+                        visible: {
+                          opacity: 1,
+                          y: 0,
+                          transition: { duration: 0.6 },
+                        },
+                      }
+                }
               >
                 迷わない記録。
                 <br />
@@ -427,9 +518,15 @@ export default function LandingPage() {
                   </span>
                   <motion.span
                     className="absolute -bottom-1 left-0 right-0 h-[3px] rounded-full bg-gradient-to-r from-blue-300 to-cyan-300"
-                    initial={{ scaleX: prefersReducedMotion ? 1 : 0, originX: 0 }}
+                    initial={{
+                      scaleX: prefersReducedMotion ? 1 : 0,
+                      originX: 0,
+                    }}
                     animate={{ scaleX: 1 }}
-                    transition={{ duration: prefersReducedMotion ? 0 : 0.8, delay: prefersReducedMotion ? 0 : 1.0 }}
+                    transition={{
+                      duration: prefersReducedMotion ? 0 : 0.8,
+                      delay: prefersReducedMotion ? 0 : 1.0,
+                    }}
                   />
                 </span>
                 共有。
@@ -437,16 +534,49 @@ export default function LandingPage() {
 
               <motion.p
                 className="text-base sm:text-lg text-white/75 max-w-xl mx-auto lg:mx-0 leading-relaxed"
-                variants={prefersReducedMotion ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } } : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
+                variants={
+                  prefersReducedMotion
+                    ? {
+                        hidden: { opacity: 0 },
+                        visible: { opacity: 1, transition: { duration: 0 } },
+                      }
+                    : {
+                        hidden: { opacity: 0, y: 20 },
+                        visible: {
+                          opacity: 1,
+                          y: 0,
+                          transition: { duration: 0.6 },
+                        },
+                      }
+                }
               >
-                血糖値と投与量を入力するだけ。自動計算ルールで投与量を提案し、<strong className="text-white">A4横型PDF</strong>で栄養士・医師へすぐに共有できます。記録ノートの説明に費やしていた時間を、本質的な指導の時間へ。
+                血糖値と投与量を入力するだけ。自動計算ルールで投与量を提案し、
+                <strong className="text-white">A4横型PDF</strong>
+                で栄養士・医師へすぐに共有できます。記録ノートの説明に費やしていた時間を、本質的な指導の時間へ。
               </motion.p>
 
               <motion.div
                 className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start"
-                variants={prefersReducedMotion ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0 } } } : { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.6 } } }}
+                variants={
+                  prefersReducedMotion
+                    ? {
+                        hidden: { opacity: 0 },
+                        visible: { opacity: 1, transition: { duration: 0 } },
+                      }
+                    : {
+                        hidden: { opacity: 0, y: 20 },
+                        visible: {
+                          opacity: 1,
+                          y: 0,
+                          transition: { duration: 0.6 },
+                        },
+                      }
+                }
               >
-                <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.04 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}>
+                <motion.div
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
+                  whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
+                >
                   <Button
                     size="lg"
                     onClick={() => setLocation("/register")}
@@ -467,7 +597,13 @@ export default function LandingPage() {
 
               <motion.p
                 className="text-xs text-white/40"
-                variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: prefersReducedMotion ? 0 : 0.6 } } }}
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: {
+                    opacity: 1,
+                    transition: { duration: prefersReducedMotion ? 0 : 0.6 },
+                  },
+                }}
               >
                 メールアドレス不要・クレジットカード不要
               </motion.p>
@@ -478,14 +614,26 @@ export default function LandingPage() {
               className="flex-shrink-0 w-full max-w-[220px] sm:max-w-[260px] lg:max-w-[260px] mx-auto lg:mx-0"
               initial={{ opacity: 0, x: prefersReducedMotion ? 0 : 30 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: prefersReducedMotion ? 0 : 0.8, delay: prefersReducedMotion ? 0 : 0.3, ease: "easeOut" }}
+              transition={{
+                duration: prefersReducedMotion ? 0 : 0.8,
+                delay: prefersReducedMotion ? 0 : 0.3,
+                ease: "easeOut",
+              }}
             >
               <motion.div
-                animate={prefersReducedMotion ? {} : {
-                  y: [0, -12, 0],
-                  rotateZ: [0, 0.5, 0, -0.5, 0],
+                animate={
+                  prefersReducedMotion
+                    ? {}
+                    : {
+                        y: [0, -12, 0],
+                        rotateZ: [0, 0.5, 0, -0.5, 0],
+                      }
+                }
+                transition={{
+                  duration: 5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
                 }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
                 style={{
                   filter: "drop-shadow(0 30px 60px rgba(0,0,0,0.45))",
                 }}
@@ -518,7 +666,10 @@ export default function LandingPage() {
       </section>
 
       {/* ② ユーザーの声 */}
-      <section className="py-24 sm:py-32 px-4" style={{ background: "var(--surface-alt)" }}>
+      <section
+        className="py-24 sm:py-32 px-4"
+        style={{ background: "var(--surface-alt)" }}
+      >
         <div className="max-w-6xl mx-auto">
           <FadeInSection>
             <h2 className="text-center text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-12">
@@ -529,11 +680,20 @@ export default function LandingPage() {
             {testimonials.map((t, i) => (
               <FadeInSection key={i} delay={i * 0.1} type="fadeUp">
                 <motion.div
-                  whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.12)" }}
+                  whileHover={
+                    prefersReducedMotion
+                      ? {}
+                      : {
+                          y: -4,
+                          boxShadow: "0 12px 40px hsl(221 83% 53% / 0.12)",
+                        }
+                  }
                   transition={{ duration: 0.2 }}
                   className="bg-background rounded-3xl border border-border p-7 flex flex-col gap-4 cursor-default"
                 >
-                  <div className="text-6xl leading-none text-primary/20 font-serif select-none">"</div>
+                  <div className="text-6xl leading-none text-primary/20 font-serif select-none">
+                    "
+                  </div>
                   <p className="text-base sm:text-lg leading-relaxed text-foreground flex-1 -mt-6">
                     {t.text}
                   </p>
@@ -544,7 +704,9 @@ export default function LandingPage() {
                         alt={t.author}
                         className="w-full h-full object-cover"
                         fallback={
-                          <span className="text-primary font-bold text-xs">{t.initial}</span>
+                          <span className="text-primary font-bold text-xs">
+                            {t.initial}
+                          </span>
                         }
                       />
                     </div>
@@ -552,7 +714,10 @@ export default function LandingPage() {
                       <p className="text-sm font-semibold">{t.author}</p>
                       <div className="flex gap-0.5 mt-0.5">
                         {Array.from({ length: t.stars }).map((_, j) => (
-                          <Star key={j} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                          <Star
+                            key={j}
+                            className="w-3 h-3 fill-yellow-400 text-yellow-400"
+                          />
                         ))}
                       </div>
                     </div>
@@ -571,9 +736,13 @@ export default function LandingPage() {
             {/* 左: 課題テキスト */}
             <div className="space-y-7">
               <FadeInSection type="slideLeft">
-                <Badge className="bg-red-100 text-red-600 border-red-200 mb-3">よくある悩み</Badge>
+                <Badge className="bg-red-100 text-red-600 border-red-200 mb-3">
+                  よくある悩み
+                </Badge>
                 <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-                  こんな経験、<br />ありませんか？
+                  こんな経験、
+                  <br />
+                  ありませんか？
                 </h2>
               </FadeInSection>
               <div className="space-y-3">
@@ -606,7 +775,9 @@ export default function LandingPage() {
                     fallback={
                       <div className="flex flex-col items-center gap-4 text-muted-foreground p-8">
                         <FileText className="w-16 h-16 opacity-30" />
-                        <p className="text-sm text-center">手書きノートのイメージ</p>
+                        <p className="text-sm text-center">
+                          手書きノートのイメージ
+                        </p>
                       </div>
                     }
                   />
@@ -626,7 +797,10 @@ export default function LandingPage() {
       </section>
 
       {/* ④ ソリューション（インタラクティブ3ステップ） */}
-      <section className="py-24 sm:py-32 px-4" style={{ background: "var(--surface-alt)" }}>
+      <section
+        className="py-24 sm:py-32 px-4"
+        style={{ background: "var(--surface-alt)" }}
+      >
         <div className="max-w-6xl mx-auto">
           <FadeInSection>
             <div className="text-center mb-14">
@@ -678,7 +852,11 @@ export default function LandingPage() {
                           activeStep === i ? "bg-white/20" : "bg-primary/10"
                         }`}
                       >
-                        <span className={activeStep === i ? "text-white" : "text-primary"}>
+                        <span
+                          className={
+                            activeStep === i ? "text-white" : "text-primary"
+                          }
+                        >
                           {s.icon}
                         </span>
                       </div>
@@ -690,10 +868,14 @@ export default function LandingPage() {
                         >
                           STEP {s.step}
                         </div>
-                        <h3 className="font-bold text-lg leading-snug">{s.title}</h3>
+                        <h3 className="font-bold text-lg leading-snug">
+                          {s.title}
+                        </h3>
                         <p
                           className={`text-sm mt-1.5 leading-relaxed ${
-                            activeStep === i ? "text-white/80" : "text-muted-foreground"
+                            activeStep === i
+                              ? "text-white/80"
+                              : "text-muted-foreground"
                           }`}
                         >
                           {s.desc}
@@ -701,7 +883,9 @@ export default function LandingPage() {
                       </div>
                       <ChevronRight
                         className={`w-5 h-5 shrink-0 mt-1 transition-opacity ${
-                          activeStep === i ? "opacity-100 text-white" : "opacity-0"
+                          activeStep === i
+                            ? "opacity-100 text-white"
+                            : "opacity-0"
                         }`}
                       />
                     </div>
@@ -715,10 +899,21 @@ export default function LandingPage() {
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeStep}
-                  initial={{ opacity: 0, x: prefersReducedMotion ? 0 : 20, scale: prefersReducedMotion ? 1 : 0.96 }}
+                  initial={{
+                    opacity: 0,
+                    x: prefersReducedMotion ? 0 : 20,
+                    scale: prefersReducedMotion ? 1 : 0.96,
+                  }}
                   animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: prefersReducedMotion ? 0 : -20, scale: prefersReducedMotion ? 1 : 0.96 }}
-                  transition={{ duration: prefersReducedMotion ? 0 : 0.3, ease: "easeOut" }}
+                  exit={{
+                    opacity: 0,
+                    x: prefersReducedMotion ? 0 : -20,
+                    scale: prefersReducedMotion ? 1 : 0.96,
+                  }}
+                  transition={{
+                    duration: prefersReducedMotion ? 0 : 0.3,
+                    ease: "easeOut",
+                  }}
                   className="relative max-w-[260px] mx-auto"
                 >
                   {/* スマホフレーム */}
@@ -739,7 +934,9 @@ export default function LandingPage() {
                           fallback={
                             <div className="flex flex-col items-center gap-4 text-muted-foreground p-8 bg-gradient-to-br from-primary/5 to-blue-50 h-full rounded-[32px]">
                               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mt-12">
-                                <span className="text-primary">{steps[activeStep].icon}</span>
+                                <span className="text-primary">
+                                  {steps[activeStep].icon}
+                                </span>
                               </div>
                               <p className="text-sm text-center font-medium text-foreground">
                                 {steps[activeStep].title}
@@ -771,7 +968,11 @@ export default function LandingPage() {
             {/* Hero カード: A4横型PDF出力 */}
             <FadeInSection className="sm:col-span-2" delay={0} type="fadeUp">
               <motion.div
-                whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 20px 60px hsl(221 83% 53% / 0.4)" }}
+                whileHover={
+                  prefersReducedMotion
+                    ? {}
+                    : { y: -4, boxShadow: "0 20px 60px hsl(221 83% 53% / 0.4)" }
+                }
                 transition={{ duration: 0.2 }}
                 className="bg-gradient-to-br from-primary to-blue-700 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden h-full min-h-[240px]"
               >
@@ -783,7 +984,9 @@ export default function LandingPage() {
                   <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-5">
                     <FileText className="w-6 h-6 text-blue-200" />
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-bold mb-2">A4横型PDF出力</h3>
+                  <h3 className="text-xl sm:text-2xl font-bold mb-2">
+                    A4横型PDF出力
+                  </h3>
                   <p className="text-white/80 leading-relaxed text-sm sm:text-base max-w-md">
                     大きな文字で見やすく設計されたA4横型PDF。血糖値・インスリン記録をそのまま栄養士・医師へ提出でき、
                     説明にかかる時間を大幅に短縮します。
@@ -791,8 +994,12 @@ export default function LandingPage() {
                   {/* PDFプレビュー */}
                   <div className="mt-4 sm:mt-5 bg-white/10 rounded-xl p-3 sm:p-4 w-full max-w-xs backdrop-blur-sm">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-white/25 text-white text-[10px] font-bold px-2 py-0.5 rounded">A4横型</span>
-                      <span className="text-white/60 text-[10px]">大きな文字・見やすいレイアウト</span>
+                      <span className="bg-white/25 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                        A4横型
+                      </span>
+                      <span className="text-white/60 text-[10px]">
+                        大きな文字・見やすいレイアウト
+                      </span>
                     </div>
                     <div className="border border-white/20 rounded-lg overflow-hidden text-[10px]">
                       <div className="bg-white/10 px-2 py-1 text-white/80 font-semibold">
@@ -800,14 +1007,21 @@ export default function LandingPage() {
                       </div>
                       <div className="divide-y divide-white/10">
                         <div className="grid grid-cols-3 px-2 py-1 text-white/50 font-medium">
-                          <span>日付</span><span>血糖値</span><span>投与量</span>
+                          <span>日付</span>
+                          <span>血糖値</span>
+                          <span>投与量</span>
                         </div>
                         {[
                           { date: "1/15（水）", bs: "138 mg", dose: "4 単位" },
                           { date: "1/16（木）", bs: "162 mg", dose: "6 単位" },
                         ].map((row) => (
-                          <div key={row.date} className="grid grid-cols-3 px-2 py-1 text-white/70">
-                            <span>{row.date}</span><span>{row.bs}</span><span>{row.dose}</span>
+                          <div
+                            key={row.date}
+                            className="grid grid-cols-3 px-2 py-1 text-white/70"
+                          >
+                            <span>{row.date}</span>
+                            <span>{row.bs}</span>
+                            <span>{row.dose}</span>
                           </div>
                         ))}
                       </div>
@@ -824,7 +1038,14 @@ export default function LandingPage() {
             {/* 自動計算ルール */}
             <FadeInSection delay={0.1} type="scale">
               <motion.div
-                whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
+                whileHover={
+                  prefersReducedMotion
+                    ? {}
+                    : {
+                        y: -4,
+                        boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)",
+                      }
+                }
                 transition={{ duration: 0.2 }}
                 className="bg-yellow-50 dark:bg-yellow-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
@@ -834,7 +1055,9 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-lg mb-1.5">自動計算ルール</h3>
-                    <p className="text-base text-muted-foreground leading-relaxed">「血糖値140以上なら+1単位」など条件を事前設定。血糖値を入力するだけで投与量を自動提案します。</p>
+                    <p className="text-base text-muted-foreground leading-relaxed">
+                      「血糖値140以上なら+1単位」など条件を事前設定。血糖値を入力するだけで投与量を自動提案します。
+                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -846,12 +1069,26 @@ export default function LandingPage() {
             {/* ダッシュボード */}
             <FadeInSection delay={0.1} type="scale">
               <motion.div
-                whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
+                whileHover={
+                  prefersReducedMotion
+                    ? {}
+                    : {
+                        y: -4,
+                        boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)",
+                      }
+                }
                 transition={{ duration: 0.2 }}
                 className="bg-green-50 dark:bg-green-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="relative overflow-hidden p-3 pt-4" style={{ height: '320px' }}>
-                  <img src="/images/screenshot-dashboard.png" alt="ダッシュボード" className="w-full h-auto rounded-xl shadow-sm" />
+                <div
+                  className="flex items-center justify-center px-4 pt-5 pb-2"
+                  style={{ background: "inherit" }}
+                >
+                  <img
+                    src="/images/screenshot-dashboard.png"
+                    alt="ダッシュボード"
+                    className="w-full max-w-[220px] h-auto object-contain rounded-2xl shadow-md"
+                  />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
@@ -859,7 +1096,9 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-base mb-1">ダッシュボード</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">7日間の血糖カレンダーと連続記録ストリークで、日々の管理状況を一目で把握できます。</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      7日間の血糖カレンダーと連続記録ストリークで、日々の管理状況を一目で把握できます。
+                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -868,12 +1107,26 @@ export default function LandingPage() {
             {/* 記録ノート */}
             <FadeInSection delay={0.2} type="scale">
               <motion.div
-                whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
+                whileHover={
+                  prefersReducedMotion
+                    ? {}
+                    : {
+                        y: -4,
+                        boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)",
+                      }
+                }
                 transition={{ duration: 0.2 }}
                 className="bg-blue-50 dark:bg-blue-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="relative overflow-hidden p-3 pt-4" style={{ height: '320px' }}>
-                  <img src="/images/screenshot-logbook.png" alt="記録ノート" className="w-full h-auto rounded-xl shadow-sm" />
+                <div
+                  className="flex items-center justify-center px-4 pt-5 pb-2"
+                  style={{ background: "inherit" }}
+                >
+                  <img
+                    src="/images/screenshot-logbook.png"
+                    alt="記録ノート"
+                    className="w-full max-w-[220px] h-auto object-contain rounded-2xl shadow-md"
+                  />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
@@ -881,7 +1134,9 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-base mb-1">記録ノート</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">血糖値・インスリン投与量を8タイミングで記録。一覧で過去の記録をすぐに確認できます。</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      血糖値・インスリン投与量を8タイミングで記録。一覧で過去の記録をすぐに確認できます。
+                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -890,12 +1145,26 @@ export default function LandingPage() {
             {/* 調整ルール設定 */}
             <FadeInSection delay={0.3} type="scale">
               <motion.div
-                whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)" }}
+                whileHover={
+                  prefersReducedMotion
+                    ? {}
+                    : {
+                        y: -4,
+                        boxShadow: "0 12px 40px hsl(221 83% 53% / 0.15)",
+                      }
+                }
                 transition={{ duration: 0.2 }}
                 className="bg-orange-50 dark:bg-orange-950/20 rounded-3xl overflow-hidden flex flex-col h-full cursor-default"
               >
-                <div className="relative overflow-hidden p-3 pt-4" style={{ height: '320px' }}>
-                  <img src="/images/screenshot-adjustment-rules.png" alt="調整ルール設定" className="w-full h-auto rounded-xl shadow-sm" />
+                <div
+                  className="flex items-center justify-center px-4 pt-5 pb-2"
+                  style={{ background: "inherit" }}
+                >
+                  <img
+                    src="/images/screenshot-adjustment-rules.png"
+                    alt="調整ルール設定"
+                    className="w-full max-w-[220px] h-auto object-contain rounded-2xl shadow-md"
+                  />
                 </div>
                 <div className="p-6 flex flex-col gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
@@ -903,7 +1172,9 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-base mb-1">調整ルール設定</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">血糖値の条件に応じたインスリン調整ルールを事前設定。血糖値を入力するだけで自動提案します。</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      血糖値の条件に応じたインスリン調整ルールを事前設定。血糖値を入力するだけで自動提案します。
+                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -913,7 +1184,10 @@ export default function LandingPage() {
       </section>
 
       {/* ⑥ 比較表 — 左右対比カード */}
-      <section className="py-24 sm:py-32 px-4" style={{ background: "var(--surface-alt)" }}>
+      <section
+        className="py-24 sm:py-32 px-4"
+        style={{ background: "var(--surface-alt)" }}
+      >
         <div className="max-w-4xl mx-auto">
           <FadeInSection>
             <h2 className="text-3xl sm:text-4xl font-bold text-center tracking-tight mb-14">
@@ -939,7 +1213,9 @@ export default function LandingPage() {
                         △
                       </span>
                     )}
-                    <span className="text-sm text-muted-foreground">{r.feature}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {r.feature}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -992,8 +1268,10 @@ export default function LandingPage() {
 
                 {/* 見出し */}
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-[1.2] tracking-tight">
-                  妻が妊娠糖尿病と<br />
-                  診断されたとき、<br />
+                  パートナーが妊娠糖尿病と
+                  <br />
+                  診断されたとき、
+                  <br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-cyan-300">
                     すべてがアナログだった。
                   </span>
@@ -1002,19 +1280,25 @@ export default function LandingPage() {
                 {/* 本文 */}
                 <div className="space-y-4 text-white/70 leading-relaxed text-base sm:text-lg">
                   <p>
-                    妻が妊娠糖尿病と診断され、初めてインスリンを手渡されました。
+                    パートナーが妊娠糖尿病と診断され、初めてインスリンを手渡されました。
                     そのとき管理ツールとして渡されたのは、
-                    <strong className="text-white">1冊のノート</strong>だけでした。
+                    <strong className="text-white">1冊のノート</strong>
+                    だけでした。
                   </p>
                   <p>
                     デジタル化やDXが目覚ましく進む現代でも、血糖管理だけは依然としてアナログのまま。
                     栄養相談に通う中で実感したのは、記録ノートの読み解きだけで
-                    <strong className="text-white">数十分もの貴重な時間が失われる</strong>現実でした。
+                    <strong className="text-white">
+                      数十分もの貴重な時間が失われる
+                    </strong>
+                    現実でした。
                   </p>
                   <p>
                     本来必要ではない説明の時間を削り、患者さんが
-                    <strong className="text-white">本当に必要な指導と向き合える環境</strong>を作りたい。
-                    そんな思いからインスリアは生まれました。
+                    <strong className="text-white">
+                      本当に必要な指導と向き合える環境
+                    </strong>
+                    を作りたい。 そんな思いからインスリアは生まれました。
                   </p>
                 </div>
 
@@ -1029,8 +1313,12 @@ export default function LandingPage() {
                     />
                   </div>
                   <div>
-                    <p className="text-white font-semibold text-sm">インスリア 開発者より</p>
-                    <p className="text-white/40 text-xs mt-0.5">妻の妊娠糖尿病をきっかけに開発</p>
+                    <p className="text-white font-semibold text-sm">
+                      インスリア 開発者より
+                    </p>
+                    <p className="text-white/40 text-xs mt-0.5">
+                      パートナーの妊娠糖尿病をきっかけに開発
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1038,7 +1326,10 @@ export default function LandingPage() {
           </div>
 
           {/* 右: 本物の記録ノート画像 */}
-          <FadeInSection type="fadeIn" className="relative min-h-[400px] lg:min-h-0">
+          <FadeInSection
+            type="fadeIn"
+            className="relative min-h-[400px] lg:min-h-0"
+          >
             <div className="absolute inset-0">
               <img
                 src="/images/problem-notebook.jpg"
@@ -1053,9 +1344,13 @@ export default function LandingPage() {
             <div className="absolute bottom-6 right-6 bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 text-white text-xs max-w-[200px]">
               <div className="flex items-center gap-1.5 mb-1">
                 <BookOpen className="w-3 h-3 text-blue-300" />
-                <span className="font-semibold text-blue-300">実際の記録ノート</span>
+                <span className="font-semibold text-blue-300">
+                  実際の記録ノート
+                </span>
               </div>
-              <p className="text-white/70 leading-relaxed">インスリアが生まれるきっかけとなった、実際に使われていた手書きの記録ノート</p>
+              <p className="text-white/70 leading-relaxed">
+                インスリアが生まれるきっかけとなった、実際に使われていた手書きの記録ノート
+              </p>
             </div>
           </FadeInSection>
         </div>
@@ -1078,7 +1373,9 @@ export default function LandingPage() {
             <div className="flex items-center justify-center gap-3 mb-12">
               <span
                 className={`text-sm transition-colors ${
-                  !isYearly ? "font-bold text-foreground" : "text-muted-foreground"
+                  !isYearly
+                    ? "font-bold text-foreground"
+                    : "text-muted-foreground"
                 }`}
               >
                 月払い
@@ -1093,12 +1390,18 @@ export default function LandingPage() {
                 <motion.div
                   className="absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md"
                   animate={{ x: isYearly ? 28 : 0 }}
-                  transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 30 }}
+                  transition={
+                    prefersReducedMotion
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 500, damping: 30 }
+                  }
                 />
               </button>
               <span
                 className={`text-sm transition-colors ${
-                  isYearly ? "font-bold text-foreground" : "text-muted-foreground"
+                  isYearly
+                    ? "font-bold text-foreground"
+                    : "text-muted-foreground"
                 }`}
               >
                 年払い
@@ -1110,14 +1413,24 @@ export default function LandingPage() {
           </FadeInSection>
 
           {/* モバイル向けスクロールヒント */}
-          <p className="text-center text-xs text-muted-foreground mb-3 sm:hidden">← スワイプして比較 →</p>
+          <p className="text-center text-xs text-muted-foreground mb-3 sm:hidden">
+            ← スワイプして比較 →
+          </p>
 
           {/* プランカード — モバイル横スクロール */}
           <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-6 -mx-4 px-4 sm:grid sm:grid-cols-3 sm:overflow-visible sm:snap-none sm:pb-0 sm:mx-0 sm:px-0 no-scrollbar">
             {plans.map((plan, i) => (
-              <FadeInSection key={plan.name} delay={i * 0.1} className="shrink-0 w-[calc(85vw-1rem)] max-w-[300px] sm:w-auto snap-center">
+              <FadeInSection
+                key={plan.name}
+                delay={i * 0.1}
+                className="shrink-0 w-[calc(85vw-1rem)] max-w-[300px] sm:w-auto snap-center"
+              >
                 <motion.div
-                  whileHover={prefersReducedMotion ? {} : { scale: plan.badge ? 1.03 : 1.02 }}
+                  whileHover={
+                    prefersReducedMotion
+                      ? {}
+                      : { scale: plan.badge ? 1.03 : 1.02 }
+                  }
                   transition={{ duration: 0.2 }}
                   className="h-full"
                 >
@@ -1142,32 +1455,53 @@ export default function LandingPage() {
                           <motion.span
                             key={isYearly ? "yearly" : "monthly"}
                             className="text-4xl font-bold tabular-nums"
-                            initial={{ opacity: 0, y: prefersReducedMotion ? 0 : -8 }}
+                            initial={{
+                              opacity: 0,
+                              y: prefersReducedMotion ? 0 : -8,
+                            }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: prefersReducedMotion ? 0 : 8 }}
-                            transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
+                            exit={{
+                              opacity: 0,
+                              y: prefersReducedMotion ? 0 : 8,
+                            }}
+                            transition={{
+                              duration: prefersReducedMotion ? 0 : 0.2,
+                            }}
                           >
-                            ¥{(isYearly ? plan.yearlyPrice : plan.monthlyPrice).toLocaleString()}
+                            ¥
+                            {(isYearly
+                              ? plan.yearlyPrice
+                              : plan.monthlyPrice
+                            ).toLocaleString()}
                           </motion.span>
                         </AnimatePresence>
-                        <span className="text-sm text-muted-foreground mb-1">{plan.period}</span>
+                        <span className="text-sm text-muted-foreground mb-1">
+                          {plan.period}
+                        </span>
                       </div>
                       {isYearly && plan.yearlyPrice > 0 && (
                         <p className="text-xs text-green-600 font-medium">
-                          年間 ¥{(plan.yearlyPrice * 12).toLocaleString()} で請求
+                          年間 ¥{(plan.yearlyPrice * 12).toLocaleString()}{" "}
+                          で請求
                         </p>
                       )}
                     </CardHeader>
                     <CardContent className="flex flex-col flex-1 gap-4">
                       <ul className="space-y-2.5">
                         {plan.features.map((f) => (
-                          <li key={f} className="flex items-start gap-2 text-sm">
+                          <li
+                            key={f}
+                            className="flex items-start gap-2 text-sm"
+                          >
                             <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
                             <span>{f}</span>
                           </li>
                         ))}
                         {plan.missing.map((f) => (
-                          <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground/50">
+                          <li
+                            key={f}
+                            className="flex items-start gap-2 text-sm text-muted-foreground/50"
+                          >
                             <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
                             <span>{f}</span>
                           </li>
@@ -1192,7 +1526,10 @@ export default function LandingPage() {
       </section>
 
       {/* ⑨ 関連サービス */}
-      <section className="py-24 sm:py-32 px-4" style={{ background: "var(--surface-alt)" }}>
+      <section
+        className="py-24 sm:py-32 px-4"
+        style={{ background: "var(--surface-alt)" }}
+      >
         <div className="max-w-5xl mx-auto">
           <FadeInSection>
             <h2 className="text-3xl sm:text-4xl font-bold text-center tracking-tight mb-4">
@@ -1228,11 +1565,20 @@ export default function LandingPage() {
             ].map(({ icon, img, title, desc, color }, i) => (
               <FadeInSection key={title} delay={i * 0.1}>
                 <motion.div
-                  whileHover={prefersReducedMotion ? {} : { y: -4, boxShadow: "0 12px 40px hsl(221 83% 53% / 0.1)" }}
+                  whileHover={
+                    prefersReducedMotion
+                      ? {}
+                      : {
+                          y: -4,
+                          boxShadow: "0 12px 40px hsl(221 83% 53% / 0.1)",
+                        }
+                  }
                   transition={{ duration: 0.2 }}
                   className="rounded-3xl border border-border bg-background overflow-hidden group cursor-default"
                 >
-                  <div className={`h-36 overflow-hidden ${color} flex items-center justify-center`}>
+                  <div
+                    className={`h-36 overflow-hidden ${color} flex items-center justify-center`}
+                  >
                     <ImageWithFallback
                       src={img}
                       alt={title}
@@ -1248,7 +1594,9 @@ export default function LandingPage() {
                   </div>
                   <div className="p-6 space-y-2">
                     <h3 className="font-bold">{title}</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {desc}
+                    </p>
                     <div className="flex items-center gap-1 text-xs text-primary font-medium pt-1">
                       詳しく見る <ArrowRight className="w-3 h-3" />
                     </div>
@@ -1299,10 +1647,19 @@ export default function LandingPage() {
             <div className="mt-12 flex flex-wrap items-center justify-center gap-5 text-xs text-muted-foreground">
               {[
                 { icon: <Lock className="w-4 h-4" />, label: "SSL暗号化通信" },
-                { icon: <ShieldCheck className="w-4 h-4" />, label: "データ暗号化保存" },
-                { icon: <FileText className="w-4 h-4" />, label: "プライバシーポリシー準拠" },
+                {
+                  icon: <ShieldCheck className="w-4 h-4" />,
+                  label: "データ暗号化保存",
+                },
+                {
+                  icon: <FileText className="w-4 h-4" />,
+                  label: "プライバシーポリシー準拠",
+                },
               ].map(({ icon, label }) => (
-                <span key={label} className="flex items-center gap-2 bg-background border border-border rounded-full px-4 py-2">
+                <span
+                  key={label}
+                  className="flex items-center gap-2 bg-background border border-border rounded-full px-4 py-2"
+                >
                   {icon} {label}
                 </span>
               ))}
@@ -1326,15 +1683,20 @@ export default function LandingPage() {
                 <ul className="space-y-2.5 text-sm sm:text-base text-amber-700 leading-relaxed">
                   <li className="flex items-start gap-2">
                     <span className="text-amber-500 shrink-0 mt-0.5">•</span>
-                    本アプリは<strong>個人が開発した「記録のためのノート」</strong>です。医療機器ではありません。
+                    本アプリは
+                    <strong>個人が開発した「記録のためのノート」</strong>
+                    です。医療機器ではありません。
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-500 shrink-0 mt-0.5">•</span>
-                    開発者は医療関係者ではなく、<strong>医療行為・医療アドバイスは一切行いません</strong>。
+                    開発者は医療関係者ではなく、
+                    <strong>医療行為・医療アドバイスは一切行いません</strong>。
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-500 shrink-0 mt-0.5">•</span>
-                    インスリン投与量は、<strong>必ず担当医師の指示に従ってください</strong>。自動計算はあくまで記録補助の参考値です。
+                    インスリン投与量は、
+                    <strong>必ず担当医師の指示に従ってください</strong>
+                    。自動計算はあくまで記録補助の参考値です。
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-500 shrink-0 mt-0.5">•</span>
@@ -1359,11 +1721,15 @@ export default function LandingPage() {
           <motion.div
             key={i}
             className="absolute w-1.5 h-1.5 rounded-full bg-blue-300/40"
-            animate={prefersReducedMotion ? { opacity: 0 } : {
-              y: [0, -120, 0],
-              x: [0, (i % 2 === 0 ? 1 : -1) * 20, 0],
-              opacity: [0, 1, 0],
-            }}
+            animate={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : {
+                    y: [0, -120, 0],
+                    x: [0, (i % 2 === 0 ? 1 : -1) * 20, 0],
+                    opacity: [0, 1, 0],
+                  }
+            }
             transition={{
               duration: 3 + (i % 3),
               repeat: Infinity,
@@ -1380,21 +1746,26 @@ export default function LandingPage() {
         <div className="relative max-w-3xl mx-auto text-center space-y-8">
           <FadeInSection>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-[1.15]">
-              今日から、迷わない<br />
+              今日から、迷わない
+              <br />
               インスリン管理を。
             </h2>
           </FadeInSection>
 
           <FadeInSection delay={0.1}>
             <p className="text-white/75 text-base sm:text-lg leading-relaxed">
-              血糖値を見るたびに、インスリン量が決まる。<br />
+              血糖値を見るたびに、インスリン量が決まる。
+              <br />
               あなた専用のルールで、毎日を自信を持って過ごそう。
             </p>
           </FadeInSection>
 
           <FadeInSection delay={0.2}>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <motion.div whileHover={prefersReducedMotion ? {} : { scale: 1.05 }} whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}>
+              <motion.div
+                whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
+              >
                 <Button
                   size="lg"
                   onClick={() => setLocation("/register")}
@@ -1429,7 +1800,11 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg overflow-hidden">
-                <img src="/images/hero-icon-insulia.png" alt="インスリア" className="w-full h-full object-cover" />
+                <img
+                  src="/images/hero-icon-insulia.png"
+                  alt="インスリア"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <span className="font-semibold text-foreground">インスリア</span>
               <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px] px-2 py-0.5 font-semibold">
