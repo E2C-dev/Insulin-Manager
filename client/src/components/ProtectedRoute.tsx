@@ -30,9 +30,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // 認証されていない場合は何も表示しない
+  // 認証されていない場合はリダイレクト中の Spinner を表示 (一瞬のホワイトアウト防止 BUG-006)
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center" data-testid="protected-redirecting">
+        <div className="text-center space-y-4">
+          <Spinner className="mx-auto" />
+          <p className="text-gray-500">ログインページへ移動中...</p>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;
