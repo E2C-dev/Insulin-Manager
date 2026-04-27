@@ -14,6 +14,7 @@ import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { InsulinPresetSelector } from "@/components/entry/InsulinPresetSelector";
 import { format, subDays } from "date-fns";
 import { safeFormat, safeParseDate } from "@/lib/date-utils";
+import { QUERY_KEYS } from "@/lib/query-keys";
 import {
   type InsulinTimeSlot,
   type AdjustmentRule,
@@ -75,7 +76,7 @@ export default function Entry() {
 
   // 調整ルールを取得
   const { data: rulesData } = useQuery({
-    queryKey: ["adjustment-rules"],
+    queryKey: QUERY_KEYS.ADJUSTMENT_RULES,
     queryFn: async () => {
       const response = await fetch("/api/adjustment-rules", { credentials: "include" });
       if (!response.ok) throw new Error("ルールの取得に失敗しました");
@@ -85,7 +86,7 @@ export default function Entry() {
 
   // 編集モード時に既存データを取得してフォームに反映
   const { data: glucoseData } = useQuery({
-    queryKey: ["glucose-entries", formData.date],
+    queryKey: QUERY_KEYS.GLUCOSE_ENTRIES_BY_DATE(formData.date),
     queryFn: async () => {
       const response = await fetch("/api/glucose-entries", { credentials: "include" });
       if (!response.ok) throw new Error("血糖値記録の取得に失敗しました");
@@ -96,7 +97,7 @@ export default function Entry() {
   });
 
   const { data: insulinData } = useQuery({
-    queryKey: ["insulin-entries", formData.date],
+    queryKey: QUERY_KEYS.INSULIN_ENTRIES_BY_DATE(formData.date),
     queryFn: async () => {
       const response = await fetch("/api/insulin-entries", { credentials: "include" });
       if (!response.ok) throw new Error("インスリン記録の取得に失敗しました");
@@ -323,8 +324,8 @@ export default function Entry() {
 
       await Promise.all(promises);
 
-      queryClient.invalidateQueries({ queryKey: ["glucose-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["insulin-entries"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GLUCOSE_ENTRIES });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INSULIN_ENTRIES });
 
       const dateLabel = safeFormat(formData.date, "M月d日", formData.date);
       const timeLabel = selectedOption?.label || "";
@@ -410,7 +411,7 @@ export default function Entry() {
 
   // 昨日のインスリン記録を取得
   const { data: yesterdayInsulinData } = useQuery({
-    queryKey: ["insulin-entries", yesterdayDate],
+    queryKey: QUERY_KEYS.INSULIN_ENTRIES_BY_DATE(yesterdayDate),
     queryFn: async () => {
       const response = await fetch(
         `/api/insulin-entries?startDate=${yesterdayDate}&endDate=${yesterdayDate}`,
@@ -457,7 +458,7 @@ export default function Entry() {
         });
       }
 
-      queryClient.invalidateQueries({ queryKey: ["insulin-entries"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INSULIN_ENTRIES });
 
       const dateLabel = safeFormat(formData.date, "M月d日", formData.date);
       const prevLabel = safeFormat(yesterdayDate, "M月d日", yesterdayDate);

@@ -6,6 +6,7 @@ import { Activity, TrendingUp, BookOpen, Flame, AlertTriangle, CheckCircle2, Cir
 import { format, subDays, parseISO } from "date-fns";
 import { ja } from "date-fns/locale";
 import { type ApiGlucoseEntry, type ApiInsulinEntry, getGlucoseBasicColor } from "@/lib/types";
+import { QUERY_KEYS } from "@/lib/query-keys";
 
 // 時間帯に応じた挨拶
 function getGreeting(): string {
@@ -30,7 +31,7 @@ export default function Dashboard() {
   const sevenDaysAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
 
   const { data: glucoseData, isLoading: glucoseLoading } = useQuery({
-    queryKey: ["glucose-entries"],
+    queryKey: QUERY_KEYS.GLUCOSE_ENTRIES,
     queryFn: async () => {
       const response = await fetch("/api/glucose-entries", { credentials: "include" });
       if (!response.ok) throw new Error("血糖値記録の取得に失敗しました");
@@ -40,7 +41,7 @@ export default function Dashboard() {
   });
 
   const { data: insulinData, isLoading: insulinLoading } = useQuery({
-    queryKey: ["insulin-entries"],
+    queryKey: QUERY_KEYS.INSULIN_ENTRIES,
     queryFn: async () => {
       const response = await fetch("/api/insulin-entries", { credentials: "include" });
       if (!response.ok) throw new Error("インスリン記録の取得に失敗しました");

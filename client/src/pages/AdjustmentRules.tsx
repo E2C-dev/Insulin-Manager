@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit2, Trash2, Activity, Coffee, Sun, Sunset, Moon, Syringe } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Link } from "wouter";
+import { QUERY_KEYS } from "@/lib/query-keys";
 
 interface AdjustmentRule {
   id: string;
@@ -169,7 +170,7 @@ export default function AdjustmentRules() {
 
   // ルール一覧取得
   const { data: rulesData, isLoading } = useQuery({
-    queryKey: ["adjustmentRules"],
+    queryKey: QUERY_KEYS.ADJUSTMENT_RULES,
     queryFn: async () => {
       const response = await fetch("/api/adjustment-rules", {
         credentials: "include",
@@ -203,7 +204,7 @@ export default function AdjustmentRules() {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["adjustmentRules"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ADJUSTMENT_RULES });
       toast({
         title: "作成成功",
         description: "ルールを作成しました",
@@ -240,7 +241,7 @@ export default function AdjustmentRules() {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["adjustmentRules"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ADJUSTMENT_RULES });
       toast({
         title: "更新成功",
         description: "ルールを更新しました",
@@ -276,7 +277,7 @@ export default function AdjustmentRules() {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["adjustmentRules"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ADJUSTMENT_RULES });
       toast({
         title: "削除成功",
         description: "ルールを削除しました",

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { type ApiGlucoseEntry, type ApiInsulinEntry, type DailyEntry, getGlucoseBasicColor } from "@/lib/types";
 import { safeFormat } from "@/lib/date-utils";
+import { QUERY_KEYS } from "@/lib/query-keys";
 
 export default function Logbook() {
   const { toast } = useToast();
@@ -38,7 +39,7 @@ export default function Logbook() {
   const today = format(new Date(), "yyyy-MM-dd");
 
   const { data: glucoseData, isLoading: glucoseLoading } = useQuery({
-    queryKey: ["glucose-entries"],
+    queryKey: QUERY_KEYS.GLUCOSE_ENTRIES,
     queryFn: async () => {
       const response = await fetch("/api/glucose-entries", {
         credentials: "include",
@@ -50,7 +51,7 @@ export default function Logbook() {
   });
 
   const { data: insulinData, isLoading: insulinLoading } = useQuery({
-    queryKey: ["insulin-entries"],
+    queryKey: QUERY_KEYS.INSULIN_ENTRIES,
     queryFn: async () => {
       const response = await fetch("/api/insulin-entries", {
         credentials: "include",
@@ -195,8 +196,8 @@ export default function Logbook() {
 
       await Promise.all(deletePromises);
 
-      queryClient.invalidateQueries({ queryKey: ["glucose-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["insulin-entries"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GLUCOSE_ENTRIES });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INSULIN_ENTRIES });
 
       toast({
         title: "削除成功",
