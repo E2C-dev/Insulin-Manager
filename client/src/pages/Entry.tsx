@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { InsulinPresetSelector } from "@/components/entry/InsulinPresetSelector";
 import { format, subDays } from "date-fns";
-import { ja } from "date-fns/locale";
+import { safeFormat, safeParseDate } from "@/lib/date-utils";
 import {
   type InsulinTimeSlot,
   type AdjustmentRule,
@@ -26,6 +26,12 @@ interface EntryFormData {
   glucoseLevel: string;
   insulinUnits: string;
   note: string;
+  /**
+   * ユーザがインスリン量を手入力したかどうかのフラグ。
+   * true の間は血糖値ベースの自動計算で insulinUnits を上書きしない。
+   * (BUG-004 同時解消) リセット時に false、編集モード読み込み時は true に戻す。
+   */
+  insulinUnitsDirty: boolean;
 }
 
 export default function Entry() {
@@ -39,6 +45,7 @@ export default function Entry() {
     glucoseLevel: "",
     insulinUnits: "",
     note: "",
+    insulinUnitsDirty: false,
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -123,6 +130,9 @@ export default function Entry() {
           ...prev,
           insulinUnits: String(parseFloat(insulinEntry.units)),
           note: insulinEntry.note || "",
+          // 編集モードで既存のインスリン値を読み込んだ場合は dirty=true にして
+          // 自動計算による上書きを抑止する (BUG-004)。
+          insulinUnitsDirty: true,
         }));
         setEditInsulinId(insulinEntry.id);
         if (insulinEntry.presetId) setSelectedPresetId(insulinEntry.presetId);
@@ -207,7 +217,15 @@ export default function Entry() {
   });
 
   const handleInputChange = (field: keyof EntryFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next: EntryFormData = { ...prev, [field]: value } as EntryFormData;
+      // ユーザが直接インスリン量を編集したら dirty=true にして自動計算で
+      // 上書きされないようにする (BUG-004)。
+      if (field === "insulinUnits") {
+        next.insulinUnitsDirty = true;
+      }
+      return next;
+    });
   };
 
   const resetForm = () => {
@@ -220,6 +238,7 @@ export default function Entry() {
       glucoseLevel: "",
       insulinUnits: "",
       note: "",
+      insulinUnitsDirty: false,
     });
   };
 
@@ -307,7 +326,7 @@ export default function Entry() {
       queryClient.invalidateQueries({ queryKey: ["glucose-entries"] });
       queryClient.invalidateQueries({ queryKey: ["insulin-entries"] });
 
-      const dateLabel = format(new Date(formData.date), "M月d日", { locale: ja });
+      const dateLabel = safeFormat(formData.date, "M月d日", formData.date);
       const timeLabel = selectedOption?.label || "";
 
       toast({
@@ -317,7 +336,7 @@ export default function Entry() {
 
       // 新規モードではフォームをリセット（日付・タイミングは保持）
       if (!isEditMode) {
-        setFormData(prev => ({ ...prev, glucoseLevel: "", insulinUnits: "", note: "" }));
+        setFormData(prev => ({ ...prev, glucoseLevel: "", insulinUnits: "", note: "", insulinUnitsDirty: false }));
         setSelectedPresetId(null);
       }
     } catch (error) {
@@ -336,7 +355,7 @@ export default function Entry() {
     const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
     if (formData.date === today) return "今日";
     if (formData.date === yesterday) return "昨日";
-    return format(new Date(formData.date), "M月d日", { locale: ja });
+    return safeFormat(formData.date, "M月d日", formData.date);
   };
 
   const getTimeSlotLabel = () => {
@@ -382,7 +401,11 @@ export default function Entry() {
 
   // 「昨日と同じ」機能: formData.dateの1日前
   const yesterdayDate = useMemo(() => {
-    return format(subDays(new Date(formData.date), 1), "yyyy-MM-dd");
+    // formData.date が "" や不正値だと new Date が Invalid Date になり
+    // subDays → format で RangeError → ホワイトアウト経路 (BUG-003)。
+    // safeParseDate で fallback (今日) を使い、必ず妥当な Date を作る。
+    const baseDate = safeParseDate(formData.date, new Date());
+    return format(subDays(baseDate, 1), "yyyy-MM-dd");
   }, [formData.date]);
 
   // 昨日のインスリン記録を取得
@@ -436,8 +459,8 @@ export default function Entry() {
 
       queryClient.invalidateQueries({ queryKey: ["insulin-entries"] });
 
-      const dateLabel = format(new Date(formData.date), "M月d日", { locale: ja });
-      const prevLabel = format(new Date(yesterdayDate), "M月d日", { locale: ja });
+      const dateLabel = safeFormat(formData.date, "M月d日", formData.date);
+      const prevLabel = safeFormat(yesterdayDate, "M月d日", yesterdayDate);
 
       toast({
         title: "✅ 保存成功",
@@ -445,7 +468,7 @@ export default function Entry() {
       });
 
       if (!isEditMode) {
-        setFormData(prev => ({ ...prev, glucoseLevel: "", insulinUnits: "", note: "" }));
+        setFormData(prev => ({ ...prev, glucoseLevel: "", insulinUnits: "", note: "", insulinUnitsDirty: false }));
         setSelectedPresetId(null);
       }
     } catch (error) {
@@ -461,12 +484,17 @@ export default function Entry() {
 
   // 血糖値が入力されたら、ルールに基づいてインスリン量を自動計算
   useEffect(() => {
+    // ユーザが手入力 or プリセット選択でインスリンに触れたら以後は上書きしない
+    // (BUG-004 同時解消)。これが最初のガード — 真っ白の連鎖を断ち切る肝。
+    if (formData.insulinUnitsDirty) return;
     // 編集モード中や手動でプリセットを選択した場合は自動計算しない
     if (selectedPresetId) return;
-    if (!formData.glucoseLevel || !formData.timeSlot) return;
+    // 空文字や空白のみの場合はガード強化 (parseInt("") は NaN だが、念のため早期 return)
+    if (!formData.glucoseLevel || formData.glucoseLevel.trim() === "") return;
+    if (!formData.timeSlot) return;
     if (!getInsulinTimingInfo) return;
 
-    const glucoseValue = parseInt(formData.glucoseLevel);
+    const glucoseValue = parseInt(formData.glucoseLevel, 10);
     if (isNaN(glucoseValue)) return;
 
     let calculatedInsulin = getInsulinTimingInfo.baseAmount;
@@ -482,9 +510,23 @@ export default function Entry() {
       if (matches) calculatedInsulin += rule.adjustmentAmount;
     }
 
-    const finalInsulin = Math.max(0, calculatedInsulin);
-    setFormData(prev => ({ ...prev, insulinUnits: finalInsulin.toString() }));
-  }, [formData.glucoseLevel, formData.timeSlot, getInsulinTimingInfo, applicableRules, selectedPresetId]);
+    // 上限ガード: 0 〜 99 単位にクランプ。これで NaN や桁違いの値が
+    // setFormData → 後続の数値変換で例外を投げる経路を断ち切る。
+    const finalInsulin = Math.max(0, Math.min(99, calculatedInsulin));
+    setFormData(prev => {
+      // 直前と同値なら setState せず、無限ループ気味の再レンダーも防ぐ。
+      const next = finalInsulin.toString();
+      if (prev.insulinUnits === next) return prev;
+      return { ...prev, insulinUnits: next };
+    });
+  }, [
+    formData.glucoseLevel,
+    formData.timeSlot,
+    formData.insulinUnitsDirty,
+    getInsulinTimingInfo,
+    applicableRules,
+    selectedPresetId,
+  ]);
 
   return (
     <AppLayout>
@@ -604,7 +646,12 @@ export default function Entry() {
                   selectedPresetId={selectedPresetId}
                   onPresetSelect={(presetId, units) => {
                     setSelectedPresetId(presetId);
-                    setFormData(prev => ({ ...prev, insulinUnits: units.toString() }));
+                    // プリセット選択もユーザの明示的な指定なので dirty=true。
+                    setFormData(prev => ({
+                      ...prev,
+                      insulinUnits: units.toString(),
+                      insulinUnitsDirty: true,
+                    }));
                   }}
                 />
               )}
