@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
-import { format, subDays } from "date-fns";
+import { format, subDays, differenceInDays } from "date-fns";
 import { Link } from "wouter";
 import {
   AlertDialog,
@@ -33,6 +33,9 @@ export default function Logbook() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
+  // PDF出力の90日超警告ダイアログ (BUG-008)
+  const [isPdfWarnOpen, setIsPdfWarnOpen] = useState(false);
+  const [pendingPdfDays, setPendingPdfDays] = useState<number>(0);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState<{ date: string; glucoseIds: string[]; insulinIds: string[] } | null>(null);
 
@@ -277,7 +280,12 @@ export default function Logbook() {
     toast({ title: "CSV出力完了", description: "ファイルをダウンロードしました" });
   };
 
-  const handleExportPDF = () => {
+  /**
+   * PDF出力を実行する内部関数。差分90日超のときは AlertDialog で警告
+   * (BUG-008)。viewMode が week/month の現状は最大30日で警告は出ないが、
+   * 将来 viewMode 拡張に備えて期間判定を実装している。
+   */
+  const runExportPdf = () => {
     toast({
       title: "印刷ダイアログが開きます",
       description: "印刷ダイアログが開きます。PDFとして保存してください。",
@@ -285,6 +293,23 @@ export default function Logbook() {
     setTimeout(() => {
       window.print();
     }, 500);
+  };
+
+  const handleExportPDF = () => {
+    // 表示中の期間 (week=7日 / month=30日 / 将来拡張時はここを書き換える)
+    const startDate = subDays(new Date(), viewMode === "week" ? 7 : 30);
+    const days = differenceInDays(new Date(), startDate);
+    if (days > 90) {
+      setPendingPdfDays(days);
+      setIsPdfWarnOpen(true);
+      return;
+    }
+    runExportPdf();
+  };
+
+  const confirmExportPdfAfterWarning = () => {
+    setIsPdfWarnOpen(false);
+    runExportPdf();
   };
 
   const isLoading = glucoseLoading || insulinLoading;
@@ -660,6 +685,26 @@ export default function Logbook() {
               data-testid="button-confirm-delete"
             >
               {isDeleting ? "削除中..." : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* PDF出力 90日超 警告ダイアログ (BUG-008) */}
+      <AlertDialog open={isPdfWarnOpen} onOpenChange={setIsPdfWarnOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>長期間のPDF出力</AlertDialogTitle>
+            <AlertDialogDescription>
+              90日を超える期間 (約{pendingPdfDays}日) のPDF出力はブラウザがフリーズする可能性があります。続行しますか？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-pdf-warning">
+              キャンセル
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmExportPdfAfterWarning} data-testid="button-confirm-pdf-warning">
+              続行
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
