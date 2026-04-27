@@ -13,8 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
-import { format, subDays, parseISO } from "date-fns";
-import { ja } from "date-fns/locale";
+import { format, subDays } from "date-fns";
 import { Link } from "wouter";
 import {
   AlertDialog,
@@ -27,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { type ApiGlucoseEntry, type ApiInsulinEntry, type DailyEntry, getGlucoseBasicColor } from "@/lib/types";
+import { safeFormat } from "@/lib/date-utils";
 
 export default function Logbook() {
   const { toast } = useToast();
@@ -200,7 +200,7 @@ export default function Logbook() {
 
       toast({
         title: "削除成功",
-        description: `${format(parseISO(deletingEntry.date), "M月d日", { locale: ja })}の記録を削除しました`,
+        description: `${safeFormat(deletingEntry.date, "M月d日")}の記録を削除しました`,
       });
     } catch (error) {
       toast({
@@ -472,7 +472,7 @@ export default function Logbook() {
                                 {isToday && (
                                   <div className="text-xs text-primary font-bold mb-0.5">今日</div>
                                 )}
-                                {format(parseISO(entry.date), "M/d\n(E)", { locale: ja }).split('\n').map((line, i) => (
+                                {safeFormat(entry.date, "M/d\n(E)").split('\n').map((line, i) => (
                                   <div key={i} className={!entry.hasAnyRecord ? "text-muted-foreground/50" : ""}>{line}</div>
                                 ))}
                               </div>
@@ -641,7 +641,7 @@ export default function Logbook() {
               {deletingEntry && (
                 <>
                   <span className="font-semibold text-foreground" data-testid="text-delete-date">
-                    {format(parseISO(deletingEntry.date), "yyyy年M月d日 (E)", { locale: ja })}
+                    {safeFormat(deletingEntry.date, "yyyy年M月d日 (E)")}
                   </span>
                   の記録をすべて削除します。この操作は取り消せません。
                 </>
