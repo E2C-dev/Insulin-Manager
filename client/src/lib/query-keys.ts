@@ -14,15 +14,15 @@
  *   queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GLUCOSE_ENTRIES }) // 全日付を一括無効化
  */
 export const QUERY_KEYS = {
-  ADJUSTMENT_RULES: [adjustment-rules] as const,
-  INSULIN_PRESETS: [insulin-presets] as const,
-  INSULIN_ENTRIES: [insulin-entries] as const,
-  INSULIN_ENTRIES_BY_DATE: (date: string) => [insulin-entries, date] as const,
-  GLUCOSE_ENTRIES: [glucose-entries] as const,
-  GLUCOSE_ENTRIES_BY_DATE: (date: string) => [glucose-entries, date] as const,
-  FEATURE_FLAGS: [feature-flags] as const,
-  AUDIT_LOGS: [audit-logs] as const,
-  TERMS_CONTENT: [terms-content] as const,
-  USER_PROFILE: [auth, user] as const,
-  TUTORIAL_SEEN: [tutorial-seen] as const,
+  ADJUSTMENT_RULES: ['adjustment-rules'] as const,
+  INSULIN_PRESETS: ['insulin-presets'] as const,
+  INSULIN_ENTRIES: ['insulin-entries'] as const,
+  INSULIN_ENTRIES_BY_DATE: (date: string) => ['insulin-entries', date] as const,
+  GLUCOSE_ENTRIES: ['glucose-entries'] as const,
+  GLUCOSE_ENTRIES_BY_DATE: (date: string) => ['glucose-entries', date] as const,
+  FEATURE_FLAGS: ['feature-flags'] as const,
+  AUDIT_LOGS: ['audit-logs'] as const,
+  TERMS_CONTENT: ['terms-content'] as const,
+  USER_PROFILE: ['auth', 'user'] as const,
+  TUTORIAL_SEEN: ['tutorial-seen'] as const,
 } as const;
