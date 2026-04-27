@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, ArrowLeft, Activity, Info, TrendingUp, TrendingDown, Zap } from "lucide-react";
+import { Save, ArrowLeft, Activity, Info, TrendingUp, TrendingDown, Zap , Loader2} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { InsulinPresetSelector } from "@/components/entry/InsulinPresetSelector";
@@ -843,9 +843,13 @@ export default function Entry() {
               className="flex-1"
               size="lg"
               data-testid="button-save"
-              disabled={isSaving}
+              disabled={isSaving || createGlucoseMutation.isPending || createInsulinMutation.isPending || updateGlucoseMutation.isPending || updateInsulinMutation.isPending}
             >
-              <Save className="w-5 h-5 mr-2" />
+              {isSaving ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
+              ) : (
+                <Save className="w-5 h-5 mr-2" />
+              )}
               {isSaving ? "保存中..." : (isEditMode ? "更新" : "保存")}
             </Button>
           </div>

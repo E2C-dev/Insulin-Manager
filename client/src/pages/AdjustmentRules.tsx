@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2, Trash2, Activity, Coffee, Sun, Sunset, Moon, Syringe } from "lucide-react";
+import { Plus, Edit2, Trash2, Activity, Coffee, Sun, Sunset, Moon, Syringe, Loader2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Link } from "wouter";
 import { QUERY_KEYS } from "@/lib/query-keys";
@@ -774,8 +774,12 @@ export default function AdjustmentRules() {
                   <Button
                     type="submit"
                     className="flex-1"
-                    disabled={createMutation.isPending || updateMutation.isPending || !formData.presetId}
+                    data-testid="button-save-rule"
+                    disabled={createMutation.isPending || updateMutation.isPending || !formData.presetId || !!thresholdError || !!adjustmentError}
                   >
+                    {(createMutation.isPending || updateMutation.isPending) && (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
+                    )}
                     {createMutation.isPending || updateMutation.isPending
                       ? "保存中..."
                       : editingRule
