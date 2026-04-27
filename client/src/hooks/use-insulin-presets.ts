@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { type InsulinPreset, type InsulinTimeSlot, getPresetDefaultUnits } from "@/lib/types";
 
@@ -67,22 +68,30 @@ export function useInsulinPresets() {
   });
 
   // 後方互換: プリセットがない場合はlocalStorageからフォールバック
-  const getBasalDosesFromPresets = (slot: InsulinTimeSlot): number => {
-    for (const preset of presets) {
-      const units = getPresetDefaultUnits(preset, slot);
-      if (units !== null) return units;
-    }
-    try {
-      const saved = localStorage.getItem("basalInsulinDoses");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed[slot] ?? 0;
+  // useCallback で参照安定化。これを呼び出している useMemo (Entry.tsx の
+  // getInsulinTimingInfo) が依存配列に getBasalDosesFromPresets を入れているため、
+  // 関数参照が毎レンダー変わると useMemo が常に再計算 → さらに自動計算 useEffect
+  // が無限ループ気味に発火し setState → Maximum update depth exceeded で
+  // ホワイトアウトする原因になる (B-001 根本原因 B)。
+  const getBasalDosesFromPresets = useCallback(
+    (slot: InsulinTimeSlot): number => {
+      for (const preset of presets) {
+        const units = getPresetDefaultUnits(preset, slot);
+        if (units !== null) return units;
       }
-    } catch {
-      // ignore
-    }
-    return 0;
-  };
+      try {
+        const saved = localStorage.getItem("basalInsulinDoses");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return parsed[slot] ?? 0;
+        }
+      } catch {
+        // ignore
+      }
+      return 0;
+    },
+    [presets]
+  );
 
   return {
     presets,
