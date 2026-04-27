@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TutorialModal } from "@/components/TutorialModal";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { safeGetLocalStorage } from "@/lib/storage-utils";
 
 
 interface AppLayoutProps {
@@ -41,8 +42,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
-    const diseaseType = localStorage.getItem("diseaseType") ?? "";
-    const diagnosisYear = localStorage.getItem("diagnosisYear") ?? "";
+    const diseaseType = safeGetLocalStorage("diseaseType", "") ?? "";
+    const diagnosisYear = safeGetLocalStorage("diagnosisYear", "") ?? "";
     const diseaseLabels: Record<string, string> = {
       type1: "1型糖尿病",
       type2: "2型糖尿病",

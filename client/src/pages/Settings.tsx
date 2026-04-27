@@ -20,6 +20,7 @@ import {
 } from "@/components/settings/InsulinPresetForm";
 import { InsulinPresetCard } from "@/components/settings/InsulinPresetCard";
 import { Link } from "wouter";
+import { safeGetLocalStorage, safeSetLocalStorageString } from "@/lib/storage-utils";
 import {
   INSULIN_CATALOG,
   type InsulinCategory,
@@ -81,8 +82,8 @@ export default function Settings() {
 
   // ページロード時にローカルストレージから症状設定を読み込む
   useEffect(() => {
-    const savedDisease = localStorage.getItem("diseaseType");
-    const savedYear = localStorage.getItem("diagnosisYear");
+    const savedDisease = safeGetLocalStorage("diseaseType");
+    const savedYear = safeGetLocalStorage("diagnosisYear");
     if (savedDisease) setDiseaseType(savedDisease);
     if (savedYear) setDiagnosisYear(savedYear);
   }, []);
@@ -91,8 +92,8 @@ export default function Settings() {
   const handleSaveCondition = () => {
     setIsSavingCondition(true);
     try {
-      localStorage.setItem("diseaseType", diseaseType);
-      localStorage.setItem("diagnosisYear", diagnosisYear);
+      safeSetLocalStorageString("diseaseType", diseaseType);
+      safeSetLocalStorageString("diagnosisYear", diagnosisYear);
       toast({ title: "保存成功", description: "症状情報を保存しました" });
     } catch {
       toast({ title: "保存失敗", description: "症状情報の保存に失敗しました", variant: "destructive" });

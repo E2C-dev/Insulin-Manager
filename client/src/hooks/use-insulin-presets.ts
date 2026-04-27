@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { type InsulinPreset, type InsulinTimeSlot, getPresetDefaultUnits } from "@/lib/types";
+import { safeParseLocalStorage } from "@/lib/storage-utils";
 
 async function fetchPresets(): Promise<InsulinPreset[]> {
   const response = await fetch("/api/insulin-presets", { credentials: "include" });
@@ -79,16 +80,8 @@ export function useInsulinPresets() {
         const units = getPresetDefaultUnits(preset, slot);
         if (units !== null) return units;
       }
-      try {
-        const saved = localStorage.getItem("basalInsulinDoses");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          return parsed[slot] ?? 0;
-        }
-      } catch {
-        // ignore
-      }
-      return 0;
+      const stored = safeParseLocalStorage<Record<string, number>>("basalInsulinDoses", {});
+      return stored[slot] ?? 0;
     },
     [presets]
   );

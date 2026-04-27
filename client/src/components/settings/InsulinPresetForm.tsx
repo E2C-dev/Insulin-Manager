@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { safeGetLocalStorage } from "@/lib/storage-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,7 +71,7 @@ export function InsulinPresetForm({ initialValues, onSubmit, onCancel, isSubmitt
     : null;
 
   // localStorage から病名を読み込んでおすすめカテゴリを決定
-  const savedDisease = typeof window !== "undefined" ? (localStorage.getItem("diseaseType") ?? "other") : "other";
+  const savedDisease = safeGetLocalStorage("diseaseType", "other") ?? "other";
   const suggestedCategories = DISEASE_SUGGESTED_CATEGORIES[savedDisease] ?? [];
 
   const [wizardStep, setWizardStep] = useState<1 | 2>(initialValues?.brand ? 2 : 1);
