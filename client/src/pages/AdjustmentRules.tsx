@@ -150,6 +150,37 @@ const getTargetTimeSlotLabel = (targetTimeSlot: string): string => {
   return oldFormatMap[targetTimeSlot] || targetTimeSlot;
 };
 
+
+// バリデーション (BUG-010)
+// 不正値が parseInt(...) || 0 で静かに 0 化してしまう問題を防ぐため
+// 入力値を整数 + 範囲チェックする。エラー時はエラーメッセージを返す
+const THRESHOLD_MIN = 1;
+const THRESHOLD_MAX = 600;
+const ADJUSTMENT_MIN = -50;
+const ADJUSTMENT_MAX = 50;
+
+function validateThreshold(raw: string): { value: number; error: string | null } {
+  if (raw === "" || raw == null) return { value: 0, error: "血糖値の閾値を入力してください" };
+  if (!/^-?\d+$/.test(raw)) return { value: 0, error: "整数で入力してください" };
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) return { value: 0, error: "正しい数値を入力してください" };
+  if (n < THRESHOLD_MIN || n > THRESHOLD_MAX) {
+    return { value: n, error: `${THRESHOLD_MIN}〜${THRESHOLD_MAX}の範囲で入力してください` };
+  }
+  return { value: n, error: null };
+}
+
+function validateAdjustmentAmount(raw: string): { value: number; error: string | null } {
+  if (raw === "" || raw == null) return { value: 0, error: "調整量を入力してください" };
+  if (!/^-?\d+$/.test(raw)) return { value: 0, error: "整数で入力してください" };
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) return { value: 0, error: "正しい数値を入力してください" };
+  if (n < ADJUSTMENT_MIN || n > ADJUSTMENT_MAX) {
+    return { value: n, error: `${ADJUSTMENT_MIN}〜${ADJUSTMENT_MAX}の範囲で入力してください` };
+  }
+  return { value: n, error: null };
+}
+
 // 調整量のフォーマット
 const formatAdjustmentAmount = (amount: number) => {
   return amount > 0 ? `+${amount}` : `${amount}`;
@@ -163,6 +194,9 @@ export default function AdjustmentRules() {
   const [formData, setFormData] = useState<RuleFormData>(initialFormData);
   const [activeTab, setActiveTab] = useState<string>("朝");
   const { presets } = useInsulinPresets();
+  // BUG-010: 入力エラー状態管理
+  const [thresholdError, setThresholdError] = useState<string | null>(null);
+  const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
 
   // URLクエリパラメータからインスリンフィルターを取得
   const filterPresetId = new URLSearchParams(window.location.search).get("presetId");
@@ -302,6 +336,19 @@ export default function AdjustmentRules() {
       });
       return;
     }
+    // BUG-010: 入力検証 — submit直前に再評価し、エラーがあれば送信を止める
+    const tCheck = validateThreshold(String(formData.threshold));
+    const aCheck = validateAdjustmentAmount(String(formData.adjustmentAmount));
+    setThresholdError(tCheck.error);
+    setAdjustmentError(aCheck.error);
+    if (tCheck.error || aCheck.error) {
+      toast({
+        title: "入力内容を確認してください",
+        description: tCheck.error ?? aCheck.error ?? "",
+        variant: "destructive",
+      });
+      return;
+    }
     console.log("フォーム送信:", editingRule ? "更新" : "新規作成", formData);
 
     // ルール名が空の場合、自動生成
@@ -351,6 +398,8 @@ export default function AdjustmentRules() {
       // ダイアログが閉じられたときのみリセット
       setEditingRule(null);
       setFormData(initialFormData);
+      setThresholdError(null);
+      setAdjustmentError(null);
     }
   };
 
@@ -528,12 +577,29 @@ export default function AdjustmentRules() {
                         id="threshold"
                         type="number"
                         value={formData.threshold}
-                        onChange={(e) => setFormData({ ...formData, threshold: parseInt(e.target.value) || 0 })}
-                        min="0"
-                        max="600"
-                        className="bg-white dark:bg-background"
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const { value } = validateThreshold(raw);
+                          setFormData({ ...formData, threshold: value });
+                        }}
+                        onBlur={(e) => {
+                          const { error } = validateThreshold(e.target.value);
+                          setThresholdError(error);
+                        }}
+                        min={THRESHOLD_MIN}
+                        max={THRESHOLD_MAX}
+                        step={1}
+                        aria-invalid={!!thresholdError}
+                        aria-describedby={thresholdError ? "threshold-error" : undefined}
+                        data-testid="input-threshold"
+                        className={`bg-white dark:bg-background ${thresholdError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                         required
                       />
+                      {thresholdError && (
+                        <p id="threshold-error" role="alert" className="text-xs text-red-600 dark:text-red-400">
+                          {thresholdError}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -611,12 +677,29 @@ export default function AdjustmentRules() {
                         id="adjustmentAmount"
                         type="number"
                         value={formData.adjustmentAmount}
-                        onChange={(e) => setFormData({ ...formData, adjustmentAmount: parseInt(e.target.value) || 0 })}
-                        min="-20"
-                        max="20"
-                        className="bg-white dark:bg-background"
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const { value } = validateAdjustmentAmount(raw);
+                          setFormData({ ...formData, adjustmentAmount: value });
+                        }}
+                        onBlur={(e) => {
+                          const { error } = validateAdjustmentAmount(e.target.value);
+                          setAdjustmentError(error);
+                        }}
+                        min={ADJUSTMENT_MIN}
+                        max={ADJUSTMENT_MAX}
+                        step={1}
+                        aria-invalid={!!adjustmentError}
+                        aria-describedby={adjustmentError ? "adjustment-error" : undefined}
+                        data-testid="input-adjustment-amount"
+                        className={`bg-white dark:bg-background ${adjustmentError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                         required
                       />
+                      {adjustmentError && (
+                        <p id="adjustment-error" role="alert" className="text-xs text-red-600 dark:text-red-400">
+                          {adjustmentError}
+                        </p>
+                      )}
                     </div>
                   </div>
 
