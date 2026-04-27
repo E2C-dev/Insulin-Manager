@@ -3,7 +3,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { AdBanner } from "@/components/AdBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, TrendingUp, BookOpen, Flame, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
-import { format, subDays, parseISO } from "date-fns";
+import { format, subDays } from "date-fns";
+import { safeFormat } from "@/lib/date-utils";
 import { ja } from "date-fns/locale";
 import { type ApiGlucoseEntry, type ApiInsulinEntry, getGlucoseBasicColor } from "@/lib/types";
 import { QUERY_KEYS } from "@/lib/query-keys";
@@ -260,8 +261,8 @@ export default function Dashboard() {
             <div className="grid grid-cols-7 gap-1">
               {last7Days.map(({ date, hasRecord, dayAvg }) => {
                 const isToday = date === today;
-                const dayLabel = format(parseISO(date), "E", { locale: ja });
-                const dateLabel = format(parseISO(date), "d");
+                const dayLabel = safeFormat(date, "E");
+                const dateLabel = safeFormat(date, "d");
                 return (
                   <div key={date} className="flex flex-col items-center gap-1">
                     <span className="text-xs text-muted-foreground">{dayLabel}</span>
