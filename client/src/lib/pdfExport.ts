@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { ja } from 'date-fns/locale';
+import { safeFormat } from './date-utils';
 
 interface DailyEntry {
   date: string;
@@ -52,7 +52,9 @@ export async function exportLogbookToPDF(entries: DailyEntry[], username: string
   
   // テーブルデータの準備
   const tableData = entries.map(entry => {
-    const dateStr = format(new Date(entry.date), 'M/d (E)', { locale: ja });
+    // entry.date が "" や不正値だと Invalid Date → format 例外。
+    // 一覧PDFが落ちると即「真っ白で出力できない」になるので safeFormat で防御。
+    const dateStr = safeFormat(entry.date, 'M/d (E)', entry.date);
     
     // 朝食
     const morning = entry.morning.glucoseBefore || entry.morning.glucoseAfter || entry.morning.insulin
