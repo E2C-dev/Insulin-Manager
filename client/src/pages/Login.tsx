@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { QUERY_KEYS } from "@/lib/query-keys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,7 +97,7 @@ export default function Login() {
     },
     onSuccess: (data) => {
       console.log("✅ ログイン成功コールバック:", data);
-      queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USER_PROFILE });
       toast({
         title: "✅ ログイン成功",
         description: data.message || "ログインしました",

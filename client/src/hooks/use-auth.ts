@@ -1,18 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import type { User as SchemaUser } from "@shared/schema";
+import { QUERY_KEYS } from "@/lib/query-keys";
 
-interface User {
-  id: string;
-  username: string;
-}
+/**
+ * AuthUser
+ * /api/auth/me が返すユーザ。サーバ側で password を除外しているので
+ * Omit<SchemaUser, "password"> で型化する。tutorialSeenAt を含む schema 全フィールドが
+ * 利用可能になるため、AppLayout 等で user.tutorialSeenAt を参照しても型エラーにならない (BUG-009)。
+ */
+export type AuthUser = Omit<SchemaUser, "password">;
 
 interface AuthResponse {
-  user: User;
+  user: AuthUser;
 }
 
 // 現在のユーザー情報を取得
-async function fetchCurrentUser(): Promise<User | null> {
+async function fetchCurrentUser(): Promise<AuthUser | null> {
   try {
     const response = await fetch("/api/auth/me", {
       credentials: "include",
@@ -66,7 +71,7 @@ export function useAuth() {
 
   // ユーザー情報の取得
   const { data: user, isLoading, error } = useQuery({
-    queryKey: ["auth", "user"],
+    queryKey: QUERY_KEYS.USER_PROFILE,
     queryFn: fetchCurrentUser,
     retry: false,
     staleTime: 1000 * 60 * 5, // 5分間はキャッシュを使用
@@ -76,7 +81,7 @@ export function useAuth() {
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSuccess: () => {
-      queryClient.setQueryData(["auth", "user"], null);
+      queryClient.setQueryData(QUERY_KEYS.USER_PROFILE, null);
       toast({
         title: "ログアウト",
         description: "ログアウトしました",

@@ -27,6 +27,7 @@ import {
 import { TutorialModal } from "@/components/TutorialModal";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { safeGetLocalStorage } from "@/lib/storage-utils";
+import { QUERY_KEYS } from "@/lib/query-keys";
 
 
 interface AppLayoutProps {
@@ -73,7 +74,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USER_PROFILE });
     },
   });
 

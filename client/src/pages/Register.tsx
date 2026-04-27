@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { useLocation } from "wouter";
+import { QUERY_KEYS } from "@/lib/query-keys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,7 +83,7 @@ export default function Register() {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["auth", "user"] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USER_PROFILE });
       toast({
         title: "登録成功",
         description: data.message || "アカウントが作成されました",
