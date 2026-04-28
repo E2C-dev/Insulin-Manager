@@ -4,6 +4,15 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { sanitizeHtml } from "@/lib/sanitize";
+
+// BUG-017: 規約データが未取得 (404 等) の場合のフォールバック表示用最低限テキスト
+const FALLBACK_TERMS: Record<string, string> = {
+  terms:
+    "# 利用規約\n\n現在、本文を取得できませんでした。\n本サービスの利用にあたっては、サービス画面に表示される最新の利用規約に従ってください。\n問題が解消しない場合は管理者にお問い合わせください。",
+  privacy:
+    "# プライバシーポリシー\n\n現在、本文を取得できませんでした。\n本サービスではユーザーアカウント情報・利用データを必要最小限の範囲で取り扱います。\n詳細を確認したい場合は管理者にお問い合わせください。",
+};
 
 const DOC_TYPE_LABEL: Record<string, string> = {
   terms: "利用規約",
@@ -61,17 +70,33 @@ export default function TermsViewer() {
                 <Spinner />
               </div>
             )}
-            {error && (
-              <p className="text-red-600 text-center py-8">ドキュメントの取得に失敗しました。</p>
-            )}
-            {data?.version?.content && (
+            {!isLoading && data?.version?.content && (
               <div
                 className="prose dark:prose-invert max-w-none text-sm leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(data.version.content) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderMarkdown(data.version.content)) }}
               />
             )}
-            {data && !data.version?.content && (
-              <p className="text-muted-foreground text-center py-8">本文はまだ登録されていません。</p>
+            {!isLoading && !data?.version?.content && (error || data) && (
+              <>
+                {/* BUG-017: 取得失敗 or 本文未登録時のフォールバック。
+                    管理者が登録するまで完全に空白にせず、最低限の説明を表示する */}
+                {error && (
+                  <p className="text-amber-600 dark:text-amber-400 text-center text-sm pb-4">
+                    ドキュメントの取得に失敗しました。一時的に内容を取得できないため、最新版は管理者にお問い合わせください。
+                  </p>
+                )}
+                {!error && (
+                  <p className="text-muted-foreground text-center text-sm pb-4">
+                    本文はまだ登録されていません。
+                  </p>
+                )}
+                {FALLBACK_TERMS[docType] && (
+                  <div
+                    className="prose dark:prose-invert max-w-none text-sm leading-relaxed border-t pt-4 mt-2"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderMarkdown(FALLBACK_TERMS[docType])) }}
+                  />
+                )}
+              </>
             )}
           </CardContent>
         </Card>
