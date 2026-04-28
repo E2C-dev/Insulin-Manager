@@ -87,7 +87,6 @@ async function updateStatus(id: string, status: string) {
 export default function AdminFeedback() {
   const { isWritable } = useAdminAuth();
   const [selected, setSelected] = useState<Feedback | null>(null);
-  const { toast } = useToast();| null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
