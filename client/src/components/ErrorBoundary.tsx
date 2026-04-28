@@ -41,6 +41,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // 観測性のため必ず console.error を呼ぶ (将来 Sentry 連携の前段)
     console.error("ErrorBoundary caught:", error, errorInfo);
+    // TODO(observability): Sentry / Datadog 連携時はここで
+    //   Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } })
+    // を呼ぶ。componentStack は React の各 child の error origin を含むため、
+    // window.onerror では取得できない貴重な情報源。
     this.setState({ errorInfo });
   }
 
