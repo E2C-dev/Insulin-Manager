@@ -691,11 +691,12 @@ export async function registerRoutes(
   });
 
   // ===== ユーザーフィードバック =====
-  // フィードバック送信（認証不要 — ログイン前のユーザーからも受付）
-  app.post("/api/feedback", async (req: Request, res: Response) => {
+  // BUG-013: 旧仕様では認証不要だったがスパム投稿リスクがあるため認証必須に変更。
+  // ログイン後のユーザーのみ受け付ける。匿名フィードバックは将来的に rate limit + キャプチャ導入の上で再検討。
+  app.post("/api/feedback", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const validatedData = insertUserFeedbackSchema.parse(req.body);
-      const userId = req.isAuthenticated() ? (req.user as User).id : undefined;
+      const userId = (req.user as User).id;
       const feedback = await storage.createFeedback({ ...validatedData, userId });
       return res.status(201).json({ message: "フィードバックを送信しました", feedback });
     } catch (error) {
