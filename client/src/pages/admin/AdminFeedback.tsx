@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 
 interface Feedback {
   id: string;
@@ -84,7 +85,9 @@ async function updateStatus(id: string, status: string) {
 }
 
 export default function AdminFeedback() {
+  const { isWritable } = useAdminAuth();
   const [selected, setSelected] = useState<Feedback | null>(null);
+  const { toast } = useToast();| null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -180,7 +183,12 @@ export default function AdminFeedback() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {(NEXT_STATUSES[fb.status] ?? []).map((s) => (
+                          {!isWritable && (
+                            <DropdownMenuItem disabled>
+                              閲覧のみ権限のため変更できません
+                            </DropdownMenuItem>
+                          )}
+                          {isWritable && (NEXT_STATUSES[fb.status] ?? []).map((s) => (
                             <DropdownMenuItem
                               key={s.value}
                               onClick={() => mutation.mutate({ id: fb.id, status: s.value })}
@@ -216,13 +224,24 @@ export default function AdminFeedback() {
                 返信先: <a href={`mailto:${selected.contactEmail}`} className="underline">{selected.contactEmail}</a>
               </p>
             )}
-            <div className="flex gap-2 pt-2 flex-wrap">
+            <div className="flex gap-2 pt-2 flex-wrap items-center">
+              {!isWritable && (
+                <span
+                  className="text-xs text-muted-foreground"
+                  title="ステータス変更には書き込み権限が必要です"
+                >
+                  閲覧のみ権限のため変更できません
+                </span>
+              )}
               {(NEXT_STATUSES[selected.status] ?? []).map((s) => (
                 <Button
                   key={s.value}
                   size="sm"
                   variant="outline"
+                  disabled={!isWritable || mutation.isPending}
+                  title={!isWritable ? "閲覧のみ権限のため変更できません" : undefined}
                   onClick={() => {
+                    if (!isWritable) return;
                     mutation.mutate({ id: selected.id, status: s.value });
                     setSelected((prev) => prev ? { ...prev, status: s.value } : null);
                   }}
