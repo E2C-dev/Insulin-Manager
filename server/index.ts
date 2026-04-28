@@ -30,6 +30,15 @@ app.use(
 app.use(express.urlencoded({ extended: false }));
 
 // セッション管理の設定
+//
+// BUG-015 (CSRF 対策の確認 — 2026-04-28 Sprint 3):
+// 当アプリは Passport.js + express-session のセッションベース認証で、
+// 全 state-changing API (POST/PUT/DELETE) は同一オリジン Same-Site Cookie に依存している。
+//   - sameSite: "lax" → cross-site POST はクッキーが送られないため、外部サイト経由の CSRF を実質的にブロック
+//   - httpOnly: true → クッキーへの JS アクセスを禁止 (XSS が起きてもセッションを盗めない)
+//   - secure: 本番のみ true → HTTPS でのみ送信
+// 追加の csurf トークン導入は現状不要と判断 (cf. OWASP "SameSite Cookie Attribute" recommendation)。
+// 将来的に外部ドメインからの API 呼び出しを許可する場合は、再評価して csurf or double submit token 導入。
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "dev-secret-change-in-production",
