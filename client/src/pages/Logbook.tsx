@@ -28,10 +28,13 @@ import {
 import { type ApiGlucoseEntry, type ApiInsulinEntry, type DailyEntry, getGlucoseBasicColor } from "@/lib/types";
 import { safeFormat, formatJstDate } from "@/lib/date-utils";
 import { QUERY_KEYS } from "@/lib/query-keys";
+import { exportLogbookToPDF } from "@/lib/pdfExport";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Logbook() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<"week" | "month">("week");
   // PDF出力の90日超警告ダイアログ (BUG-008)
   const [isPdfWarnOpen, setIsPdfWarnOpen] = useState(false);
@@ -284,15 +287,41 @@ export default function Logbook() {
    * PDF出力を実行する内部関数。差分90日超のときは AlertDialog で警告
    * (BUG-008)。viewMode が week/month の現状は最大30日で警告は出ないが、
    * 将来 viewMode 拡張に備えて期間判定を実装している。
+   *
+   * Sprint 2.5: window.print() ではなく client/src/lib/pdfExport.ts の
+   * exportLogbookToPDF を呼び出して jsPDF でA4 PDFを直接生成する。
+   * processEntries() が返す配列は pdfExport.ts 側の DailyEntry interface
+   * (subset) と構造的にcompatible。
    */
-  const runExportPdf = () => {
-    toast({
-      title: "印刷ダイアログが開きます",
-      description: "印刷ダイアログが開きます。PDFとして保存してください。",
-    });
-    setTimeout(() => {
-      window.print();
-    }, 500);
+  const runExportPdf = async () => {
+    try {
+      const dailyEntries = processEntries();
+      // 記録のある日だけPDFに含める（空白行で埋め尽くされたPDFを避ける）
+      const meaningful = dailyEntries.filter(e => e.hasAnyRecord);
+      // 全期間で記録ゼロなら PDF を生成しない（runExportPdf 呼び出し前にUIで
+      // hasAnyRecordAtAll をガードしているが、念のため二重チェック）
+      if (meaningful.length === 0) {
+        toast({
+          title: "PDF出力できません",
+          description: "表示中の期間に記録がありません。",
+          variant: "destructive",
+        });
+        return;
+      }
+      const username = user?.username ?? "ユーザー";
+      await exportLogbookToPDF(meaningful, username);
+      toast({
+        title: "PDF出力完了",
+        description: "ファイルをダウンロードしました",
+      });
+    } catch (err) {
+      console.error('[pdf-export] failed:', err);
+      toast({
+        title: "PDF出力に失敗しました",
+        description: "時間をおいて再度お試しください。",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleExportPDF = () => {
