@@ -365,7 +365,7 @@ export default function LandingPage() {
   const { scrollYProgress } = useScroll();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-[100svh] bg-background text-foreground">
       {/* スクロール進行度バー */}
       <motion.div
         className="fixed top-0 left-0 right-0 h-[3px] bg-primary z-[60] origin-left"

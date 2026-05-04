@@ -1,3 +1,6 @@
+// Register process-level fatal handlers FIRST (before any module starts async work).
+import "./process-handlers";
+
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import passport from "./auth";

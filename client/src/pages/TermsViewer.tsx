@@ -49,7 +49,7 @@ export default function TermsViewer() {
   const title = DOC_TYPE_LABEL[docType] ?? docType;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+    <div className="min-h-[100svh] bg-gray-50 dark:bg-gray-900 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         <Button
           variant="ghost"

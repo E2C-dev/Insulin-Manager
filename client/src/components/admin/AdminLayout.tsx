@@ -30,7 +30,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { adminUser, logout, isWritable } = useAdminAuth();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-[100svh] bg-gray-50 flex">
       {/* サイドバー */}
       <aside className="w-64 bg-white border-r border-border flex flex-col shrink-0">
         {/* ヘッダー */}
