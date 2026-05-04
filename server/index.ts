@@ -7,6 +7,7 @@ import passport from "./auth";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { renderErrorHtml } from "./error-html";
+import { healthMonitorMiddleware } from "./health-monitor";
 import { createServer } from "http";
 
 const app = express();
@@ -61,6 +62,11 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Sprint 4 (S4-4): Health monitor middleware
+// res.on("finish") で 5xx 率を集計し、SLACK_WEBHOOK_URL がある場合のみ Slack 通知。
+// env 未設定なら send は完全 no-op (record だけ進む)。リクエスト処理を阻害しない。
+app.use(healthMonitorMiddleware());
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -114,7 +120,7 @@ app.use((req, res, next) => {
   console.log("║     サーバー起動プロセス開始           ║");
   console.log("╚════════════════════════════════════════╝");
   console.log("");
-  
+
   // データベース初期化
   console.log("📦 データベース初期化中...");
   const { initDb } = await import("./db");
