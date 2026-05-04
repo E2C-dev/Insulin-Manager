@@ -8,14 +8,25 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL環境変数が設定されていません");
 }
 
+// Sprint 3 (S3-1): pg.Pool オプションを明示化
+// - max: 同時接続数上限。Neon serverless 想定で過剰スケールを抑制
+// - idleTimeoutMillis: アイドル接続を 30s で切断 (Neon の cold idle 対策)
+// - connectionTimeoutMillis: 接続確立に 5s 以上かかる場合は失敗扱い
+// - application_name: pg_stat_activity / Neon dashboard で識別しやすくする
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
+  max: 10,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000,
+  application_name: "insulin-manager",
 });
 
 export const db = drizzle(pool);
 
+// アイドルクライアントで起きた予期せぬエラーをログに残す
+// (既存挙動互換: メッセージ文言は維持しつつ prefix を追加)
 pool.on("error", (err) => {
-  console.error("データベース接続エラー:", err);
+  console.error("[pg-pool] unexpected error on idle client:", err);
 });
 
 async function seedAdminUser() {
@@ -43,4 +54,3 @@ export async function initDb() {
     throw error;
   }
 }
-

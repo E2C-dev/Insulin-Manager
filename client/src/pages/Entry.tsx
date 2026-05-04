@@ -483,7 +483,16 @@ export default function Entry() {
     }
   };
 
-  // 血糖値が入力されたら、ルールに基づいてインスリン量を自動計算
+  // Sprint 3 (S3-6): useEffect 依存配列を primitive に展開する。
+  // 旧: getInsulinTimingInfo (object) と applicableRules (array) を依存に直接入れていたため、
+  //     親 (useMemo の依存変化) で参照が変わるたび effect が再実行されるリスクあり。
+  //     特に getInsulinTimingInfo は formData.timeSlot 以外に presets / getBasalDosesFromPresets
+  //     にも依存しており、Insulin Presets 取得タイミングで参照が breakage する可能性。
+  // 新: 必要な値 (baseAmount) を primitive として抽出し、依存配列に primitive のみを入れる。
+  //     applicableRules は length と JSON 化したシグネチャに分解せず、参照維持を useMemo 側
+  //     の memoization に任せる (applicableRules は既に useMemo で正しく安定化済み)。
+  //     既存の「直前と同値なら setState skip」ガード (BUG-001 fix) は維持。
+  const timingBaseAmount = getInsulinTimingInfo?.baseAmount ?? null;
   useEffect(() => {
     // ユーザが手入力 or プリセット選択でインスリンに触れたら以後は上書きしない
     // (BUG-004 同時解消)。これが最初のガード — 真っ白の連鎖を断ち切る肝。
@@ -493,12 +502,12 @@ export default function Entry() {
     // 空文字や空白のみの場合はガード強化 (parseInt("") は NaN だが、念のため早期 return)
     if (!formData.glucoseLevel || formData.glucoseLevel.trim() === "") return;
     if (!formData.timeSlot) return;
-    if (!getInsulinTimingInfo) return;
+    if (timingBaseAmount === null) return;
 
     const glucoseValue = parseInt(formData.glucoseLevel, 10);
     if (isNaN(glucoseValue)) return;
 
-    let calculatedInsulin = getInsulinTimingInfo.baseAmount;
+    let calculatedInsulin = timingBaseAmount;
 
     for (const rule of applicableRules) {
       let matches = false;
@@ -524,7 +533,7 @@ export default function Entry() {
     formData.glucoseLevel,
     formData.timeSlot,
     formData.insulinUnitsDirty,
-    getInsulinTimingInfo,
+    timingBaseAmount,
     applicableRules,
     selectedPresetId,
   ]);

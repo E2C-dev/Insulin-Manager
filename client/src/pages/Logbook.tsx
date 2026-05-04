@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AdBanner } from "@/components/AdBanner";
@@ -90,8 +90,12 @@ export default function Logbook() {
     },
   });
 
-  // 全日程（記録なし含む）を返す
-  const processEntries = (): (DailyEntry & { hasAnyRecord: boolean })[] => {
+  // 全日程（記録なし含む）を返す。
+  // Sprint 3 (S3-5): useMemo 化。
+  // 旧: 関数として定義し、レンダー毎・呼び出し毎に for ループを再実行 (1ヶ月=30回)。
+  // 新: glucoseData / insulinData / viewMode が変わったときだけ再計算する。
+  // 呼び出し側は processedEntries (値) を直接参照する。
+  const processedEntries = useMemo<(DailyEntry & { hasAnyRecord: boolean })[]>(() => {
     const days = viewMode === "week" ? 7 : 30;
     const entriesMap = new Map<string, DailyEntry>();
 
@@ -179,7 +183,7 @@ export default function Logbook() {
           !!entry.dinner.glucoseBefore || !!entry.dinner.glucoseAfter || !!entry.dinner.insulin ||
           !!entry.bedtime.glucose || !!entry.bedtime.insulin,
       }));
-  };
+  }, [glucoseData, insulinData, viewMode]);
 
   const handleDeleteClick = (entry: DailyEntry, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -237,7 +241,7 @@ export default function Logbook() {
 
   // CSVエクスポート（ブラウザのみで完結）
   const handleExportCSV = () => {
-    const entries = processEntries();
+    const entries = processedEntries;
     const header = [
       "日付",
       "朝食(食前血糖mg/dL)",
@@ -290,12 +294,12 @@ export default function Logbook() {
    *
    * Sprint 2.5: window.print() ではなく client/src/lib/pdfExport.ts の
    * exportLogbookToPDF を呼び出して jsPDF でA4 PDFを直接生成する。
-   * processEntries() が返す配列は pdfExport.ts 側の DailyEntry interface
-   * (subset) と構造的にcompatible。
+   * processedEntries (Sprint 3 で useMemo 化) が返す配列は pdfExport.ts 側の
+   * DailyEntry interface (subset) と構造的にcompatible。
    */
   const runExportPdf = async () => {
     try {
-      const dailyEntries = processEntries();
+      const dailyEntries = processedEntries;
       // 記録のある日だけPDFに含める（空白行で埋め尽くされたPDFを避ける）
       const meaningful = dailyEntries.filter(e => e.hasAnyRecord);
       // 全期間で記録ゼロなら PDF を生成しない（runExportPdf 呼び出し前にUIで
@@ -354,7 +358,7 @@ export default function Logbook() {
     );
   }
 
-  const entries = processEntries();
+  const entries = processedEntries;
   const hasAnyRecordAtAll = entries.some(e => e.hasAnyRecord);
 
   return (
