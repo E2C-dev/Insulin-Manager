@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { InsulinPresetSelector } from "@/components/entry/InsulinPresetSelector";
 import { format, subDays } from "date-fns";
-import { safeFormat, safeParseDate } from "@/lib/date-utils";
+import { safeFormat, safeParseDate, formatJstDate } from "@/lib/date-utils";
 import { QUERY_KEYS } from "@/lib/query-keys";
 import {
   type InsulinTimeSlot,
@@ -41,7 +41,7 @@ export default function Entry() {
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<EntryFormData>({
-    date: format(new Date(), "yyyy-MM-dd"),
+    date: formatJstDate(new Date()),
     timeSlot: "",
     glucoseLevel: "",
     insulinUnits: "",
@@ -142,7 +142,7 @@ export default function Entry() {
   }, [isEditMode, formData.timeSlot, glucoseData, insulinData]);
 
   const setToday = () => {
-    setFormData(prev => ({ ...prev, date: format(new Date(), "yyyy-MM-dd") }));
+    setFormData(prev => ({ ...prev, date: formatJstDate(new Date()) }));
   };
 
   const setYesterday = () => {
@@ -234,7 +234,7 @@ export default function Entry() {
     setEditGlucoseId(null);
     setEditInsulinId(null);
     setFormData({
-      date: format(new Date(), "yyyy-MM-dd"),
+      date: formatJstDate(new Date()),
       timeSlot: "",
       glucoseLevel: "",
       insulinUnits: "",
@@ -352,7 +352,7 @@ export default function Entry() {
   };
 
   const getDateLabel = () => {
-    const today = format(new Date(), "yyyy-MM-dd");
+    const today = formatJstDate(new Date());
     const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
     if (formData.date === today) return "今日";
     if (formData.date === yesterday) return "昨日";
@@ -575,7 +575,7 @@ export default function Entry() {
                   </Button>
                   <Button
                     type="button"
-                    variant={formData.date === format(new Date(), "yyyy-MM-dd") ? "default" : "outline"}
+                    variant={formData.date === formatJstDate(new Date()) ? "default" : "outline"}
                     size="sm"
                     onClick={setToday}
                     data-testid="button-today"

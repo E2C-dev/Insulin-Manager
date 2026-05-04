@@ -4,7 +4,7 @@ import { AdBanner } from "@/components/AdBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, TrendingUp, BookOpen, Flame, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
 import { format, subDays } from "date-fns";
-import { safeFormat } from "@/lib/date-utils";
+import { safeFormat, formatJstDate } from "@/lib/date-utils";
 import { ja } from "date-fns/locale";
 import { type ApiGlucoseEntry, type ApiInsulinEntry, getGlucoseBasicColor } from "@/lib/types";
 import { QUERY_KEYS } from "@/lib/query-keys";
@@ -28,8 +28,8 @@ function getDayDotStyle(hasRecord: boolean, avgGlucose: number | null, isToday: 
 }
 
 export default function Dashboard() {
-  const today = format(new Date(), "yyyy-MM-dd");
-  const sevenDaysAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
+  const today = formatJstDate(new Date());
+  const sevenDaysAgo = formatJstDate(subDays(new Date(), 6));
 
   const { data: glucoseData, isLoading: glucoseLoading } = useQuery({
     queryKey: QUERY_KEYS.GLUCOSE_ENTRIES,

@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { type ApiGlucoseEntry, type ApiInsulinEntry, type DailyEntry, getGlucoseBasicColor } from "@/lib/types";
-import { safeFormat } from "@/lib/date-utils";
+import { safeFormat, formatJstDate } from "@/lib/date-utils";
 import { QUERY_KEYS } from "@/lib/query-keys";
 
 export default function Logbook() {
@@ -39,7 +39,7 @@ export default function Logbook() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState<{ date: string; glucoseIds: string[]; insulinIds: string[] } | null>(null);
 
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = formatJstDate(new Date());
 
   const { data: glucoseData, isLoading: glucoseLoading } = useQuery({
     queryKey: QUERY_KEYS.GLUCOSE_ENTRIES,

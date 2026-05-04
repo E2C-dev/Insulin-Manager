@@ -6,6 +6,7 @@ import session from "express-session";
 import passport from "./auth";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
+import { renderErrorHtml } from "./error-html";
 import { createServer } from "http";
 
 const app = express();
@@ -123,10 +124,37 @@ app.use((req, res, next) => {
   console.log("🛣️  ルート登録中...");
   await registerRoutes(httpServer, app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // グローバル error handler
+  //
+  // Sprint 2 (S2-1) 改修:
+  //   - これまでは常に JSON を返していたが、ブラウザが直接アクセスして 500 になるケース
+  //     (SPA fallback 経路や静的アセット経由) で生 JSON が表示される問題があった。
+  //   - Accept ヘッダで HTML / JSON を分岐し、ブラウザには独立 HTML を返す。
+  //   - HTML 生成は server/error-html.ts に共通化 (AP三重管理:共通モジュール)。
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
     console.error("サーバーエラー:", err);
+
+    // res.headersSent 後はレスポンスに何も書けない (express 既定挙動に従い next(err) 後段に委譲)
+    if (res.headersSent) {
+      return _next(err);
+    }
+
+    // Accept ネゴシエーション: HTML/JSON 両方が要求された場合 HTML を優先する。
+    // - ブラウザの直接アクセス (Accept: text/html,...) → HTML
+    // - fetch / XHR / SDK (Accept: application/json) → JSON
+    // - その他 (curl のデフォルト等) → JSON にフォールバック (既存挙動維持)
+    const accepted = req.accepts(["html", "json"]);
+
+    if (accepted === "html") {
+      res
+        .status(status)
+        .type("text/html; charset=utf-8")
+        .send(renderErrorHtml(status, message));
+      return;
+    }
+
     res.status(status).json({ message });
   });
 
