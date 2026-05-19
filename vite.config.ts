@@ -226,7 +226,8 @@ export default defineConfig({
             id.includes("/react/") ||
             id.includes("/react-dom/") ||
             id.includes("/scheduler/") ||
-            id.includes("react/jsx-runtime")
+            id.includes("react/jsx-runtime") ||
+            id.includes("use-sync-external-store")
           ) {
             return "vendor-react";
           }
