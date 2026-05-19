@@ -474,3 +474,67 @@ export const getGlucoseBasicColor = (value?: number): string => {
   if (value > 180) return 'text-orange-600 font-semibold';
   return 'text-green-600';
 };
+
+// ============================================================================
+// 調整ルールの conditionType を正規化する MAP
+// ============================================================================
+// 背景: B-001 (S0 medical safety bug)
+// 旧実装は rule.conditionType を全く参照せず、いま入力中の血糖値を
+// 全てのルールに当てはめていた。例:
+//   ルール「前日眠前血糖 70以下 → 朝 -1u」が、
+//   当日朝食前60mg/dL を入力した瞬間に誤発動して 4u→3u に。
+//
+// 修正方針:
+//   conditionType ("前日眠前血糖" 等) を「どの日のどの測定値で評価するか」に
+//   正規化する。dateOffset = -1 (前日) or 0 (当日) +
+//   measurementSlot = MeasurementTimeSlot enum で表現。
+//   該当値が DB に存在しない場合は **「データ不足で推奨不可」** とし、
+//   絶対に自動加算しないこと。
+// ============================================================================
+
+export type ConditionDateOffset = -1 | 0; // 前日 | 当日
+
+export interface ConditionTypeDef {
+  dateOffset: ConditionDateOffset;
+  measurementSlot: MeasurementTimeSlot;
+}
+
+export const CONDITION_TYPE_MAP: Record<string, ConditionTypeDef> = {
+  // 前日 (dateOffset: -1)
+  "前日朝食前血糖":   { dateOffset: -1, measurementSlot: "BreakfastBefore" },
+  "前日朝食後血糖":   { dateOffset: -1, measurementSlot: "BreakfastAfter1h" },
+  "前日昼食前血糖":   { dateOffset: -1, measurementSlot: "LunchBefore" },
+  "前日昼食後血糖":   { dateOffset: -1, measurementSlot: "LunchAfter1h" },
+  "前日夕食前血糖":   { dateOffset: -1, measurementSlot: "DinnerBefore" },
+  "前日夕食後血糖":   { dateOffset: -1, measurementSlot: "DinnerAfter1h" },
+  "前日眠前血糖":     { dateOffset: -1, measurementSlot: "BeforeSleep" },
+  // 当日 (dateOffset: 0)
+  "当日朝食前血糖":   { dateOffset: 0,  measurementSlot: "BreakfastBefore" },
+  "当日朝食後血糖":   { dateOffset: 0,  measurementSlot: "BreakfastAfter1h" },
+  "当日昼食前血糖":   { dateOffset: 0,  measurementSlot: "LunchBefore" },
+  "当日昼食後血糖":   { dateOffset: 0,  measurementSlot: "LunchAfter1h" },
+  "当日夕食前血糖":   { dateOffset: 0,  measurementSlot: "DinnerBefore" },
+  "当日夕食後血糖":   { dateOffset: 0,  measurementSlot: "DinnerAfter1h" },
+  "当日眠前血糖":     { dateOffset: 0,  measurementSlot: "BeforeSleep" },
+};
+
+export type RuleEvaluation =
+  | { status: "matched"; observedValue: number; targetDate: string }
+  | { status: "not_matched"; observedValue: number; targetDate: string }
+  | { status: "no_data"; targetDate: string; measurementSlot: MeasurementTimeSlot }
+  | { status: "unknown_condition" };
+
+// rule.comparison (日本語) で実数比較
+export function compareGlucose(
+  value: number,
+  threshold: number,
+  comparison: string,
+): boolean {
+  switch (comparison) {
+    case "以下": return value <= threshold;
+    case "未満": return value <  threshold;
+    case "以上": return value >= threshold;
+    case "超える": return value >  threshold;
+    default: return false;
+  }
+}

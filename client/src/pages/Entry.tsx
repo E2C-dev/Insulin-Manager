@@ -18,8 +18,21 @@ import { QUERY_KEYS } from "@/lib/query-keys";
 import {
   type InsulinTimeSlot,
   type AdjustmentRule,
+  type RuleEvaluation,
   TIME_SLOT_OPTIONS,
+  CONDITION_TYPE_MAP,
+  compareGlucose,
 } from "@/lib/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface EntryFormData {
   date: string;
@@ -56,7 +69,7 @@ export default function Entry() {
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
 
   // インスリンプリセット
-  const { presets, getBasalDosesFromPresets } = useInsulinPresets();
+  const { presets, isLoading: presetsLoading, isError: presetsError, getBasalDosesFromPresets } = useInsulinPresets();
 
   // URLパラメータから日付・タイムスロットを取得して編集モードで開く
   useEffect(() => {
@@ -75,7 +88,7 @@ export default function Entry() {
   }, []);
 
   // 調整ルールを取得
-  const { data: rulesData } = useQuery({
+  const { data: rulesData, isLoading: rulesLoading, isError: rulesError } = useQuery({
     queryKey: QUERY_KEYS.ADJUSTMENT_RULES,
     queryFn: async () => {
       const response = await fetch("/api/adjustment-rules", { credentials: "include" });
@@ -85,52 +98,108 @@ export default function Entry() {
   });
 
   // 編集モード時に既存データを取得してフォームに反映
-  const { data: glucoseData } = useQuery({
+  // B-003 fix: queryFn のクロージャ問題を回避するため `?startDate=&endDate=` で server-side filter する。
+  // 旧実装は queryFn 内で `formData.date` を参照していたため、 setFormData(date) 直後の
+  // 1サイクルだけ stale な date で fetch される race が発生し prefill が空のまま固まる経路があった。
+  const { data: glucoseData, isLoading: glucoseLoading } = useQuery({
     queryKey: QUERY_KEYS.GLUCOSE_ENTRIES_BY_DATE(formData.date),
     queryFn: async () => {
-      const response = await fetch("/api/glucose-entries", { credentials: "include" });
+      const response = await fetch(
+        `/api/glucose-entries?startDate=${encodeURIComponent(formData.date)}&endDate=${encodeURIComponent(formData.date)}`,
+        { credentials: "include" }
+      );
       if (!response.ok) throw new Error("血糖値記録の取得に失敗しました");
       const data = await response.json();
-      return data.entries.filter((e: any) => e.date === formData.date);
+      return data.entries as Array<{ id: string; date: string; timeSlot: string; glucoseLevel: number; note: string | null }>;
     },
     enabled: isEditMode && !!formData.date,
   });
 
-  const { data: insulinData } = useQuery({
+  const { data: insulinData, isLoading: insulinLoading } = useQuery({
     queryKey: QUERY_KEYS.INSULIN_ENTRIES_BY_DATE(formData.date),
     queryFn: async () => {
-      const response = await fetch("/api/insulin-entries", { credentials: "include" });
+      const response = await fetch(
+        `/api/insulin-entries?startDate=${encodeURIComponent(formData.date)}&endDate=${encodeURIComponent(formData.date)}`,
+        { credentials: "include" }
+      );
       if (!response.ok) throw new Error("インスリン記録の取得に失敗しました");
       const data = await response.json();
-      return data.entries.filter((e: any) => e.date === formData.date);
+      return data.entries as Array<{ id: string; date: string; timeSlot: string; units: string; presetId: string | null; note: string | null }>;
     },
     enabled: isEditMode && !!formData.date,
+  });
+
+  // B-001 (S0) のため、 ルール評価には「前日」測定値も必要。 編集モードでなくても
+  // 当日 + 前日の glucose を常に取得して評価対象にする。 useQuery キャッシュで重複fetch回避。
+  const yesterdayDateForRules = useMemo(() => {
+    const baseDate = safeParseDate(formData.date, new Date());
+    return format(subDays(baseDate, 1), "yyyy-MM-dd");
+  }, [formData.date]);
+
+  const { data: yesterdayGlucoseData, isLoading: yesterdayGlucoseLoading, isError: yesterdayGlucoseError } = useQuery({
+    queryKey: QUERY_KEYS.GLUCOSE_ENTRIES_BY_DATE(yesterdayDateForRules),
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/glucose-entries?startDate=${encodeURIComponent(yesterdayDateForRules)}&endDate=${encodeURIComponent(yesterdayDateForRules)}`,
+        { credentials: "include" }
+      );
+      if (!response.ok) throw new Error("血糖値記録の取得に失敗しました");
+      const data = await response.json();
+      return data.entries as Array<{ date: string; timeSlot: string; glucoseLevel: number }>;
+    },
+    enabled: !!yesterdayDateForRules,
+  });
+
+  // 評価対象の当日 glucose (編集モードでなくても rule評価のために取る)。
+  // 編集モードでは上の glucoseData と同じ key になり cache 共有される。
+  const { data: todayGlucoseData, isLoading: todayGlucoseLoading, isError: todayGlucoseError } = useQuery({
+    queryKey: QUERY_KEYS.GLUCOSE_ENTRIES_BY_DATE(formData.date),
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/glucose-entries?startDate=${encodeURIComponent(formData.date)}&endDate=${encodeURIComponent(formData.date)}`,
+        { credentials: "include" }
+      );
+      if (!response.ok) throw new Error("血糖値記録の取得に失敗しました");
+      const data = await response.json();
+      return data.entries as Array<{ date: string; timeSlot: string; glucoseLevel: number }>;
+    },
+    enabled: !!formData.date,
   });
 
   // 編集モード: 既存データをフォームに反映
+  // B-003 fix: 念のため e.date === formData.date でも二重 filter する (server返却が広いケースの保険)。
   useEffect(() => {
-    if (!isEditMode || !formData.timeSlot) return;
+    if (!isEditMode || !formData.timeSlot || !formData.date) return;
 
     const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
     if (!selectedOption) return;
 
     // 血糖値の反映
     if (glucoseData && Array.isArray(glucoseData)) {
-      const glucoseEntry = glucoseData.find((e: any) => e.timeSlot === formData.timeSlot);
+      const glucoseEntry = glucoseData.find(
+        (e) => e.timeSlot === formData.timeSlot && e.date === formData.date
+      );
       if (glucoseEntry) {
-        setFormData(prev => ({ ...prev, glucoseLevel: String(glucoseEntry.glucoseLevel) }));
+        setFormData(prev => ({
+          ...prev,
+          glucoseLevel: String(glucoseEntry.glucoseLevel),
+          // 編集モードで既存メモがある場合、 メモも反映
+          note: prev.note || glucoseEntry.note || "",
+        }));
         setEditGlucoseId(glucoseEntry.id);
       }
     }
 
     // インスリンの反映
     if (insulinData && Array.isArray(insulinData)) {
-      const insulinEntry = insulinData.find((e: any) => e.timeSlot === selectedOption.insulinSlot);
+      const insulinEntry = insulinData.find(
+        (e) => e.timeSlot === selectedOption.insulinSlot && e.date === formData.date
+      );
       if (insulinEntry) {
         setFormData(prev => ({
           ...prev,
           insulinUnits: String(parseFloat(insulinEntry.units)),
-          note: insulinEntry.note || "",
+          note: prev.note || insulinEntry.note || "",
           // 編集モードで既存のインスリン値を読み込んだ場合は dirty=true にして
           // 自動計算による上書きを抑止する (BUG-004)。
           insulinUnitsDirty: true,
@@ -139,7 +208,11 @@ export default function Entry() {
         if (insulinEntry.presetId) setSelectedPresetId(insulinEntry.presetId);
       }
     }
-  }, [isEditMode, formData.timeSlot, glucoseData, insulinData]);
+  }, [isEditMode, formData.timeSlot, formData.date, glucoseData, insulinData]);
+
+  // 編集モード loading state (B-003 fix)。 既存記録があるはずなのに空欄で「更新」を
+  // 押されてデータが消失するのを防ぐため、 fetch 中は input を読取専用にする。
+  const isEditPrefillLoading = isEditMode && (glucoseLoading || insulinLoading);
 
   const setToday = () => {
     setFormData(prev => ({ ...prev, date: formatJstDate(new Date()) }));
@@ -243,19 +316,46 @@ export default function Entry() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // B-005: 桁ミス検知 — プリセットの基礎単位の 10 倍以上 (または絶対値 20 単位超)
+  // で confirm dialog を出す。 妊娠糖尿病・小児DM など低単位ユーザーが多いこと、
+  // 超速効型インスリンは 1〜15u/食が標準。 30u 超は超速効型としては異常。
+  // Codex round 7 fix: 関数 closure を state に保存しない。 stale state を掴む
+  // 古い closure が confirm 後に呼ばれ、 dialog 表示中に query が error/loading
+  // へ変わっても古い guard で保存される経路を断つ。 action 識別子だけ保存し、
+  // confirm 実行時に最新 render の doSave/doSameAsYesterdaySave を呼ぶ。
+  const [pendingSave, setPendingSave] = useState<null | "save" | "sameAsYesterday">(null);
+  const [digitMissWarning, setDigitMissWarning] = useState<string | null>(null);
 
-    if (!formData.timeSlot) {
-      toast({ title: "入力エラー", description: "測定タイミングを選択してください", variant: "destructive" });
+  function checkDigitMiss(unitsStr: string, baseAmount: number | null): string | null {
+    const units = parseFloat(unitsStr);
+    if (isNaN(units)) return null;
+    // 1. 絶対値による警告 (どんなプリセットでも超速効型 30u 超は要確認)
+    if (units >= 30) {
+      return `${units}単位は通常より大幅に多い量です。 桁を間違えていないか確認してください (例: 4 → 43 のtypo)。`;
+    }
+    // 2. プリセット基礎単位との乖離による警告
+    if (baseAmount !== null && baseAmount > 0 && units >= baseAmount * 10) {
+      return `入力値 ${units} 単位は、 設定された基礎投与量 ${baseAmount} 単位の 10倍以上 です。 桁を間違えていないか確認してください。`;
+    }
+    return null;
+  }
+
+  const doSave = async () => {
+    if (!formData.timeSlot) return;
+    // Codex round 5 fix: 桁ミス dialog 表示中に loading/error 状態が変化しても
+    // ここで再ガードし、 silent wrong dose を防ぐ。
+    if (isEditPrefillLoading) {
+      toast({ title: "読み込み中", description: "既存記録の読み込みが完了するまでお待ちください。", variant: "destructive" });
       return;
     }
-
-    if (!formData.glucoseLevel && !formData.insulinUnits) {
-      toast({ title: "入力エラー", description: "血糖値またはインスリン量のいずれかを入力してください", variant: "destructive" });
+    if (hasEvaluationError) {
+      toast({ title: "評価エラー", description: "ルールまたは血糖値の取得に失敗しました。ページを再読み込みしてからお試しください。", variant: "destructive" });
       return;
     }
-
+    if (isRuleEvaluationLoading) {
+      toast({ title: "評価中", description: "調整ルールの評価中です。 数秒後にもう一度お試しください。", variant: "destructive" });
+      return;
+    }
     setIsSaving(true);
 
     try {
@@ -272,7 +372,7 @@ export default function Entry() {
               note: formData.note || undefined,
             }));
           } else {
-            // 新しい血糖値エントリを作成
+            // 既存記録 ID が無い → upsert で create (server側で UNIQUE 制約により安全)
             promises.push(createGlucoseMutation.mutateAsync({
               date: formData.date,
               timeSlot: formData.timeSlot,
@@ -291,6 +391,7 @@ export default function Entry() {
               note: formData.note || undefined,
             }));
           } else {
+            // 既存記録 ID が無い → upsert で create
             promises.push(createInsulinMutation.mutateAsync({
               date: formData.date,
               timeSlot: selectedOption.insulinSlot,
@@ -301,7 +402,7 @@ export default function Entry() {
           }
         }
       } else {
-        // 新規モード: POST
+        // 新規モード: POST (server側で upsert)
         if (formData.glucoseLevel && selectedOption?.glucoseSlot) {
           promises.push(createGlucoseMutation.mutateAsync({
             date: formData.date,
@@ -351,6 +452,60 @@ export default function Entry() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.timeSlot) {
+      toast({ title: "入力エラー", description: "測定タイミングを選択してください", variant: "destructive" });
+      return;
+    }
+
+    if (!formData.glucoseLevel && !formData.insulinUnits) {
+      toast({ title: "入力エラー", description: "血糖値またはインスリン量のいずれかを入力してください", variant: "destructive" });
+      return;
+    }
+
+    // Codex round 2 fix: 編集モードで prefill 完了前は保存させない (既存値を空で
+    // 上書きする経路を断つ)。 ルール評価未完了の自動計算結果を含む保存も同様に
+    // 止める。
+    if (isEditPrefillLoading) {
+      toast({
+        title: "読み込み中",
+        description: "既存記録の読み込みが完了するまでお待ちください。",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (hasEvaluationError) {
+      toast({
+        title: "評価エラー",
+        description: "ルールまたは血糖値の取得に失敗しました。ページを再読み込みしてからお試しください。",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (isRuleEvaluationLoading) {
+      toast({
+        title: "評価中",
+        description: "調整ルールの評価中です。 数秒後にもう一度お試しください。",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // B-005: 桁ミス検知 — confirm 必須
+    if (formData.insulinUnits) {
+      const warning = checkDigitMiss(formData.insulinUnits, timingBaseAmount);
+      if (warning) {
+        setDigitMissWarning(warning);
+        setPendingSave("save");
+        return;
+      }
+    }
+
+    await doSave();
+  };
+
   const getDateLabel = () => {
     const today = formatJstDate(new Date());
     const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
@@ -380,8 +535,26 @@ export default function Entry() {
     return { label: labels[insulinSlot], baseAmount, insulinSlot };
   }, [formData.timeSlot, presets, getBasalDosesFromPresets]);
 
-  // 適用される調整ルールを計算
-  const applicableRules = useMemo(() => {
+  // ============================================================================
+  // B-001 (S0): conditionType を考慮したルール評価
+  // ============================================================================
+  // 旧実装は rule.conditionType を無視し、 いま入力中の血糖値を全ルールに当てて
+  // いた。 修正後は CONDITION_TYPE_MAP で dateOffset/measurementSlot を解決し、
+  // 該当日の該当測定値が DB にある時だけ評価する。 ない場合は「データ不足」を
+  // 明示し、 自動加算しない。
+  //
+  // また B-004 (累積制御) として、 同一 targetTimeSlot(=time_slot) × conditionType
+  // の組合せで複数ルールが matched した場合は、 threshold が最も「厳しい側」の
+  // 1件だけを採用する (低血糖系=「以下/未満」なら threshold 最小、 高血糖系=
+  // 「以上/超える」なら threshold 最大)。 全く同一閾値の重複は最後の1件のみ採用。
+  // ============================================================================
+
+  type EvaluatedRule = {
+    rule: AdjustmentRule;
+    evaluation: RuleEvaluation;
+  };
+
+  const ruleEvaluations = useMemo<EvaluatedRule[]>(() => {
     if (!formData.date || !formData.timeSlot) return [];
     if (!rulesData?.rules) return [];
 
@@ -394,8 +567,126 @@ export default function Entry() {
     };
     const currentTiming = insulinTimingMap[selectedOption.insulinSlot];
 
-    return rules.filter(rule => rule.timeSlot === currentTiming);
-  }, [formData.date, formData.timeSlot, rulesData]);
+    // 1. timeSlot (= 「朝」「昼」「夕」「眠前」) で1次フィルタ。
+    //    + Codex round 3 fix: targetTimeSlot は「当日の{currentTiming}」 と
+    //    完全一致するルールのみ採用する。 「前日の朝」「当日の昼」 などの
+    //    他枠ルールが朝entry に誤適用される経路を断つ。
+    //    患者は AdjustmentRules UI で targetTimeSlot を任意に選べるため、
+    //    timeSlot と targetTimeSlot が不一致のルールも DB に存在しうる。
+    //    その場合は当該 entry の自動計算には反映せず、 UI 上「対象外」 表記。
+    const expectedTarget = `当日の${currentTiming}`;
+    const candidateRules = rules.filter(rule => {
+      if (rule.timeSlot !== currentTiming) return false;
+      // targetTimeSlot 未指定 (旧データ) は安全側で除外
+      if (!rule.targetTimeSlot) return false;
+      if (rule.targetTimeSlot !== expectedTarget) return false;
+      return true;
+    });
+
+    // 2. 各ルールの conditionType を評価
+    const baseDate = safeParseDate(formData.date, new Date());
+
+    // Codex round 2 review fix: 当日同枠ルールは「いま入力中のフォーム血糖値」を
+    // リアルタイム評価対象にする。 これがないと「当日朝食前≤70→朝-1u」 ルールが、
+    // 朝食前血糖60mg/dLを初回入力するときに no_data 扱いされ、 減量提案されない
+    // regression を引き起こす (Codex final review 指摘)。
+    const formGlucoseRaw = formData.glucoseLevel?.trim?.() ?? "";
+    const formGlucoseNum = formGlucoseRaw === "" ? null : parseInt(formGlucoseRaw, 10);
+    const formGlucoseValid = formGlucoseNum !== null && !isNaN(formGlucoseNum);
+
+    return candidateRules.map((rule): EvaluatedRule => {
+      const cond = CONDITION_TYPE_MAP[rule.conditionType];
+      if (!cond) {
+        return { rule, evaluation: { status: "unknown_condition" } };
+      }
+
+      const targetDate = format(
+        cond.dateOffset === -1 ? subDays(baseDate, 1) : baseDate,
+        "yyyy-MM-dd"
+      );
+
+      // 1. 当日同枠 (= いま入力しようとしている glucose) のルールは、
+      //    フォーム入力値を優先的に評価対象にする。 これでDB保存前のリアルタイム
+      //    補正提案が可能。
+      if (
+        cond.dateOffset === 0 &&
+        cond.measurementSlot === formData.timeSlot &&
+        formGlucoseValid
+      ) {
+        const matched = compareGlucose(formGlucoseNum!, rule.threshold, rule.comparison);
+        return {
+          rule,
+          evaluation: matched
+            ? { status: "matched", observedValue: formGlucoseNum!, targetDate }
+            : { status: "not_matched", observedValue: formGlucoseNum!, targetDate },
+        };
+      }
+
+      // 2. それ以外は DB から該当日の該当 glucose を取得して評価
+      const glucoseSource = cond.dateOffset === -1 ? yesterdayGlucoseData : todayGlucoseData;
+      const measurement = (glucoseSource ?? []).find(
+        (e) => e.date === targetDate && e.timeSlot === cond.measurementSlot
+      );
+
+      if (!measurement) {
+        return {
+          rule,
+          evaluation: {
+            status: "no_data",
+            targetDate,
+            measurementSlot: cond.measurementSlot,
+          },
+        };
+      }
+
+      const matched = compareGlucose(measurement.glucoseLevel, rule.threshold, rule.comparison);
+      return {
+        rule,
+        evaluation: matched
+          ? { status: "matched", observedValue: measurement.glucoseLevel, targetDate }
+          : { status: "not_matched", observedValue: measurement.glucoseLevel, targetDate },
+      };
+    });
+  }, [formData.date, formData.timeSlot, formData.glucoseLevel, rulesData, yesterdayGlucoseData, todayGlucoseData]);
+
+  // B-004: 累積適用の制御
+  // 同一 conditionType で複数 matched があれば、 threshold の「厳しさ」で 1件採用。
+  // ※ 「同じ条件タイプの中で最も発動条件が厳しいルール」 = 患者が意図したであろう
+  // 階層構造 (70以下/60以下/50以下) のうち、 現値で適用される最も厳しいもの 1件。
+  const appliedRules = useMemo<EvaluatedRule[]>(() => {
+    const matched = ruleEvaluations.filter(r => r.evaluation.status === "matched");
+
+    // conditionType 別にグルーピング
+    const groups = new Map<string, EvaluatedRule[]>();
+    for (const ev of matched) {
+      const key = ev.rule.conditionType + "|" + (ev.rule.targetTimeSlot ?? "");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(ev);
+    }
+
+    const picked: EvaluatedRule[] = [];
+    for (const list of Array.from(groups.values())) {
+      if (list.length === 1) {
+        picked.push(list[0]);
+        continue;
+      }
+      // 比較演算子で「厳しさ」基準が変わる
+      // 「以下」「未満」: threshold が小さいほど厳しい
+      // 「以上」「超える」: threshold が大きいほど厳しい
+      // 異なる比較が混ざる場合は単純に adjustmentAmount の絶対値が大きい方を採用
+      const sorted = [...list].sort((a, b) => {
+        const aCmp = a.rule.comparison;
+        const bCmp = b.rule.comparison;
+        const aLow = aCmp === "以下" || aCmp === "未満";
+        const bLow = bCmp === "以下" || bCmp === "未満";
+        if (aLow && bLow) return a.rule.threshold - b.rule.threshold; // 小さい方が厳しい
+        if (!aLow && !bLow) return b.rule.threshold - a.rule.threshold; // 大きい方が厳しい
+        return Math.abs(b.rule.adjustmentAmount) - Math.abs(a.rule.adjustmentAmount);
+      });
+      picked.push(sorted[0]);
+    }
+    return picked;
+  }, [ruleEvaluations]);
 
   // 情報を表示するかどうか
   const shouldShowInfo = formData.date && formData.timeSlot;
@@ -432,8 +723,23 @@ export default function Entry() {
   }, [formData.timeSlot, yesterdayInsulinData]);
 
   // 「昨日と同じ」ワンタップ保存ハンドラ
-  const handleSameAsYesterday = async () => {
+  // Codex round 2 fix: 「昨日と同じ」も桁ミス警告を通す (昨日 43u を typo した
+  // 後にこのボタンで連日 43u が保存される regression を防ぐ)
+  const doSameAsYesterdaySave = async () => {
     if (!yesterdayEntry || !formData.timeSlot) return;
+    // Codex round 5 fix: 同じ guard を 「昨日と同じ」 経路にも適用 (fail-closed)
+    if (isEditPrefillLoading) {
+      toast({ title: "読み込み中", description: "既存記録の読み込みが完了するまでお待ちください。", variant: "destructive" });
+      return;
+    }
+    if (hasEvaluationError) {
+      toast({ title: "評価エラー", description: "ルールまたは血糖値の取得に失敗しました。ページを再読み込みしてからお試しください。", variant: "destructive" });
+      return;
+    }
+    if (isRuleEvaluationLoading) {
+      toast({ title: "評価中", description: "調整ルールの評価中です。 数秒後にもう一度お試しください。", variant: "destructive" });
+      return;
+    }
 
     const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
     if (!selectedOption?.insulinSlot) return;
@@ -483,6 +789,19 @@ export default function Entry() {
     }
   };
 
+  const handleSameAsYesterday = async () => {
+    if (!yesterdayEntry) return;
+    // 桁ミス検知を通す (handleSubmit と同じガード)
+    const yesterdayUnits = String(parseFloat(yesterdayEntry.units));
+    const warning = checkDigitMiss(yesterdayUnits, timingBaseAmount);
+    if (warning) {
+      setDigitMissWarning(warning);
+      setPendingSave("sameAsYesterday");
+      return;
+    }
+    await doSameAsYesterdaySave();
+  };
+
   // Sprint 3 (S3-6): useEffect 依存配列を primitive に展開する。
   // 旧: getInsulinTimingInfo (object) と applicableRules (array) を依存に直接入れていたため、
   //     親 (useMemo の依存変化) で参照が変わるたび effect が再実行されるリスクあり。
@@ -493,36 +812,49 @@ export default function Entry() {
   //     の memoization に任せる (applicableRules は既に useMemo で正しく安定化済み)。
   //     既存の「直前と同値なら setState skip」ガード (BUG-001 fix) は維持。
   const timingBaseAmount = getInsulinTimingInfo?.baseAmount ?? null;
+
+  // B-001 fix: 自動計算は **appliedRules (= condition-aware で matched と判定された
+  // ルールだけ)** を加算する。 旧実装は applicableRules (時間帯フィルタのみ) で、
+  // 入力中の glucoseLevel を無条件に当てていた致命的バグ。
+  // また「血糖値入力前でも基礎単位を提示」 する挙動に変更 — 患者が血糖値未入力でも
+  // プリセットの基礎単位は見えるべき (UI/UX 改善)。
+  // Codex round 2/3 fix: rules/glucose/preset loading 中、 および query error
+  // 発生中は 自動計算を走らせない + 保存させない。 silent fallback で
+  // 不正確な推奨値が出る経路を完全に断つ。
+  // - query error 時に isLoading=false で fallthrough して「データ不足」 として
+  //   保存できる経路は medical safety critical なので block
+  // - preset cold load 中は基礎量 0/localStorage fallback で誤計算が出る
+  const hasEvaluationError = rulesError || todayGlucoseError || yesterdayGlucoseError || presetsError;
+  const isRuleEvaluationLoading =
+    rulesLoading ||
+    todayGlucoseLoading ||
+    yesterdayGlucoseLoading ||
+    presetsLoading ||
+    hasEvaluationError;
+
   useEffect(() => {
     // ユーザが手入力 or プリセット選択でインスリンに触れたら以後は上書きしない
-    // (BUG-004 同時解消)。これが最初のガード — 真っ白の連鎖を断ち切る肝。
     if (formData.insulinUnitsDirty) return;
-    // 編集モード中や手動でプリセットを選択した場合は自動計算しない
     if (selectedPresetId) return;
-    // 空文字や空白のみの場合はガード強化 (parseInt("") は NaN だが、念のため早期 return)
-    if (!formData.glucoseLevel || formData.glucoseLevel.trim() === "") return;
     if (!formData.timeSlot) return;
     if (timingBaseAmount === null) return;
-
-    const glucoseValue = parseInt(formData.glucoseLevel, 10);
-    if (isNaN(glucoseValue)) return;
+    // ルール評価未完了の間は自動計算しない (Codex round 2 指摘)
+    if (isRuleEvaluationLoading) return;
+    // 編集モードで既存値 prefill 中も自動計算しない (上書きリスク)
+    if (isEditPrefillLoading) return;
 
     let calculatedInsulin = timingBaseAmount;
 
-    for (const rule of applicableRules) {
-      let matches = false;
-      switch (rule.comparison) {
-        case "以下": matches = glucoseValue <= rule.threshold; break;
-        case "未満": matches = glucoseValue < rule.threshold; break;
-        case "以上": matches = glucoseValue >= rule.threshold; break;
-        case "超える": matches = glucoseValue > rule.threshold; break;
-      }
-      if (matches) calculatedInsulin += rule.adjustmentAmount;
+    // 条件評価できたルール (matched) のみ加算する。 not_matched / no_data /
+    // unknown_condition は決して加算しない (B-001 / 医療安全の中核)。
+    for (const ev of appliedRules) {
+      calculatedInsulin += ev.rule.adjustmentAmount;
     }
 
-    // 上限ガード: 0 〜 99 単位にクランプ。これで NaN や桁違いの値が
-    // setFormData → 後続の数値変換で例外を投げる経路を断ち切る。
-    const finalInsulin = Math.max(0, Math.min(99, calculatedInsulin));
+    // 上限ガード: 0 〜 100 単位にクランプ (schema 上限と一致させる)。
+    // 100 を上限としたのは zod validation (insertInsulinEntrySchema) と
+    // 整合させるため。 上限近辺は B-005 桁ミス警告で別途確認する。
+    const finalInsulin = Math.max(0, Math.min(100, calculatedInsulin));
     setFormData(prev => {
       // 直前と同値なら setState せず、無限ループ気味の再レンダーも防ぐ。
       const next = finalInsulin.toString();
@@ -530,12 +862,13 @@ export default function Entry() {
       return { ...prev, insulinUnits: next };
     });
   }, [
-    formData.glucoseLevel,
     formData.timeSlot,
     formData.insulinUnitsDirty,
     timingBaseAmount,
-    applicableRules,
+    appliedRules,
     selectedPresetId,
+    isRuleEvaluationLoading,
+    isEditPrefillLoading,
   ]);
 
   return (
@@ -691,44 +1024,82 @@ export default function Entry() {
                     </p>
                   </div>
 
-                  {/* 適用される調整ルール */}
-                  {applicableRules.length > 0 && (
+                  {/* 適用される調整ルール (B-001 fix: 条件評価結果を明示表示) */}
+                  {ruleEvaluations.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">
-                        適用される調整ルール（{applicableRules.length}件）
+                        この時間帯のルール（{ruleEvaluations.length}件）
                       </p>
-                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                        {applicableRules.map((rule) => (
-                          <div
-                            key={rule.id}
-                            className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-orange-200 dark:border-orange-800 text-sm"
-                          >
-                            <div className="flex items-start gap-2">
-                              {rule.adjustmentAmount > 0 ? (
-                                <TrendingUp className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-                              ) : (
-                                <TrendingDown className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
-                              )}
-                              <div className="flex-1">
-                                <p className="font-medium mb-1">{rule.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {rule.conditionType} {rule.threshold}mg/dL{rule.comparison} →{" "}
-                                  <span className={rule.adjustmentAmount > 0 ? "text-blue-600 font-semibold" : "text-red-600 font-semibold"}>
-                                    {rule.adjustmentAmount > 0 ? "+" : ""}{rule.adjustmentAmount}単位
-                                  </span>
-                                </p>
+                      <div className="space-y-2 max-h-[260px] overflow-y-auto">
+                        {ruleEvaluations.map(({ rule, evaluation }) => {
+                          const isApplied = appliedRules.some(r => r.rule.id === rule.id);
+                          const statusBadge = (() => {
+                            if (evaluation.status === "matched" && isApplied) {
+                              return <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 font-semibold">✓ 適用</span>;
+                            }
+                            if (evaluation.status === "matched" && !isApplied) {
+                              return <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">条件一致(重複のため不採用)</span>;
+                            }
+                            if (evaluation.status === "not_matched") {
+                              return <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">対象外</span>;
+                            }
+                            if (evaluation.status === "no_data") {
+                              return <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100">データ不足</span>;
+                            }
+                            return <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-800">条件不明</span>;
+                          })();
+
+                          const observed = (evaluation.status === "matched" || evaluation.status === "not_matched")
+                            ? `(計測 ${evaluation.observedValue}mg/dL)`
+                            : evaluation.status === "no_data"
+                              ? "(計測値なし)"
+                              : "";
+
+                          return (
+                            <div
+                              key={rule.id}
+                              className={
+                                "p-3 rounded-lg border text-sm " +
+                                (isApplied
+                                  ? "bg-orange-50 dark:bg-orange-950/40 border-orange-300 dark:border-orange-700"
+                                  : "bg-white dark:bg-gray-900 border-orange-200 dark:border-orange-800")
+                              }
+                            >
+                              <div className="flex items-start gap-2">
+                                {rule.adjustmentAmount > 0 ? (
+                                  <TrendingUp className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                                ) : (
+                                  <TrendingDown className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+                                )}
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between gap-2 mb-1">
+                                    <p className="font-medium">{rule.name}</p>
+                                    {statusBadge}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {rule.conditionType} {rule.threshold}mg/dL{rule.comparison} {observed} →{" "}
+                                    <span className={rule.adjustmentAmount > 0 ? "text-blue-600 font-semibold" : "text-red-600 font-semibold"}>
+                                      {rule.adjustmentAmount > 0 ? "+" : ""}{rule.adjustmentAmount}単位
+                                    </span>
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
+                      {ruleEvaluations.some(e => e.evaluation.status === "no_data") && (
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          ※ 「データ不足」のルールは該当日の血糖値が未記録のため適用判定できません。 必要な記録を入力すると評価されます。
+                        </p>
+                      )}
                     </div>
                   )}
 
-                  {applicableRules.length === 0 && (
+                  {ruleEvaluations.length === 0 && (
                     <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
                       <p className="text-sm text-muted-foreground text-center">
-                        このタイミングに適用される調整ルールはありません
+                        このタイミングに登録された調整ルールはありません
                       </p>
                     </div>
                   )}
@@ -756,7 +1127,7 @@ export default function Entry() {
                 <button
                   type="button"
                   onClick={handleSameAsYesterday}
-                  disabled={isSaving}
+                  disabled={isSaving || isEditPrefillLoading || isRuleEvaluationLoading}
                   className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-amber-50 border-2 border-amber-400 hover:bg-amber-100 active:bg-amber-200 dark:bg-amber-950/30 dark:border-amber-600 dark:hover:bg-amber-950/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Zap className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -779,12 +1150,14 @@ export default function Entry() {
                       id="glucoseLevel"
                       data-testid="input-glucoseLevel"
                       type="number"
-                      placeholder="例: 120"
+                      placeholder={isEditPrefillLoading ? "読み込み中..." : "例: 120"}
                       value={formData.glucoseLevel}
                       onChange={(e) => handleInputChange("glucoseLevel", e.target.value)}
                       className="h-10"
                       min="20"
                       max="600"
+                      readOnly={isEditPrefillLoading}
+                      disabled={isEditPrefillLoading}
                     />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">mg/dL</span>
                   </div>
@@ -800,19 +1173,27 @@ export default function Entry() {
                       data-testid="input-insulinUnits"
                       type="number"
                       step="1"
-                      placeholder="例: 5"
+                      placeholder={isEditPrefillLoading ? "読み込み中..." : "例: 5"}
                       value={formData.insulinUnits}
                       onChange={(e) => handleInputChange("insulinUnits", e.target.value)}
                       className="h-10"
                       min="0"
                       max="100"
+                      readOnly={isEditPrefillLoading}
+                      disabled={isEditPrefillLoading}
                     />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">単位</span>
                   </div>
-                  {formData.glucoseLevel && formData.insulinUnits && (
+                  {formData.insulinUnits && !formData.insulinUnitsDirty && !selectedPresetId && (
                     <p className="text-xs text-green-700 dark:text-green-300 mt-1 flex items-center gap-1">
                       <Activity className="w-3 h-3" />
-                      {selectedPresetId ? "プリセットから選択されました（手動変更可）" : "血糖値に基づいて自動計算されました（手動変更可）"}
+                      基礎単位とルール評価から自動計算されました（手動変更可）
+                    </p>
+                  )}
+                  {formData.insulinUnits && selectedPresetId && (
+                    <p className="text-xs text-green-700 dark:text-green-300 mt-1 flex items-center gap-1">
+                      <Activity className="w-3 h-3" />
+                      プリセットから選択されました（手動変更可）
                     </p>
                   )}
                 </div>
@@ -852,17 +1233,80 @@ export default function Entry() {
               className="flex-1"
               size="lg"
               data-testid="button-save"
-              disabled={isSaving || createGlucoseMutation.isPending || createInsulinMutation.isPending || updateGlucoseMutation.isPending || updateInsulinMutation.isPending}
+              disabled={
+                isSaving ||
+                createGlucoseMutation.isPending ||
+                createInsulinMutation.isPending ||
+                updateGlucoseMutation.isPending ||
+                updateInsulinMutation.isPending ||
+                isEditPrefillLoading ||
+                isRuleEvaluationLoading
+              }
             >
               {isSaving ? (
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" aria-hidden="true" />
               ) : (
                 <Save className="w-5 h-5 mr-2" />
               )}
-              {isSaving ? "保存中..." : (isEditMode ? "更新" : "保存")}
+              {isSaving
+                ? "保存中..."
+                : isEditPrefillLoading
+                ? "読み込み中..."
+                : hasEvaluationError
+                ? "評価エラー"
+                : isRuleEvaluationLoading
+                ? "評価中..."
+                : isEditMode
+                ? "更新"
+                : "保存"}
             </Button>
           </div>
         </form>
+
+        {/* B-005: 桁ミス検知 confirm dialog */}
+        <AlertDialog
+          open={!!digitMissWarning}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDigitMissWarning(null);
+              setPendingSave(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>入力値の確認</AlertDialogTitle>
+              <AlertDialogDescription>
+                {digitMissWarning}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => {
+                  setDigitMissWarning(null);
+                  setPendingSave(null);
+                }}
+                data-testid="button-digitmiss-cancel"
+              >
+                入力をやり直す
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  // Codex round 7 fix: action 識別子で振り分け、 confirm 時点の
+                  // 最新 doSave/doSameAsYesterdaySave (= 最新 guard) を呼ぶ。
+                  const action = pendingSave;
+                  setDigitMissWarning(null);
+                  setPendingSave(null);
+                  if (action === "save") await doSave();
+                  else if (action === "sameAsYesterday") await doSameAsYesterdaySave();
+                }}
+                data-testid="button-digitmiss-confirm"
+              >
+                この値で保存する
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );

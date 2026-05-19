@@ -13,7 +13,10 @@ async function fetchPresets(): Promise<InsulinPreset[]> {
 export function useInsulinPresets() {
   const queryClient = useQueryClient();
 
-  const { data: presets = [], isLoading } = useQuery({
+  // Codex round 5 fix: preset fetch error は medical safety critical のため
+  // fail-closed にする。 isError を expose して 呼び出し側で自動計算と保存を
+  // ブロックできるようにする。
+  const { data: presets = [], isLoading, isError } = useQuery({
     queryKey: ["insulin-presets"],
     queryFn: fetchPresets,
     staleTime: 1000 * 60 * 5, // 5分間キャッシュ（設定は頻繁に変わらない）
@@ -89,6 +92,7 @@ export function useInsulinPresets() {
   return {
     presets,
     isLoading,
+    isError,
     createPreset: createMutation.mutateAsync,
     updatePreset: updateMutation.mutateAsync,
     deletePreset: deleteMutation.mutateAsync,

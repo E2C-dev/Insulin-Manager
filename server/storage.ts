@@ -245,11 +245,41 @@ export class DbStorage implements IStorage {
   }
 
   async createInsulinEntry(entry: InsertInsulinEntry & { userId: string }): Promise<InsulinEntry> {
+    // B-002 fix: 同 user_id × date × time_slot の既存レコードがあれば update する
+    // (アプリレベル upsert)。 DB UNIQUE 制約は migration 0007 で別途追加予定。
+    // race 中の同時 insert 2件は upsert後に dedup スクリプトで吸収可。
+    const existing = await db
+      .select()
+      .from(insulinEntries)
+      .where(and(
+        eq(insulinEntries.userId, entry.userId),
+        eq(insulinEntries.date, entry.date),
+        eq(insulinEntries.timeSlot, entry.timeSlot),
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      const updated = await db
+        .update(insulinEntries)
+        .set({
+          units: entry.units,
+          presetId: entry.presetId ?? null,
+          note: entry.note ?? null,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(insulinEntries.id, existing[0].id),
+          eq(insulinEntries.userId, entry.userId),
+        ))
+        .returning();
+      return updated[0];
+    }
+
     const result = await db
       .insert(insulinEntries)
       .values(entry)
       .returning();
-    
+
     return result[0];
   }
 
@@ -313,11 +343,40 @@ export class DbStorage implements IStorage {
   }
 
   async createGlucoseEntry(entry: InsertGlucoseEntry & { userId: string }): Promise<GlucoseEntry> {
+    // B-002 fix: 同 user_id × date × time_slot の既存レコードがあれば update する。
+    // migration 0006 が glucose_entries の UNIQUE 制約を導入予定だが、 ここでも
+    // アプリレベルで先に upsert を担保し、 制約適用前から重複を作らない。
+    const existing = await db
+      .select()
+      .from(glucoseEntries)
+      .where(and(
+        eq(glucoseEntries.userId, entry.userId),
+        eq(glucoseEntries.date, entry.date),
+        eq(glucoseEntries.timeSlot, entry.timeSlot),
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      const updated = await db
+        .update(glucoseEntries)
+        .set({
+          glucoseLevel: entry.glucoseLevel,
+          note: entry.note ?? null,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(glucoseEntries.id, existing[0].id),
+          eq(glucoseEntries.userId, entry.userId),
+        ))
+        .returning();
+      return updated[0];
+    }
+
     const result = await db
       .insert(glucoseEntries)
       .values(entry)
       .returning();
-    
+
     return result[0];
   }
 
