@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { AdBanner } from "@/components/AdBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,10 +60,7 @@ export default function SecuritySettings() {
   return (
     <AppLayout>
       <div className="p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-primary" />
-          <h1 className="text-xl font-bold">セキュリティ設定</h1>
-        </div>
+        <PageHeader title="セキュリティ設定" icon={Shield} size="compact" />
 
         <Card>
           <CardHeader className="pb-3">

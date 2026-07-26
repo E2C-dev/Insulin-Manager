@@ -88,7 +88,7 @@ export function ConsentGate({ children }: ConsentGateProps) {
       {children}
       <Dialog open modal>
         <DialogContent
-          className="max-w-lg max-h-[90vh] overflow-y-auto"
+          className="max-w-lg max-h-mobile-dialog overflow-y-auto"
           // 閉じるボタンを無効化（同意しないと使えない）
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}

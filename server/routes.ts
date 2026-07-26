@@ -20,6 +20,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { registerAdminRoutes } from "./admin-routes";
 import { adminStorage } from "./admin-storage";
 import { db } from "./db";
+import { checkInsulinDoseAndLog } from "./insulinDoseSafetyNet";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -486,6 +487,17 @@ export async function registerRoutes(
         ...validatedData,
         userId: user.id,
       });
+      // 作業2 (defense-in-depth): サーバー側で shared/adjustmentRuleEngine を
+      // 使って投与量を独立に再計算し、乖離があれば audit_logs にログのみ記録する。
+      // 保存・レスポンスは絶対にブロックしない (await はするが例外は内部で握り
+      // つぶされる設計)。
+      // autoCalculated / liveMeasurementSlot は insertInsulinEntrySchema
+      // (DBカラムに対応するスキーマ) には含まれず parse() で strip されるため、
+      // req.body から直接読む。
+      await checkInsulinDoseAndLog(req, entry, {
+        autoCalculated: req.body?.autoCalculated === true,
+        liveMeasurementSlot: typeof req.body?.liveMeasurementSlot === "string" ? req.body.liveMeasurementSlot : undefined,
+      });
       return res.status(201).json({ message: "記録を作成しました", entry });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -506,11 +518,18 @@ export async function registerRoutes(
       const user = req.user as User;
       const validatedData = insertInsulinEntrySchema.partial().parse(req.body);
       const entry = await storage.updateInsulinEntry(req.params.id, user.id, validatedData);
-      
+
       if (!entry) {
         return res.status(404).json({ message: "記録が見つかりません" });
       }
-      
+
+      // 作業2 (defense-in-depth): 更新後の最終状態 (entry) を使って再計算・
+      // 突合する。 partial 更新で units が今回のリクエストに含まれなくても、
+      // entry には DB 上の最新値が入っているため常に正しく評価できる。
+      await checkInsulinDoseAndLog(req, entry, {
+        autoCalculated: req.body?.autoCalculated === true,
+        liveMeasurementSlot: typeof req.body?.liveMeasurementSlot === "string" ? req.body.liveMeasurementSlot : undefined,
+      });
       return res.json({ message: "記録を更新しました", entry });
     } catch (error) {
       if (error instanceof z.ZodError) {

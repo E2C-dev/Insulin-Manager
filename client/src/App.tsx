@@ -41,6 +41,8 @@ const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
 const AdminFeatureFlags = lazy(() => import("@/pages/admin/AdminFeatureFlags"));
 const AdminAuditLogs = lazy(() => import("@/pages/admin/AdminAuditLogs"));
 const AdminFeedback = lazy(() => import("@/pages/admin/AdminFeedback"));
+// Playwright の ErrorBoundary 検証専用ページ (開発環境のみ登録。本番ビルドには含まれない)
+const TestErrorBoundaryPage = lazy(() => import("@/pages/__TestErrorBoundary"));
 
 // 未認証 → LP、認証済み → Dashboard
 function HomeRoute() {
@@ -88,6 +90,11 @@ function Router() {
       <Switch>
         <Route path="/login">{() => <PageBoundary><Login /></PageBoundary>}</Route>
         <Route path="/register">{() => <PageBoundary><Register /></PageBoundary>}</Route>
+        {import.meta.env.DEV && (
+          <Route path="/__test-error-boundary">
+            {() => <PageBoundary><TestErrorBoundaryPage /></PageBoundary>}
+          </Route>
+        )}
         <Route path="/terms/:docType">{() => <PageBoundary><TermsViewer /></PageBoundary>}</Route>
         <Route path="/">{() => <PageBoundary><HomeRoute /></PageBoundary>}</Route>
         <Route path="/logbook">

@@ -2,27 +2,35 @@ import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, ArrowLeft, Activity, Info, TrendingUp, TrendingDown, Zap , Loader2} from "lucide-react";
+import { Save, Activity, Info, TrendingUp, TrendingDown, Zap , Loader2} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { InsulinPresetSelector } from "@/components/entry/InsulinPresetSelector";
 import { format, subDays } from "date-fns";
-import { safeFormat, safeParseDate, formatJstDate } from "@/lib/date-utils";
+import { safeParseDate } from "@/lib/date-utils";
+import { getTodayStr, getYesterdayStr, formatJaDate } from "@/lib/dateUtils";
 import { QUERY_KEYS } from "@/lib/query-keys";
 import {
   type InsulinTimeSlot,
   type AdjustmentRule,
-  type RuleEvaluation,
   TIME_SLOT_OPTIONS,
-  CONDITION_TYPE_MAP,
-  compareGlucose,
+  INSULIN_TIME_SLOT_LABELS,
 } from "@/lib/types";
+import {
+  type EvaluatedRule,
+  type MeasurementTimeSlot,
+  buildGlucoseLookup,
+  evaluateRules,
+  pickAppliedRules,
+  calculateAdjustedUnits,
+} from "@shared/adjustmentRuleEngine";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,7 +62,7 @@ export default function Entry() {
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<EntryFormData>({
-    date: formatJstDate(new Date()),
+    date: getTodayStr(),
     timeSlot: "",
     glucoseLevel: "",
     insulinUnits: "",
@@ -215,11 +223,11 @@ export default function Entry() {
   const isEditPrefillLoading = isEditMode && (glucoseLoading || insulinLoading);
 
   const setToday = () => {
-    setFormData(prev => ({ ...prev, date: formatJstDate(new Date()) }));
+    setFormData(prev => ({ ...prev, date: getTodayStr() }));
   };
 
   const setYesterday = () => {
-    setFormData(prev => ({ ...prev, date: format(subDays(new Date(), 1), "yyyy-MM-dd") }));
+    setFormData(prev => ({ ...prev, date: getYesterdayStr() }));
   };
 
   // POST mutations
@@ -240,7 +248,7 @@ export default function Entry() {
   });
 
   const createInsulinMutation = useMutation({
-    mutationFn: async (data: { date: string; timeSlot: string; units: string; presetId?: string; note?: string }) => {
+    mutationFn: async (data: { date: string; timeSlot: string; units: string; presetId?: string; autoCalculated?: boolean; liveMeasurementSlot?: string; note?: string }) => {
       const response = await fetch("/api/insulin-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -274,7 +282,7 @@ export default function Entry() {
   });
 
   const updateInsulinMutation = useMutation({
-    mutationFn: async (data: { id: string; units?: string; presetId?: string; note?: string }) => {
+    mutationFn: async (data: { id: string; units?: string; presetId?: string; autoCalculated?: boolean; liveMeasurementSlot?: string; note?: string }) => {
       const { id, ...body } = data;
       const response = await fetch(`/api/insulin-entries/${id}`, {
         method: "PUT",
@@ -307,7 +315,7 @@ export default function Entry() {
     setEditGlucoseId(null);
     setEditInsulinId(null);
     setFormData({
-      date: formatJstDate(new Date()),
+      date: getTodayStr(),
       timeSlot: "",
       glucoseLevel: "",
       insulinUnits: "",
@@ -362,6 +370,23 @@ export default function Entry() {
       const promises: Promise<any>[] = [];
       const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
 
+      // Codex指摘対応 (2026-07-26): サーバーのdefense-in-depthチェックが
+      // 「自動計算されたそのままの値か」を判定できるよう明示的に伝える。
+      // dirty (手入力/プリセット選択で上書き) の場合は「昨日と同じ」等と同様、
+      // ユーザーの明示的な意図によるものなのでルール再計算チェックの対象外とする。
+      const isAutoCalculated = !formData.insulinUnitsDirty && !selectedPresetId;
+      // Codexレビュー2巡目指摘対応: 手入力(dirty)でプリセット未選択の場合まで
+      // resolvedPresetIdForTiming (自動計算用に解決された先頭プリセット) を
+      // 送ってしまうと、実際には使っていないプリセットを記録に紐付けてしまう。
+      // 自動計算パスのときのみ resolvedPresetIdForTiming を使う。
+      const presetIdForSubmit = selectedPresetId ?? (isAutoCalculated ? resolvedPresetIdForTiming : null) ?? undefined;
+      // Codexレビュー3巡目指摘対応: CURRENT_SLOT_MEASUREMENT は「食前」枠に
+      // 固定されており、食後1時間枠 (BreakfastAfter1h等) を記録する際は
+      // 実際に並行POSTされる glucose の枠と一致しない。formData.timeSlot
+      // (= TIME_SLOT_OPTIONS の value = MeasurementTimeSlot そのもの) を
+      // 明示的に送り、サーバーのレース判定が正しい枠を見られるようにする。
+      const liveMeasurementSlot = formData.timeSlot || undefined;
+
       if (isEditMode) {
         // 編集モード: PUT
         if (formData.glucoseLevel && selectedOption?.glucoseSlot) {
@@ -387,7 +412,9 @@ export default function Entry() {
             promises.push(updateInsulinMutation.mutateAsync({
               id: editInsulinId,
               units: formData.insulinUnits,
-              presetId: selectedPresetId ?? undefined,
+              presetId: presetIdForSubmit,
+              autoCalculated: isAutoCalculated,
+              liveMeasurementSlot,
               note: formData.note || undefined,
             }));
           } else {
@@ -396,7 +423,9 @@ export default function Entry() {
               date: formData.date,
               timeSlot: selectedOption.insulinSlot,
               units: formData.insulinUnits,
-              presetId: selectedPresetId ?? undefined,
+              presetId: presetIdForSubmit,
+              autoCalculated: isAutoCalculated,
+              liveMeasurementSlot,
               note: formData.note || undefined,
             }));
           }
@@ -417,7 +446,9 @@ export default function Entry() {
             date: formData.date,
             timeSlot: selectedOption.insulinSlot,
             units: formData.insulinUnits,
-            presetId: selectedPresetId ?? undefined,
+            presetId: presetIdForSubmit,
+            autoCalculated: isAutoCalculated,
+            liveMeasurementSlot,
             note: formData.note || undefined,
           }));
         }
@@ -428,7 +459,7 @@ export default function Entry() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GLUCOSE_ENTRIES });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INSULIN_ENTRIES });
 
-      const dateLabel = safeFormat(formData.date, "M月d日", formData.date);
+      const dateLabel = formatJaDate(formData.date);
       const timeLabel = selectedOption?.label || "";
 
       toast({
@@ -507,11 +538,11 @@ export default function Entry() {
   };
 
   const getDateLabel = () => {
-    const today = formatJstDate(new Date());
-    const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
+    const today = getTodayStr();
+    const yesterday = getYesterdayStr();
     if (formData.date === today) return "今日";
     if (formData.date === yesterday) return "昨日";
-    return safeFormat(formData.date, "M月d日", formData.date);
+    return formatJaDate(formData.date);
   };
 
   const getTimeSlotLabel = () => {
@@ -530,10 +561,13 @@ export default function Entry() {
       Breakfast: "朝食", Lunch: "昼食", Dinner: "夕食", Bedtime: "眠前",
     };
 
-    const baseAmount = getBasalDosesFromPresets(insulinSlot);
+    const { presetId: resolvedPresetId, units: baseAmount } = getBasalDosesFromPresets(insulinSlot);
 
-    return { label: labels[insulinSlot], baseAmount, insulinSlot };
+    return { label: labels[insulinSlot], baseAmount, insulinSlot, resolvedPresetId };
   }, [formData.timeSlot, presets, getBasalDosesFromPresets]);
+  // primitiveとして抽出 (Sprint 3 S3-6の教訓: useMemoオブジェクト参照を
+  // 直接依存配列に入れると再レンダーループのリスクがあるため)。
+  const resolvedPresetIdForTiming = getInsulinTimingInfo?.resolvedPresetId ?? null;
 
   // ============================================================================
   // B-001 (S0): conditionType を考慮したルール評価
@@ -547,44 +581,30 @@ export default function Entry() {
   // の組合せで複数ルールが matched した場合は、 threshold が最も「厳しい側」の
   // 1件だけを採用する (低血糖系=「以下/未満」なら threshold 最小、 高血糖系=
   // 「以上/超える」なら threshold 最大)。 全く同一閾値の重複は最後の1件のみ採用。
+  //
+  // 2026-07 作業2: 上記ロジック本体 (CONDITION_TYPE_MAP・評価・累積制御) は
+  // server 側の defense-in-depth 再計算とも共有するため
+  // shared/adjustmentRuleEngine.ts に抽出済み。ここでは client 固有の関心事
+  // (「いま入力中のフォーム血糖値」をリアルタイム評価に優先させる glucoseLookup)
+  // だけを組み立てて共有ロジックへ渡す。
   // ============================================================================
 
-  type EvaluatedRule = {
-    rule: AdjustmentRule;
-    evaluation: RuleEvaluation;
-  };
-
-  const ruleEvaluations = useMemo<EvaluatedRule[]>(() => {
+  const ruleEvaluations = useMemo<EvaluatedRule<AdjustmentRule>[]>(() => {
     if (!formData.date || !formData.timeSlot) return [];
     if (!rulesData?.rules) return [];
 
-    const rules: AdjustmentRule[] = rulesData.rules;
+    // Codexレビュー2巡目指摘対応: 自動計算で使うプリセット (resolvedPresetId) に
+    // 紐づくルール (+ 全プリセット共通の presetId 未設定ルール) のみを対象にする。
+    // server/insulinDoseSafetyNet.ts の defense-in-depth チェックも同じ絞り込みを
+    // 行うため、ここで揃えないと「client は全ルール適用・server は絞り込み」で
+    // 期待値がズレて誤った dose_mismatch 監査ログを生む。
+    const rules: AdjustmentRule[] = rulesData.rules.filter(
+      (r: AdjustmentRule) => !r.presetId || r.presetId === resolvedPresetIdForTiming
+    );
     const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
     if (!selectedOption) return [];
 
-    const insulinTimingMap: Record<string, string> = {
-      Breakfast: "朝", Lunch: "昼", Dinner: "夕", Bedtime: "眠前",
-    };
-    const currentTiming = insulinTimingMap[selectedOption.insulinSlot];
-
-    // 1. timeSlot (= 「朝」「昼」「夕」「眠前」) で1次フィルタ。
-    //    + Codex round 3 fix: targetTimeSlot は「当日の{currentTiming}」 と
-    //    完全一致するルールのみ採用する。 「前日の朝」「当日の昼」 などの
-    //    他枠ルールが朝entry に誤適用される経路を断つ。
-    //    患者は AdjustmentRules UI で targetTimeSlot を任意に選べるため、
-    //    timeSlot と targetTimeSlot が不一致のルールも DB に存在しうる。
-    //    その場合は当該 entry の自動計算には反映せず、 UI 上「対象外」 表記。
-    const expectedTarget = `当日の${currentTiming}`;
-    const candidateRules = rules.filter(rule => {
-      if (rule.timeSlot !== currentTiming) return false;
-      // targetTimeSlot 未指定 (旧データ) は安全側で除外
-      if (!rule.targetTimeSlot) return false;
-      if (rule.targetTimeSlot !== expectedTarget) return false;
-      return true;
-    });
-
-    // 2. 各ルールの conditionType を評価
-    const baseDate = safeParseDate(formData.date, new Date());
+    const currentTiming = INSULIN_TIME_SLOT_LABELS[selectedOption.insulinSlot];
 
     // Codex round 2 review fix: 当日同枠ルールは「いま入力中のフォーム血糖値」を
     // リアルタイム評価対象にする。 これがないと「当日朝食前≤70→朝-1u」 ルールが、
@@ -594,99 +614,29 @@ export default function Entry() {
     const formGlucoseNum = formGlucoseRaw === "" ? null : parseInt(formGlucoseRaw, 10);
     const formGlucoseValid = formGlucoseNum !== null && !isNaN(formGlucoseNum);
 
-    return candidateRules.map((rule): EvaluatedRule => {
-      const cond = CONDITION_TYPE_MAP[rule.conditionType];
-      if (!cond) {
-        return { rule, evaluation: { status: "unknown_condition" } };
+    // DB から取得済みの当日・前日 glucose をまとめたフォールバック lookup。
+    const dbLookup = buildGlucoseLookup([
+      ...(todayGlucoseData ?? []),
+      ...(yesterdayGlucoseData ?? []),
+    ]);
+
+    const glucoseLookup = (date: string, slot: MeasurementTimeSlot) => {
+      // 当日同枠 (= いま入力しようとしている glucose) は、フォーム入力値を
+      // 優先的に評価対象にする。 これで DB 保存前のリアルタイム補正提案が可能。
+      if (date === formData.date && slot === formData.timeSlot && formGlucoseValid) {
+        return formGlucoseNum!;
       }
+      return dbLookup(date, slot);
+    };
 
-      const targetDate = format(
-        cond.dateOffset === -1 ? subDays(baseDate, 1) : baseDate,
-        "yyyy-MM-dd"
-      );
+    return evaluateRules(rules, currentTiming, formData.date, glucoseLookup);
+  }, [formData.date, formData.timeSlot, formData.glucoseLevel, rulesData, yesterdayGlucoseData, todayGlucoseData, resolvedPresetIdForTiming]);
 
-      // 1. 当日同枠 (= いま入力しようとしている glucose) のルールは、
-      //    フォーム入力値を優先的に評価対象にする。 これでDB保存前のリアルタイム
-      //    補正提案が可能。
-      if (
-        cond.dateOffset === 0 &&
-        cond.measurementSlot === formData.timeSlot &&
-        formGlucoseValid
-      ) {
-        const matched = compareGlucose(formGlucoseNum!, rule.threshold, rule.comparison);
-        return {
-          rule,
-          evaluation: matched
-            ? { status: "matched", observedValue: formGlucoseNum!, targetDate }
-            : { status: "not_matched", observedValue: formGlucoseNum!, targetDate },
-        };
-      }
-
-      // 2. それ以外は DB から該当日の該当 glucose を取得して評価
-      const glucoseSource = cond.dateOffset === -1 ? yesterdayGlucoseData : todayGlucoseData;
-      const measurement = (glucoseSource ?? []).find(
-        (e) => e.date === targetDate && e.timeSlot === cond.measurementSlot
-      );
-
-      if (!measurement) {
-        return {
-          rule,
-          evaluation: {
-            status: "no_data",
-            targetDate,
-            measurementSlot: cond.measurementSlot,
-          },
-        };
-      }
-
-      const matched = compareGlucose(measurement.glucoseLevel, rule.threshold, rule.comparison);
-      return {
-        rule,
-        evaluation: matched
-          ? { status: "matched", observedValue: measurement.glucoseLevel, targetDate }
-          : { status: "not_matched", observedValue: measurement.glucoseLevel, targetDate },
-      };
-    });
-  }, [formData.date, formData.timeSlot, formData.glucoseLevel, rulesData, yesterdayGlucoseData, todayGlucoseData]);
-
-  // B-004: 累積適用の制御
-  // 同一 conditionType で複数 matched があれば、 threshold の「厳しさ」で 1件採用。
-  // ※ 「同じ条件タイプの中で最も発動条件が厳しいルール」 = 患者が意図したであろう
-  // 階層構造 (70以下/60以下/50以下) のうち、 現値で適用される最も厳しいもの 1件。
-  const appliedRules = useMemo<EvaluatedRule[]>(() => {
-    const matched = ruleEvaluations.filter(r => r.evaluation.status === "matched");
-
-    // conditionType 別にグルーピング
-    const groups = new Map<string, EvaluatedRule[]>();
-    for (const ev of matched) {
-      const key = ev.rule.conditionType + "|" + (ev.rule.targetTimeSlot ?? "");
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(ev);
-    }
-
-    const picked: EvaluatedRule[] = [];
-    for (const list of Array.from(groups.values())) {
-      if (list.length === 1) {
-        picked.push(list[0]);
-        continue;
-      }
-      // 比較演算子で「厳しさ」基準が変わる
-      // 「以下」「未満」: threshold が小さいほど厳しい
-      // 「以上」「超える」: threshold が大きいほど厳しい
-      // 異なる比較が混ざる場合は単純に adjustmentAmount の絶対値が大きい方を採用
-      const sorted = [...list].sort((a, b) => {
-        const aCmp = a.rule.comparison;
-        const bCmp = b.rule.comparison;
-        const aLow = aCmp === "以下" || aCmp === "未満";
-        const bLow = bCmp === "以下" || bCmp === "未満";
-        if (aLow && bLow) return a.rule.threshold - b.rule.threshold; // 小さい方が厳しい
-        if (!aLow && !bLow) return b.rule.threshold - a.rule.threshold; // 大きい方が厳しい
-        return Math.abs(b.rule.adjustmentAmount) - Math.abs(a.rule.adjustmentAmount);
-      });
-      picked.push(sorted[0]);
-    }
-    return picked;
-  }, [ruleEvaluations]);
+  // B-004: 累積適用の制御 (shared/adjustmentRuleEngine.ts の pickAppliedRules に集約)
+  const appliedRules = useMemo<EvaluatedRule<AdjustmentRule>[]>(
+    () => pickAppliedRules(ruleEvaluations),
+    [ruleEvaluations]
+  );
 
   // 情報を表示するかどうか
   const shouldShowInfo = formData.date && formData.timeSlot;
@@ -766,8 +716,8 @@ export default function Entry() {
 
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INSULIN_ENTRIES });
 
-      const dateLabel = safeFormat(formData.date, "M月d日", formData.date);
-      const prevLabel = safeFormat(yesterdayDate, "M月d日", yesterdayDate);
+      const dateLabel = formatJaDate(formData.date);
+      const prevLabel = formatJaDate(yesterdayDate);
 
       toast({
         title: "✅ 保存成功",
@@ -812,6 +762,8 @@ export default function Entry() {
   //     の memoization に任せる (applicableRules は既に useMemo で正しく安定化済み)。
   //     既存の「直前と同値なら setState skip」ガード (BUG-001 fix) は維持。
   const timingBaseAmount = getInsulinTimingInfo?.baseAmount ?? null;
+  // 自動計算の基礎量がどのプリセット由来かは resolvedPresetIdForTiming
+  // (このコンポーネント上部で定義済み) を参照する。
 
   // B-001 fix: 自動計算は **appliedRules (= condition-aware で matched と判定された
   // ルールだけ)** を加算する。 旧実装は applicableRules (時間帯フィルタのみ) で、
@@ -843,18 +795,12 @@ export default function Entry() {
     // 編集モードで既存値 prefill 中も自動計算しない (上書きリスク)
     if (isEditPrefillLoading) return;
 
-    let calculatedInsulin = timingBaseAmount;
-
-    // 条件評価できたルール (matched) のみ加算する。 not_matched / no_data /
-    // unknown_condition は決して加算しない (B-001 / 医療安全の中核)。
-    for (const ev of appliedRules) {
-      calculatedInsulin += ev.rule.adjustmentAmount;
-    }
-
-    // 上限ガード: 0 〜 100 単位にクランプ (schema 上限と一致させる)。
-    // 100 を上限としたのは zod validation (insertInsulinEntrySchema) と
-    // 整合させるため。 上限近辺は B-005 桁ミス警告で別途確認する。
-    const finalInsulin = Math.max(0, Math.min(100, calculatedInsulin));
+    // 条件評価できたルール (matched のうち累積制御を通過したもの) のみ加算する。
+    // not_matched / no_data / unknown_condition は決して加算しない
+    // (B-001 / 医療安全の中核)。上限ガード (0〜100単位、zod validation
+    // insertInsulinEntrySchema と整合) は shared/adjustmentRuleEngine.ts の
+    // calculateAdjustedUnits に集約済み。上限近辺は B-005 桁ミス警告で別途確認する。
+    const finalInsulin = calculateAdjustedUnits(timingBaseAmount, appliedRules);
     setFormData(prev => {
       // 直前と同値なら setState せず、無限ループ気味の再レンダーも防ぐ。
       const next = finalInsulin.toString();
@@ -874,25 +820,11 @@ export default function Entry() {
   return (
     <AppLayout>
       <div className="pt-6 px-6 pb-6 space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            data-testid="button-back"
-            onClick={() => setLocation("/logbook")}
-            className="p-2.5"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight mb-1">
-              {isEditMode ? "記録編集" : "記録入力"}
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              {isEditMode ? "既存の記録を編集" : "3ステップで簡単に記録"}
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title={isEditMode ? "記録編集" : "記録入力"}
+          subtitle={isEditMode ? "既存の記録を編集" : "3ステップで簡単に記録"}
+          onBack={() => setLocation("/logbook")}
+        />
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Step 1: 日付選択 */}
@@ -908,7 +840,7 @@ export default function Entry() {
                 <div className="flex gap-2">
                   <Button
                     type="button"
-                    variant={formData.date === format(subDays(new Date(), 1), "yyyy-MM-dd") ? "default" : "outline"}
+                    variant={formData.date === getYesterdayStr() ? "default" : "outline"}
                     size="sm"
                     onClick={setYesterday}
                     data-testid="button-yesterday"
@@ -917,7 +849,7 @@ export default function Entry() {
                   </Button>
                   <Button
                     type="button"
-                    variant={formData.date === formatJstDate(new Date()) ? "default" : "outline"}
+                    variant={formData.date === getTodayStr() ? "default" : "outline"}
                     size="sm"
                     onClick={setToday}
                     data-testid="button-today"

@@ -7,3 +7,12 @@ vite.config.ts.*
 
 # Replit: Claude Code のユーザー設定・プラグインキャッシュ（永続化用、コミットしない）
 .claude-user
+
+# ローカル開発用環境変数（コミットしない）
+.env
+
+# Playwright 実行結果 (作業3, ローカル/CI実行の都度生成される)
+/test-results/
+/playwright-report/
+/blob-report/
+

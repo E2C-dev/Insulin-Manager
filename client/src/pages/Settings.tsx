@@ -27,6 +27,13 @@ import {
   type InsulinBrandOption,
   type InsulinPreset,
 } from "@/lib/types";
+import {
+  getUserGlucoseRange,
+  saveUserGlucoseRange,
+  DEFAULT_GLUCOSE_RANGE,
+  GLUCOSE_DANGER_LOW,
+  GLUCOSE_DANGER_HIGH,
+} from "@/lib/glucoseStatus";
 
 // 病名の選択肢
 const DISEASE_OPTIONS = [
@@ -61,6 +68,10 @@ export default function Settings() {
   const [diseaseType, setDiseaseType] = useState("type1");
   const [diagnosisYear, setDiagnosisYear] = useState(new Date().getFullYear().toString());
 
+  // 血糖値の目標範囲 (作業5-1: glucoseStatus.ts に統合した色分けロジックに反映される)
+  const [targetGlucoseLow, setTargetGlucoseLow] = useState(String(DEFAULT_GLUCOSE_RANGE.low));
+  const [targetGlucoseHigh, setTargetGlucoseHigh] = useState(String(DEFAULT_GLUCOSE_RANGE.high));
+
   // インスリン追加用state
   const [selectedBrandForAdd, setSelectedBrandForAdd] = useState<{
     category: InsulinCategory;
@@ -86,6 +97,10 @@ export default function Settings() {
     const savedYear = safeGetLocalStorage("diagnosisYear");
     if (savedDisease) setDiseaseType(savedDisease);
     if (savedYear) setDiagnosisYear(savedYear);
+
+    const savedRange = getUserGlucoseRange();
+    setTargetGlucoseLow(String(savedRange.low));
+    setTargetGlucoseHigh(String(savedRange.high));
   }, []);
 
   // 症状設定の保存
@@ -94,6 +109,19 @@ export default function Settings() {
     try {
       safeSetLocalStorageString("diseaseType", diseaseType);
       safeSetLocalStorageString("diagnosisYear", diagnosisYear);
+
+      const low = parseInt(targetGlucoseLow, 10);
+      const high = parseInt(targetGlucoseHigh, 10);
+      if (!Number.isNaN(low) && !Number.isNaN(high) && low < high) {
+        saveUserGlucoseRange({ low, high });
+      } else {
+        toast({
+          title: "目標範囲を確認してください",
+          description: "下限は上限より小さい数値で入力してください（症状情報自体は保存しました）",
+          variant: "destructive",
+        });
+      }
+
       toast({ title: "保存成功", description: "症状情報を保存しました" });
     } catch {
       toast({ title: "保存失敗", description: "症状情報の保存に失敗しました", variant: "destructive" });
@@ -205,6 +233,35 @@ export default function Settings() {
                   placeholder="2018"
                 />
                 <span className="text-sm text-muted-foreground">年</span>
+              </div>
+            </div>
+
+            {/* 血糖値の目標範囲 */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">血糖値の目標範囲 (mg/dL)</Label>
+              <p className="text-xs text-muted-foreground">
+                記録一覧・ホーム画面の色分け表示に使われます（70未満/180超は常に危険域として赤・オレンジ表示されます）
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  value={targetGlucoseLow}
+                  onChange={(e) => setTargetGlucoseLow(e.target.value)}
+                  className="h-9 text-sm max-w-[100px]"
+                  min={GLUCOSE_DANGER_LOW}
+                  max={GLUCOSE_DANGER_HIGH}
+                  aria-label="目標範囲の下限"
+                />
+                <span className="text-sm text-muted-foreground">〜</span>
+                <Input
+                  type="number"
+                  value={targetGlucoseHigh}
+                  onChange={(e) => setTargetGlucoseHigh(e.target.value)}
+                  className="h-9 text-sm max-w-[100px]"
+                  min={GLUCOSE_DANGER_LOW}
+                  max={GLUCOSE_DANGER_HIGH}
+                  aria-label="目標範囲の上限"
+                />
               </div>
             </div>
 

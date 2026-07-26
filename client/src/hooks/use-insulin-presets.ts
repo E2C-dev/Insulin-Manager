@@ -77,14 +77,19 @@ export function useInsulinPresets() {
   // 関数参照が毎レンダー変わると useMemo が常に再計算 → さらに自動計算 useEffect
   // が無限ループ気味に発火し setState → Maximum update depth exceeded で
   // ホワイトアウトする原因になる (B-001 根本原因 B)。
+  // Codex指摘対応 (2026-07-26): 戻り値に presetId を含める。
+  // 従来は units のみ返していたため、自動計算 (Entry.tsx の useEffect) で
+  // 決まった基礎量がどのプリセット由来かクライアントが把握できず、
+  // server/insulinDoseSafetyNet.ts の defense-in-depth チェックが
+  // presetId 未送信を理由に自動計算パスを一切検証できていなかった。
   const getBasalDosesFromPresets = useCallback(
-    (slot: InsulinTimeSlot): number => {
+    (slot: InsulinTimeSlot): { presetId: string | null; units: number } => {
       for (const preset of presets) {
         const units = getPresetDefaultUnits(preset, slot);
-        if (units !== null) return units;
+        if (units !== null) return { presetId: preset.id, units };
       }
       const stored = safeParseLocalStorage<Record<string, number>>("basalInsulinDoses", {});
-      return stored[slot] ?? 0;
+      return { presetId: null, units: stored[slot] ?? 0 };
     },
     [presets]
   );
