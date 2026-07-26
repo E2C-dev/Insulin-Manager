@@ -13,7 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { InsulinPresetSelector } from "@/components/entry/InsulinPresetSelector";
 import { format, subDays } from "date-fns";
-import { safeFormat, safeParseDate, formatJstDate } from "@/lib/date-utils";
+import { safeParseDate } from "@/lib/date-utils";
+import { getTodayStr, getYesterdayStr, formatJaDate } from "@/lib/dateUtils";
 import { QUERY_KEYS } from "@/lib/query-keys";
 import {
   type InsulinTimeSlot,
@@ -60,7 +61,7 @@ export default function Entry() {
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<EntryFormData>({
-    date: formatJstDate(new Date()),
+    date: getTodayStr(),
     timeSlot: "",
     glucoseLevel: "",
     insulinUnits: "",
@@ -221,11 +222,11 @@ export default function Entry() {
   const isEditPrefillLoading = isEditMode && (glucoseLoading || insulinLoading);
 
   const setToday = () => {
-    setFormData(prev => ({ ...prev, date: formatJstDate(new Date()) }));
+    setFormData(prev => ({ ...prev, date: getTodayStr() }));
   };
 
   const setYesterday = () => {
-    setFormData(prev => ({ ...prev, date: format(subDays(new Date(), 1), "yyyy-MM-dd") }));
+    setFormData(prev => ({ ...prev, date: getYesterdayStr() }));
   };
 
   // POST mutations
@@ -313,7 +314,7 @@ export default function Entry() {
     setEditGlucoseId(null);
     setEditInsulinId(null);
     setFormData({
-      date: formatJstDate(new Date()),
+      date: getTodayStr(),
       timeSlot: "",
       glucoseLevel: "",
       insulinUnits: "",
@@ -434,7 +435,7 @@ export default function Entry() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GLUCOSE_ENTRIES });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INSULIN_ENTRIES });
 
-      const dateLabel = safeFormat(formData.date, "M月d日", formData.date);
+      const dateLabel = formatJaDate(formData.date);
       const timeLabel = selectedOption?.label || "";
 
       toast({
@@ -513,11 +514,11 @@ export default function Entry() {
   };
 
   const getDateLabel = () => {
-    const today = formatJstDate(new Date());
-    const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
+    const today = getTodayStr();
+    const yesterday = getYesterdayStr();
     if (formData.date === today) return "今日";
     if (formData.date === yesterday) return "昨日";
-    return safeFormat(formData.date, "M月d日", formData.date);
+    return formatJaDate(formData.date);
   };
 
   const getTimeSlotLabel = () => {
@@ -681,8 +682,8 @@ export default function Entry() {
 
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INSULIN_ENTRIES });
 
-      const dateLabel = safeFormat(formData.date, "M月d日", formData.date);
-      const prevLabel = safeFormat(yesterdayDate, "M月d日", yesterdayDate);
+      const dateLabel = formatJaDate(formData.date);
+      const prevLabel = formatJaDate(yesterdayDate);
 
       toast({
         title: "✅ 保存成功",
@@ -817,7 +818,7 @@ export default function Entry() {
                 <div className="flex gap-2">
                   <Button
                     type="button"
-                    variant={formData.date === format(subDays(new Date(), 1), "yyyy-MM-dd") ? "default" : "outline"}
+                    variant={formData.date === getYesterdayStr() ? "default" : "outline"}
                     size="sm"
                     onClick={setYesterday}
                     data-testid="button-yesterday"
@@ -826,7 +827,7 @@ export default function Entry() {
                   </Button>
                   <Button
                     type="button"
-                    variant={formData.date === formatJstDate(new Date()) ? "default" : "outline"}
+                    variant={formData.date === getTodayStr() ? "default" : "outline"}
                     size="sm"
                     onClick={setToday}
                     data-testid="button-today"
