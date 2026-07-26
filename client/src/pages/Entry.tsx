@@ -2,13 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, ArrowLeft, Activity, Info, TrendingUp, TrendingDown, Zap , Loader2} from "lucide-react";
+import { Save, Activity, Info, TrendingUp, TrendingDown, Zap , Loader2} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { InsulinPresetSelector } from "@/components/entry/InsulinPresetSelector";
@@ -784,25 +785,11 @@ export default function Entry() {
   return (
     <AppLayout>
       <div className="pt-6 px-6 pb-6 space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            data-testid="button-back"
-            onClick={() => setLocation("/logbook")}
-            className="p-2.5"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight mb-1">
-              {isEditMode ? "記録編集" : "記録入力"}
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              {isEditMode ? "既存の記録を編集" : "3ステップで簡単に記録"}
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title={isEditMode ? "記録編集" : "記録入力"}
+          subtitle={isEditMode ? "既存の記録を編集" : "3ステップで簡単に記録"}
+          onBack={() => setLocation("/logbook")}
+        />
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Step 1: 日付選択 */}

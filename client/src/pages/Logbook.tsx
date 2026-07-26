@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { AdBanner } from "@/components/AdBanner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -379,21 +380,18 @@ export default function Logbook() {
   return (
     <AppLayout>
       <div className="pt-6 px-6 pb-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight mb-2">記録ノート</h1>
-            <p className="text-muted-foreground text-sm">
-              日々の血糖値とインスリン記録
-            </p>
-          </div>
-
-          <Link href="/entry" data-testid="link-new-entry">
-            <Button size="lg" className="shadow-lg" data-testid="button-new-entry">
-              <Plus className="w-5 h-5 mr-2" />
-              新規記録
-            </Button>
-          </Link>
-        </div>
+        <PageHeader
+          title="記録ノート"
+          subtitle="日々の血糖値とインスリン記録"
+          action={
+            <Link href="/entry" data-testid="link-new-entry">
+              <Button size="lg" className="shadow-lg" data-testid="button-new-entry">
+                <Plus className="w-5 h-5 mr-2" />
+                新規記録
+              </Button>
+            </Link>
+          }
+        />
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex gap-2">

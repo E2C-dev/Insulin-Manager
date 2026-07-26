@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { AdBanner } from "@/components/AdBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, TrendingUp, BookOpen, Flame, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
@@ -106,12 +107,7 @@ export default function Dashboard() {
       <div className="pt-3 px-3 pb-3 space-y-2.5">
 
         {/* ヘッダー：挨拶 + 日付 */}
-        <div>
-          <p className="text-xs text-muted-foreground">{getGreeting()}</p>
-          <h1 className="text-lg font-bold tracking-tight">
-            {format(new Date(), "M月d日 (E)", { locale: ja })}
-          </h1>
-        </div>
+        <PageHeader eyebrow={getGreeting()} title={format(new Date(), "M月d日 (E)", { locale: ja })} size="compact" />
 
         {/* 低血糖アラート */}
         {lowGlucoseToday && (

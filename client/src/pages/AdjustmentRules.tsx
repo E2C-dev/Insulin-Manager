@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { AdBanner } from "@/components/AdBanner";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { Button } from "@/components/ui/button";
@@ -448,14 +449,10 @@ export default function AdjustmentRules() {
   return (
     <AppLayout>
       <div className="pt-6 px-6 pb-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight mb-2">調整ルール管理</h1>
-            <p className="text-muted-foreground text-sm">
-              血糖値に基づいたインスリン調整ルールを設定
-            </p>
-          </div>
-          
+        <PageHeader
+          title="調整ルール管理"
+          subtitle="血糖値に基づいたインスリン調整ルールを設定"
+          action={
           <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
             <DialogTrigger asChild>
               <Button size="lg" className="shadow-lg" onClick={handleOpenDialog}>
@@ -791,7 +788,8 @@ export default function AdjustmentRules() {
               )}
             </DialogContent>
           </Dialog>
-        </div>
+          }
+        />
 
         {/* インスリン別フィルターバナー */}
         {filterPreset && (
