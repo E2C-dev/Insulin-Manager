@@ -1,4 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useLocation } from "wouter";
 import { QUERY_KEYS } from "@/lib/query-keys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,15 +12,38 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useApiError } from "@/hooks/use-api-error";
 import { Spinner } from "@/components/ui/spinner";
+
+/**
+ * 作業5-5: react-hook-form + zod への移行の試験導入 (1ページ目)。
+ * バリデーションは resolver に一本化し、コンポーネント側の手動 useState
+ * (username/password) と個別の required チェックを廃止する。
+ * 併せて作業5-4: 大量のデバッグ用 console.log を整理し、useApiError に統一。
+ * 他ページへの展開方針は完了報告を参照。
+ */
+const loginSchema = z.object({
+  username: z.string().min(1, "ユーザー名を入力してください"),
+  password: z.string().min(1, "パスワードを入力してください"),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { reportError } = useApiError();
   const { isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { username: "", password: "" },
+  });
 
   // 既にログインしている場合はホームへリダイレクト
   useEffect(() => {
@@ -27,76 +53,35 @@ export default function Login() {
   }, [isAuthenticated, isLoading, setLocation]);
 
   const loginMutation = useMutation({
-    mutationFn: async (credentials: { username: string; password: string }) => {
-      console.log("=== ログインAPI呼び出し開始 ===");
-      console.log("ユーザー名:", credentials.username);
-      
+    mutationFn: async (credentials: LoginFormValues) => {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials),
+        credentials: "include",
+      });
+
+      const text = await response.text();
+      let data: { message?: string } = {};
       try {
-        const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(credentials),
-          credentials: "include",
-        });
-
-        console.log("レスポンスステータス:", response.status, response.statusText);
-
-        const text = await response.text();
-        console.log("レスポンスボディ:", text);
-        
-        let data;
-        
-        try {
-          data = text ? JSON.parse(text) : {};
-          console.log("パースされたデータ:", data);
-        } catch (error) {
-          console.error("❌ JSONパースエラー:", error);
-          console.error("パースできなかったテキスト:", text);
-          throw new Error("サーバーからの応答が不正です: " + text.substring(0, 100));
-        }
-
-        if (!response.ok) {
-          let errorMessage = data.message || "ログインに失敗しました";
-          
-          // ステータスコード別の詳細メッセージ
-          if (response.status === 404) {
-            errorMessage = "ログインAPIが見つかりません。サーバーが正しく起動しているか確認してください。";
-            console.error("❌ 404エラー: /api/auth/login エンドポイントが見つかりません");
-          } else if (response.status === 401) {
-            errorMessage = data.message || "ユーザー名またはパスワードが正しくありません";
-          } else if (response.status === 500) {
-            errorMessage = data.message || "サーバーエラーが発生しました";
-          } else {
-            errorMessage = `${errorMessage} (HTTPステータス: ${response.status} ${response.statusText})`;
-          }
-          
-          console.error("❌ ログイン失敗:");
-          console.error("  ステータス:", response.status, response.statusText);
-          console.error("  メッセージ:", errorMessage);
-          console.error("  URL:", response.url);
-          throw new Error(errorMessage);
-        }
-
-        console.log("✅ ログイン成功:", data);
-        return data;
-      } catch (error) {
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-          console.error("❌ ネットワークエラー: サーバーに接続できません");
-          console.error("  サーバーが起動しているか確認してください");
-          console.error("  URL: /api/auth/login");
-          throw new Error("サーバーに接続できません。サーバーが起動しているか確認してください。");
-        }
-        console.error("❌ 予期しないエラー:", error);
-        console.error("  エラータイプ:", error instanceof Error ? error.constructor.name : typeof error);
-        if (error instanceof Error) {
-          console.error("  エラーメッセージ:", error.message);
-          console.error("  スタックトレース:", error.stack);
-        }
-        throw error;
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error("サーバーからの応答が不正です: " + text.substring(0, 100));
       }
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("ログインAPIが見つかりません。サーバーが正しく起動しているか確認してください。");
+        }
+        if (response.status === 401) {
+          throw new Error(data.message || "ユーザー名またはパスワードが正しくありません");
+        }
+        throw new Error(data.message || `ログインに失敗しました (HTTPステータス: ${response.status})`);
+      }
+
+      return data;
     },
     onSuccess: (data) => {
-      console.log("✅ ログイン成功コールバック:", data);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USER_PROFILE });
       toast({
         title: "✅ ログイン成功",
@@ -105,20 +90,12 @@ export default function Login() {
       setLocation("/");
     },
     onError: (error: Error) => {
-      console.error("❌ ログイン失敗コールバック:", error);
-      toast({
-        title: "❌ ログイン失敗",
-        description: error.message,
-        variant: "destructive",
-      });
+      reportError(error, { title: "❌ ログイン失敗", logPrefix: "[Login] ログイン失敗" });
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("=== ログインフォーム送信 ===");
-    console.log("ユーザー名:", username);
-    loginMutation.mutate({ username, password });
+  const onSubmit = (values: LoginFormValues) => {
+    loginMutation.mutate(values);
   };
 
   // 認証チェック中
@@ -139,7 +116,7 @@ export default function Login() {
             アカウントにログインしてください
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
             {loginMutation.isError && (
               <Alert variant="destructive">
@@ -148,34 +125,44 @@ export default function Login() {
                 </AlertDescription>
               </Alert>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="username">ユーザー名</Label>
               <Input
                 id="username"
                 type="text"
                 placeholder="ユーザー名を入力"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
                 disabled={loginMutation.isPending}
+                aria-invalid={!!errors.username}
+                aria-describedby={errors.username ? "username-error" : undefined}
+                {...register("username")}
               />
+              {errors.username && (
+                <p id="username-error" role="alert" className="text-xs text-destructive">
+                  {errors.username.message}
+                </p>
+              )}
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">パスワード</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="パスワードを入力"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
                 disabled={loginMutation.isPending}
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? "password-error" : undefined}
+                {...register("password")}
               />
+              {errors.password && (
+                <p id="password-error" role="alert" className="text-xs text-destructive">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex flex-col space-y-4">
             <Button
               type="submit"
@@ -184,7 +171,7 @@ export default function Login() {
             >
               {loginMutation.isPending ? "ログイン中..." : "ログイン"}
             </Button>
-            
+
             <div className="text-sm text-center text-gray-600 dark:text-gray-400">
               アカウントをお持ちでない方は{" "}
               <button
@@ -201,4 +188,3 @@ export default function Login() {
     </div>
   );
 }
-
