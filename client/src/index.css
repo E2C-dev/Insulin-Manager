@@ -178,6 +178,33 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /*
+   * モバイル向けビューポート高さ (作業4, 2026-07)
+   *
+   * 段階的フォールバック (progressive enhancement):
+   *   1. vh   … 古い Safari (iOS 15.3 以前は svh/dvh 未対応で宣言ごと無視される)
+   *              向けの最低限のフォールバック。iOS Safari の「100vh がアドレス
+   *              バー分はみ出す」既知の問題はあるが、無指定 (0扱い) よりは安全。
+   *   2. svh  … このアプリが Sprint 1 から採用している既定値。アドレスバーの
+   *              表示/非表示で値が変わらない「最小」ビューポート高。固定下部
+   *              ナビ (AppLayout.tsx) がスクロール中にガタつかない安定性を優先。
+   *   3. dvh  … 実際に見えているビューポートに追随する動的な値。dvh 対応ブラウザ
+   *              では最終的にこれが採用される (progressive enhancement)。
+   *
+   * CSS のカスケードにより、後から書いた宣言のうち「ブラウザが解釈できたもの」
+   * が最終的に適用される (未対応の値は丸ごと無視される)。
+   */
+  .min-h-app-shell {
+    min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
+  .max-h-mobile-dialog {
+    max-height: 90vh;
+    max-height: 90svh;
+    max-height: 90dvh;
+  }
 }
 
 /* Z-index management for Radix UI components */

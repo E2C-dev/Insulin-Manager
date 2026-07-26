@@ -90,7 +90,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   ];
 
   return (
-    <div className="min-h-[100svh] bg-background flex flex-col font-sans max-w-md mx-auto shadow-2xl overflow-hidden border-x border-border">
+    <div className="min-h-app-shell bg-background flex flex-col font-sans max-w-md mx-auto shadow-2xl overflow-hidden border-x border-border">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white dark:bg-background border-b border-border">
         <div className="flex items-center justify-between px-3 py-2">

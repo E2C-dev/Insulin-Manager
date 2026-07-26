@@ -463,7 +463,7 @@ export default function AdjustmentRules() {
                 新規ルール
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto z-50">
+            <DialogContent className="max-w-lg max-h-mobile-dialog overflow-y-auto z-50">
               <DialogHeader>
                 <DialogTitle>
                   {editingRule ? "ルールを編集" : "新しいルールを作成"}
