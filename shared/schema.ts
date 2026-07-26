@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, date, decimal, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, date, decimal, boolean, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -80,7 +80,14 @@ export const insulinEntries = pgTable("insulin_entries", {
   note: text("note"), // メモ
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+}, (table) => ([
+  // B-002 (migrations/0007で本番適用済み)。db:pushでの意図しないDROPを防ぐため必ずschema側にも反映する。
+  // 注意: createInsulinEntry (server/storage.ts) は現状 userId+date+timeSlot のみでexisting行を検索し
+  // 見つかれば upsert するため、同一枠での複数preset(分割注射)は実質サポートされていない(既知の制限、今回のスコープ外)。
+  unique("insulin_entries_user_date_slot_preset_unique")
+    .on(table.userId, table.date, table.timeSlot, table.presetId)
+    .nullsNotDistinct(),
+]));
 
 // 血糖値測定記録テーブル
 export const glucoseEntries = pgTable("glucose_entries", {
@@ -92,7 +99,10 @@ export const glucoseEntries = pgTable("glucose_entries", {
   note: text("note"), // メモ
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+}, (table) => ([
+  // BUG-011 (migrations/0006で本番適用済み)。db:pushでの意図しないDROPを防ぐため必ずschema側にも反映する。
+  unique("glucose_entries_user_date_slot_unique").on(table.userId, table.date, table.timeSlot),
+]));
 
 export const insertInsulinPresetSchema = createInsertSchema(insulinPresets, {
   name: z.string().min(1, "名前を入力してください").max(50, "名前は50文字以内で入力してください"),
