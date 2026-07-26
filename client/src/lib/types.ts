@@ -265,6 +265,9 @@ export interface AdjustmentRule {
   comparison: string;
   adjustmentAmount: number;
   targetTimeSlot: string;
+  // このルールが対象とするインスリンプリセット (省略可 = 全プリセット共通)。
+  // Entry.tsx の自動計算がプリセットごとにルールを絞り込むために参照する。
+  presetId?: string | null;
 }
 
 // 1日分の集計表示用（LogbookとSettings/PDF共通）

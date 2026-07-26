@@ -375,7 +375,11 @@ export default function Entry() {
       // dirty (手入力/プリセット選択で上書き) の場合は「昨日と同じ」等と同様、
       // ユーザーの明示的な意図によるものなのでルール再計算チェックの対象外とする。
       const isAutoCalculated = !formData.insulinUnitsDirty && !selectedPresetId;
-      const presetIdForSubmit = selectedPresetId ?? timingResolvedPresetId ?? undefined;
+      // Codexレビュー2巡目指摘対応: 手入力(dirty)でプリセット未選択の場合まで
+      // resolvedPresetIdForTiming (自動計算用に解決された先頭プリセット) を
+      // 送ってしまうと、実際には使っていないプリセットを記録に紐付けてしまう。
+      // 自動計算パスのときのみ resolvedPresetIdForTiming を使う。
+      const presetIdForSubmit = selectedPresetId ?? (isAutoCalculated ? resolvedPresetIdForTiming : null) ?? undefined;
 
       if (isEditMode) {
         // 編集モード: PUT
@@ -552,6 +556,9 @@ export default function Entry() {
 
     return { label: labels[insulinSlot], baseAmount, insulinSlot, resolvedPresetId };
   }, [formData.timeSlot, presets, getBasalDosesFromPresets]);
+  // primitiveとして抽出 (Sprint 3 S3-6の教訓: useMemoオブジェクト参照を
+  // 直接依存配列に入れると再レンダーループのリスクがあるため)。
+  const resolvedPresetIdForTiming = getInsulinTimingInfo?.resolvedPresetId ?? null;
 
   // ============================================================================
   // B-001 (S0): conditionType を考慮したルール評価
@@ -577,7 +584,14 @@ export default function Entry() {
     if (!formData.date || !formData.timeSlot) return [];
     if (!rulesData?.rules) return [];
 
-    const rules: AdjustmentRule[] = rulesData.rules;
+    // Codexレビュー2巡目指摘対応: 自動計算で使うプリセット (resolvedPresetId) に
+    // 紐づくルール (+ 全プリセット共通の presetId 未設定ルール) のみを対象にする。
+    // server/insulinDoseSafetyNet.ts の defense-in-depth チェックも同じ絞り込みを
+    // 行うため、ここで揃えないと「client は全ルール適用・server は絞り込み」で
+    // 期待値がズレて誤った dose_mismatch 監査ログを生む。
+    const rules: AdjustmentRule[] = rulesData.rules.filter(
+      (r: AdjustmentRule) => !r.presetId || r.presetId === resolvedPresetIdForTiming
+    );
     const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
     if (!selectedOption) return [];
 
@@ -607,7 +621,7 @@ export default function Entry() {
     };
 
     return evaluateRules(rules, currentTiming, formData.date, glucoseLookup);
-  }, [formData.date, formData.timeSlot, formData.glucoseLevel, rulesData, yesterdayGlucoseData, todayGlucoseData]);
+  }, [formData.date, formData.timeSlot, formData.glucoseLevel, rulesData, yesterdayGlucoseData, todayGlucoseData, resolvedPresetIdForTiming]);
 
   // B-004: 累積適用の制御 (shared/adjustmentRuleEngine.ts の pickAppliedRules に集約)
   const appliedRules = useMemo<EvaluatedRule<AdjustmentRule>[]>(
@@ -739,9 +753,8 @@ export default function Entry() {
   //     の memoization に任せる (applicableRules は既に useMemo で正しく安定化済み)。
   //     既存の「直前と同値なら setState skip」ガード (BUG-001 fix) は維持。
   const timingBaseAmount = getInsulinTimingInfo?.baseAmount ?? null;
-  // Codex指摘対応: 自動計算の基礎量がどのプリセット由来かをサーバーへ伝える
-  // (server/insulinDoseSafetyNet.ts の defense-in-depth チェックで使用)。
-  const timingResolvedPresetId = getInsulinTimingInfo?.resolvedPresetId ?? null;
+  // 自動計算の基礎量がどのプリセット由来かは resolvedPresetIdForTiming
+  // (このコンポーネント上部で定義済み) を参照する。
 
   // B-001 fix: 自動計算は **appliedRules (= condition-aware で matched と判定された
   // ルールだけ)** を加算する。 旧実装は applicableRules (時間帯フィルタのみ) で、

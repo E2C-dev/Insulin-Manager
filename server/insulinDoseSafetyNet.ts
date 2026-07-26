@@ -8,6 +8,7 @@ import {
   evaluateRules,
   getPresetBaseUnits,
   pickAppliedRules,
+  CONDITION_TYPE_MAP,
   CURRENT_SLOT_MEASUREMENT,
   INSULIN_TIMING_LABELS,
   type InsulinTimingSlot,
@@ -97,8 +98,9 @@ export async function checkInsulinDoseAndLog(
     const allRules = await storage.getAdjustmentRules(entry.userId);
     // このプリセット専用のルール、またはプリセット指定なし(全プリセット共通)の
     // ルールのみを対象にする。他プリセット専用ルールを誤って適用しない。
+    // (rules が空でも「ルール適用なし = baseAmount のまま」を検証できるよう、
+    // ここでは early return しない — Codexレビュー2巡目指摘対応)
     const rules = allRules.filter((r) => !r.presetId || r.presetId === entry.presetId);
-    if (rules.length === 0) return; // ルールがなければ乖離しようがない
 
     const todayStr = entry.date;
     const yesterdayStr = format(subDays(new Date(`${todayStr}T00:00:00`), 1), "yyyy-MM-dd");
@@ -107,17 +109,25 @@ export async function checkInsulinDoseAndLog(
 
     const evaluations = evaluateRules(rules, currentTimingLabel, todayStr, glucoseLookup);
 
-    // 「当日同枠」ルールが no_data の場合、client のリアルタイム入力と
-    // レースしている可能性があり比較不能 (inconclusive) → 何も記録しない。
-    // targetDate も entry.date と一致する場合に限定する (無関係な過去日の
-    // 未入力データで判定全体を inconclusive にしないため)。
+    // 「当日同枠」(= client がいま入力中のフォーム値をリアルタイム評価に
+    // 使っている可能性がある枠) を対象とする評価が1件でもあれば、
+    // status が no_data / matched / not_matched のいずれであっても
+    // inconclusive にする (Codexレビュー2巡目指摘: glucose と insulin は
+    // 別APIとしてPromise.allで並行送信されるため、この安全ネットが読む
+    // glucose 値が「これから上書きされる古い値」である可能性があり、
+    // no_data 以外でも比較不能になりうる)。
     const liveOverrideSlot = CURRENT_SLOT_MEASUREMENT[slot];
-    const inconclusive = evaluations.some(
-      (ev) =>
-        ev.evaluation.status === "no_data" &&
-        ev.evaluation.measurementSlot === liveOverrideSlot &&
+    const inconclusive = evaluations.some((ev) => {
+      if (ev.evaluation.status === "unknown_condition") return false;
+      // measurementSlot は評価対象ルールの conditionType から引く
+      // (evaluation.measurementSlot は no_data ステータスにしか存在しないため、
+      // matched/not_matched も含めて判定するには rule 側から見る必要がある)。
+      const cond = CONDITION_TYPE_MAP[ev.rule.conditionType];
+      return (
+        cond?.measurementSlot === liveOverrideSlot &&
         ev.evaluation.targetDate === entry.date
-    );
+      );
+    });
     if (inconclusive) return;
 
     const applied = pickAppliedRules(evaluations);
