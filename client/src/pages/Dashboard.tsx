@@ -6,7 +6,8 @@ import { Activity, TrendingUp, BookOpen, Flame, AlertTriangle, CheckCircle2, Cir
 import { format, subDays } from "date-fns";
 import { safeFormat, formatJstDate } from "@/lib/date-utils";
 import { ja } from "date-fns/locale";
-import { type ApiGlucoseEntry, type ApiInsulinEntry, getGlucoseBasicColor } from "@/lib/types";
+import { type ApiGlucoseEntry, type ApiInsulinEntry } from "@/lib/types";
+import { getGlucoseStatusColorClass, getGlucoseStatusLabel, getDayDotColorClass } from "@/lib/glucoseStatus";
 import { QUERY_KEYS } from "@/lib/query-keys";
 
 // 時間帯に応じた挨拶
@@ -15,16 +16,6 @@ function getGreeting(): string {
   if (hour < 10) return "おはようございます";
   if (hour < 17) return "こんにちは";
   return "こんばんは";
-}
-
-// 7日間カレンダーの日付ドットの色を決定
-function getDayDotStyle(hasRecord: boolean, avgGlucose: number | null, isToday: boolean): string {
-  const ring = isToday ? "ring-2 ring-primary ring-offset-1 " : "";
-  if (!hasRecord) return ring + "bg-muted text-muted-foreground";
-  if (avgGlucose === null) return ring + "bg-primary text-primary-foreground";
-  if (avgGlucose < 70) return ring + "bg-red-500 text-white";
-  if (avgGlucose > 180) return ring + "bg-orange-400 text-white";
-  return ring + "bg-green-500 text-white";
 }
 
 export default function Dashboard() {
@@ -198,11 +189,15 @@ export default function Dashboard() {
                 <div className="text-2xl font-bold text-muted-foreground">...</div>
               ) : latestGlucose !== null ? (
                 <>
-                  <div className={`text-2xl font-bold ${getGlucoseBasicColor(latestGlucose)}`}>
+                  <div className={`text-2xl font-bold ${getGlucoseStatusColorClass(latestGlucose)}`}>
                     {latestGlucose}
                   </div>
-                  {latestGlucose < 70 && <span className="text-xs font-semibold text-red-600">低</span>}
-                  {latestGlucose > 180 && <span className="text-xs font-semibold text-orange-500">高</span>}
+                  {getGlucoseStatusLabel(latestGlucose) === "低" && (
+                    <span className="text-xs font-semibold text-red-600">低</span>
+                  )}
+                  {getGlucoseStatusLabel(latestGlucose) === "高" && (
+                    <span className="text-xs font-semibold text-orange-500">高</span>
+                  )}
                   <p className="text-xs text-muted-foreground">mg/dL</p>
                 </>
               ) : (
@@ -224,11 +219,15 @@ export default function Dashboard() {
                 <div className="text-2xl font-bold text-muted-foreground">...</div>
               ) : avgGlucose !== null ? (
                 <>
-                  <div className={`text-2xl font-bold ${getGlucoseBasicColor(avgGlucose)}`}>
+                  <div className={`text-2xl font-bold ${getGlucoseStatusColorClass(avgGlucose)}`}>
                     {avgGlucose}
                   </div>
-                  {avgGlucose < 70 && <span className="text-xs font-semibold text-red-600">低</span>}
-                  {avgGlucose > 180 && <span className="text-xs font-semibold text-orange-500">高</span>}
+                  {getGlucoseStatusLabel(avgGlucose) === "低" && (
+                    <span className="text-xs font-semibold text-red-600">低</span>
+                  )}
+                  {getGlucoseStatusLabel(avgGlucose) === "高" && (
+                    <span className="text-xs font-semibold text-orange-500">高</span>
+                  )}
                   <p className="text-xs text-muted-foreground">mg/dL</p>
                 </>
               ) : (
@@ -266,7 +265,7 @@ export default function Dashboard() {
                 return (
                   <div key={date} className="flex flex-col items-center gap-1">
                     <span className="text-xs text-muted-foreground">{dayLabel}</span>
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold ${getDayDotStyle(hasRecord, dayAvg, isToday)}`}>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold ${getDayDotColorClass(hasRecord, dayAvg, isToday)}`}>
                       {dateLabel}
                     </div>
                   </div>

@@ -455,20 +455,9 @@ export const getMeasurementTimeSlotColor = (slot: MeasurementTimeSlot) => {
   return 'bg-gray-50 border-gray-200';
 };
 
-export const getGlucoseStatusColor = (value: number, settings: UserSettings) => {
-  if (value < 70) return 'text-status-low font-bold';
-  if (value > 180) return 'text-status-high font-bold';
-  if (value >= settings.targetGlucoseLow && value <= settings.targetGlucoseHigh) return 'text-status-ok';
-  return 'text-foreground';
-};
-
-// シンプルな血糖値色分け（固定閾値: <70 低血糖, >180 高血糖）
-export const getGlucoseBasicColor = (value?: number): string => {
-  if (!value) return 'text-muted-foreground';
-  if (value < 70) return 'text-red-600 font-semibold';
-  if (value > 180) return 'text-orange-600 font-semibold';
-  return 'text-green-600';
-};
+// 2026-07 作業5-1: 血糖値の色分け判定 (旧 getGlucoseStatusColor / getGlucoseBasicColor)
+// は client/src/lib/glucoseStatus.ts に統合した。Dashboard.tsx / Logbook.tsx は
+// getGlucoseStatusColorClass 等をそちらから直接 import する。
 
 // ============================================================================
 // 調整ルールの conditionType を正規化する MAP
