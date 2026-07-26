@@ -10,3 +10,9 @@ vite.config.ts.*
 
 # ローカル開発用環境変数（コミットしない）
 .env
+
+# Playwright 実行結果 (作業3, ローカル/CI実行の都度生成される)
+/test-results/
+/playwright-report/
+/blob-report/
+

@@ -25,7 +25,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { type ApiGlucoseEntry, type ApiInsulinEntry, type DailyEntry, getGlucoseBasicColor } from "@/lib/types";
+import { type ApiGlucoseEntry, type ApiInsulinEntry, type DailyEntry } from "@/lib/types";
+import { getGlucoseStatusColorClass, getGlucoseStatusLabel } from "@/lib/glucoseStatus";
 import { safeFormat, formatJstDate } from "@/lib/date-utils";
 import { QUERY_KEYS } from "@/lib/query-keys";
 import { exportLogbookToPDF } from "@/lib/pdfExport";
@@ -225,11 +226,11 @@ export default function Logbook() {
     }
   };
 
-  // 血糖値レベルのラベルを返す（異常値のみ）
+  // 血糖値レベルのラベルを返す（異常値のみ）。閾値判定は glucoseStatus.ts に統合済み。
   const getGlucoseLabel = (value?: number) => {
-    if (!value) return null;
-    if (value < 70) return <span className="text-xs font-semibold text-red-600 ml-0.5">低</span>;
-    if (value > 180) return <span className="text-xs font-semibold text-amber-600 ml-0.5">高</span>;
+    const status = getGlucoseStatusLabel(value);
+    if (status === "低") return <span className="text-xs font-semibold text-red-600 ml-0.5">低</span>;
+    if (status === "高") return <span className="text-xs font-semibold text-amber-600 ml-0.5">高</span>;
     return null;
   };
 
@@ -331,7 +332,21 @@ export default function Logbook() {
   const handleExportPDF = () => {
     // 表示中の期間 (week=7日 / month=30日 / 将来拡張時はここを書き換える)
     const startDate = subDays(new Date(), viewMode === "week" ? 7 : 30);
-    const days = differenceInDays(new Date(), startDate);
+    let days = differenceInDays(new Date(), startDate);
+
+    // E2E テスト専用フック: 現状の UI は week(7日)/month(30日) しか選べず、
+    // 90日超のケースを通常操作で再現できない (将来のカスタム期間選択拡張の
+    // ための準備コード)。Playwright から `?e2eForceDays=95` を付けて遷移した
+    // 時だけ days を上書きし、警告ダイアログの表示を決定的に検証できるように
+    // する。import.meta.env.DEV 分岐のみなので本番ビルドには含まれない。
+    if (import.meta.env.DEV) {
+      const override = new URLSearchParams(window.location.search).get("e2eForceDays");
+      if (override) {
+        const forced = parseInt(override, 10);
+        if (!Number.isNaN(forced)) days = forced;
+      }
+    }
+
     if (days > 90) {
       setPendingPdfDays(days);
       setIsPdfWarnOpen(true);
@@ -552,13 +567,13 @@ export default function Logbook() {
                             <div className="flex flex-col items-center gap-0.5">
                               <div className="flex flex-col items-center gap-0.5">
                                 <div className="flex items-center gap-0.5 text-xs">
-                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseBefore)}`} data-testid={`text-morning-glucose-before-${entry.date}`}>
+                                  <span className={`font-semibold ${getGlucoseStatusColorClass(entry.morning.glucoseBefore)}`} data-testid={`text-morning-glucose-before-${entry.date}`}>
                                     {entry.morning.glucoseBefore || "-"}
                                   </span>
                                   {getGlucoseLabel(entry.morning.glucoseBefore)}
                                 </div>
                                 <div className="flex items-center gap-0.5 text-xs">
-                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.morning.glucoseAfter)}`} data-testid={`text-morning-glucose-after-${entry.date}`}>
+                                  <span className={`font-semibold ${getGlucoseStatusColorClass(entry.morning.glucoseAfter)}`} data-testid={`text-morning-glucose-after-${entry.date}`}>
                                     {entry.morning.glucoseAfter || "-"}
                                   </span>
                                   {getGlucoseLabel(entry.morning.glucoseAfter)}
@@ -587,13 +602,13 @@ export default function Logbook() {
                             <div className="flex flex-col items-center gap-0.5">
                               <div className="flex flex-col items-center gap-0.5">
                                 <div className="flex items-center gap-0.5 text-xs">
-                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseBefore)}`} data-testid={`text-lunch-glucose-before-${entry.date}`}>
+                                  <span className={`font-semibold ${getGlucoseStatusColorClass(entry.lunch.glucoseBefore)}`} data-testid={`text-lunch-glucose-before-${entry.date}`}>
                                     {entry.lunch.glucoseBefore || "-"}
                                   </span>
                                   {getGlucoseLabel(entry.lunch.glucoseBefore)}
                                 </div>
                                 <div className="flex items-center gap-0.5 text-xs">
-                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.lunch.glucoseAfter)}`} data-testid={`text-lunch-glucose-after-${entry.date}`}>
+                                  <span className={`font-semibold ${getGlucoseStatusColorClass(entry.lunch.glucoseAfter)}`} data-testid={`text-lunch-glucose-after-${entry.date}`}>
                                     {entry.lunch.glucoseAfter || "-"}
                                   </span>
                                   {getGlucoseLabel(entry.lunch.glucoseAfter)}
@@ -622,13 +637,13 @@ export default function Logbook() {
                             <div className="flex flex-col items-center gap-0.5">
                               <div className="flex flex-col items-center gap-0.5">
                                 <div className="flex items-center gap-0.5 text-xs">
-                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseBefore)}`} data-testid={`text-dinner-glucose-before-${entry.date}`}>
+                                  <span className={`font-semibold ${getGlucoseStatusColorClass(entry.dinner.glucoseBefore)}`} data-testid={`text-dinner-glucose-before-${entry.date}`}>
                                     {entry.dinner.glucoseBefore || "-"}
                                   </span>
                                   {getGlucoseLabel(entry.dinner.glucoseBefore)}
                                 </div>
                                 <div className="flex items-center gap-0.5 text-xs">
-                                  <span className={`font-semibold ${getGlucoseBasicColor(entry.dinner.glucoseAfter)}`} data-testid={`text-dinner-glucose-after-${entry.date}`}>
+                                  <span className={`font-semibold ${getGlucoseStatusColorClass(entry.dinner.glucoseAfter)}`} data-testid={`text-dinner-glucose-after-${entry.date}`}>
                                     {entry.dinner.glucoseAfter || "-"}
                                   </span>
                                   {getGlucoseLabel(entry.dinner.glucoseAfter)}
@@ -656,7 +671,7 @@ export default function Logbook() {
                           <td className="p-1.5 border-b border-l text-center" data-testid={`cell-bedtime-${entry.date}`}>
                             <div className="flex flex-col items-center gap-0.5">
                               <div className="flex items-center gap-0.5 text-xs">
-                                <span className={`font-semibold ${getGlucoseBasicColor(entry.bedtime.glucose)}`} data-testid={`text-bedtime-glucose-${entry.date}`}>
+                                <span className={`font-semibold ${getGlucoseStatusColorClass(entry.bedtime.glucose)}`} data-testid={`text-bedtime-glucose-${entry.date}`}>
                                   {entry.bedtime.glucose || "-"}
                                 </span>
                                 {getGlucoseLabel(entry.bedtime.glucose)}
