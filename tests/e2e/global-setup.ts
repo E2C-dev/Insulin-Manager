@@ -10,12 +10,15 @@ const { Pool } = pg;
  * 「前回のテストで作られたルール/プリセットが残っていて今回のテストが
  * 誤って PASS/FAIL する」flaky を防ぐ。
  *
- * 安全対策:
+ * 安全対策 (Codexレビューで denylist 方式の不備を指摘され allowlist に修正 — 2026-07-26):
  * - DATABASE_URL 環境変数のみを参照する (本番は NEON_DATABASE_URL を使う
  *   プロジェクト規約になっており、このスクリプトは NEON_DATABASE_URL には
  *   一切触れない)。
- * - ホスト名に本番/クラウドDBらしき文字列が含まれる場合は即座に中断する
- *   defense-in-depth ガードを入れる。
+ * - ホスト名の denylist (neon.tech等の文字列一致) では Replit内蔵Postgres等
+ *   パターンに一致しない本番ホストを見逃す。localhost/127.0.0.1 以外を
+ *   一律拒否する allowlist 方式に変更。
+ * - 加えて環境変数 E2E_ALLOW_DB_RESET=true の明示指定を必須にし、
+ *   .env の DATABASE_URL 設定ミス単体では実行できない二重ガードにする。
  * - users テーブルは TRUNCATE しない (CASCADE 範囲が読みにくくなるため)。
  *   代わりに既存の script/create-test-user.ts をそのまま呼び出してテスト
  *   ユーザーの存在を保証する (既存なら何もしない冪等スクリプト)。
@@ -27,10 +30,25 @@ export default async function globalSetup(): Promise<void> {
       "DATABASE_URL が未設定です。ローカル開発用 Postgres を起動し .env に設定してから実行してください。"
     );
   }
-  if (/neon\.tech|amazonaws\.com|render\.com|supabase\.co/i.test(databaseUrl)) {
+
+  let hostname: string;
+  try {
+    hostname = new URL(databaseUrl).hostname;
+  } catch {
+    throw new Error("DATABASE_URL の形式が不正で接続先ホストを判定できません。");
+  }
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
+  if (!isLocalHost) {
     throw new Error(
-      "DATABASE_URL が本番/クラウドDBらしきホストを指しています。Playwright の globalSetup は" +
-        "ローカル開発DB専用のため中断します。"
+      `DATABASE_URL の接続先ホスト "${hostname}" はローカル (localhost/127.0.0.1) ではありません。` +
+        "Playwright の globalSetup は誤って本番/共有DBをTRUNCATEする事故を避けるため、" +
+        "ローカルホスト以外への接続を一律拒否します。"
+    );
+  }
+  if (process.env.E2E_ALLOW_DB_RESET !== "true") {
+    throw new Error(
+      "E2E_ALLOW_DB_RESET=true が未設定です。このセットアップは対象DBの全記録テーブルをTRUNCATEするため、" +
+        "実行者が明示的に同意したことを示す環境変数の指定を必須にしています。"
     );
   }
 
