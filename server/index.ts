@@ -179,12 +179,19 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
+  // reusePort (SO_REUSEPORT) は Linux (本番 Replit autoscale 等) での複数プロセス間
+  // ポート共有に必要なオプション。macOS ではソケットオプション自体が存在せず
+  // `ENOTSUP: operation not supported on socket` で起動に失敗するため、
+  // ローカル開発 (macOS) では無効化する。本番 (Linux) の挙動は変えない。
+  const listenOptions: { port: number; host: string; reusePort?: boolean } = {
+    port,
+    host: "0.0.0.0",
+  };
+  if (process.platform === "linux") {
+    listenOptions.reusePort = true;
+  }
   httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
+    listenOptions,
     () => {
       console.log("");
       console.log("╔════════════════════════════════════════╗");

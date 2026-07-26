@@ -7,3 +7,6 @@ vite.config.ts.*
 
 # Replit: Claude Code のユーザー設定・プラグインキャッシュ（永続化用、コミットしない）
 .claude-user
+
+# ローカル開発用環境変数（コミットしない）
+.env
