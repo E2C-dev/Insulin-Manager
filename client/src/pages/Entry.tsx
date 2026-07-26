@@ -18,11 +18,17 @@ import { QUERY_KEYS } from "@/lib/query-keys";
 import {
   type InsulinTimeSlot,
   type AdjustmentRule,
-  type RuleEvaluation,
   TIME_SLOT_OPTIONS,
-  CONDITION_TYPE_MAP,
-  compareGlucose,
+  INSULIN_TIME_SLOT_LABELS,
 } from "@/lib/types";
+import {
+  type EvaluatedRule,
+  type MeasurementTimeSlot,
+  buildGlucoseLookup,
+  evaluateRules,
+  pickAppliedRules,
+  calculateAdjustedUnits,
+} from "@shared/adjustmentRuleEngine";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -547,14 +553,15 @@ export default function Entry() {
   // の組合せで複数ルールが matched した場合は、 threshold が最も「厳しい側」の
   // 1件だけを採用する (低血糖系=「以下/未満」なら threshold 最小、 高血糖系=
   // 「以上/超える」なら threshold 最大)。 全く同一閾値の重複は最後の1件のみ採用。
+  //
+  // 2026-07 作業2: 上記ロジック本体 (CONDITION_TYPE_MAP・評価・累積制御) は
+  // server 側の defense-in-depth 再計算とも共有するため
+  // shared/adjustmentRuleEngine.ts に抽出済み。ここでは client 固有の関心事
+  // (「いま入力中のフォーム血糖値」をリアルタイム評価に優先させる glucoseLookup)
+  // だけを組み立てて共有ロジックへ渡す。
   // ============================================================================
 
-  type EvaluatedRule = {
-    rule: AdjustmentRule;
-    evaluation: RuleEvaluation;
-  };
-
-  const ruleEvaluations = useMemo<EvaluatedRule[]>(() => {
+  const ruleEvaluations = useMemo<EvaluatedRule<AdjustmentRule>[]>(() => {
     if (!formData.date || !formData.timeSlot) return [];
     if (!rulesData?.rules) return [];
 
@@ -562,29 +569,7 @@ export default function Entry() {
     const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
     if (!selectedOption) return [];
 
-    const insulinTimingMap: Record<string, string> = {
-      Breakfast: "朝", Lunch: "昼", Dinner: "夕", Bedtime: "眠前",
-    };
-    const currentTiming = insulinTimingMap[selectedOption.insulinSlot];
-
-    // 1. timeSlot (= 「朝」「昼」「夕」「眠前」) で1次フィルタ。
-    //    + Codex round 3 fix: targetTimeSlot は「当日の{currentTiming}」 と
-    //    完全一致するルールのみ採用する。 「前日の朝」「当日の昼」 などの
-    //    他枠ルールが朝entry に誤適用される経路を断つ。
-    //    患者は AdjustmentRules UI で targetTimeSlot を任意に選べるため、
-    //    timeSlot と targetTimeSlot が不一致のルールも DB に存在しうる。
-    //    その場合は当該 entry の自動計算には反映せず、 UI 上「対象外」 表記。
-    const expectedTarget = `当日の${currentTiming}`;
-    const candidateRules = rules.filter(rule => {
-      if (rule.timeSlot !== currentTiming) return false;
-      // targetTimeSlot 未指定 (旧データ) は安全側で除外
-      if (!rule.targetTimeSlot) return false;
-      if (rule.targetTimeSlot !== expectedTarget) return false;
-      return true;
-    });
-
-    // 2. 各ルールの conditionType を評価
-    const baseDate = safeParseDate(formData.date, new Date());
+    const currentTiming = INSULIN_TIME_SLOT_LABELS[selectedOption.insulinSlot];
 
     // Codex round 2 review fix: 当日同枠ルールは「いま入力中のフォーム血糖値」を
     // リアルタイム評価対象にする。 これがないと「当日朝食前≤70→朝-1u」 ルールが、
@@ -594,99 +579,29 @@ export default function Entry() {
     const formGlucoseNum = formGlucoseRaw === "" ? null : parseInt(formGlucoseRaw, 10);
     const formGlucoseValid = formGlucoseNum !== null && !isNaN(formGlucoseNum);
 
-    return candidateRules.map((rule): EvaluatedRule => {
-      const cond = CONDITION_TYPE_MAP[rule.conditionType];
-      if (!cond) {
-        return { rule, evaluation: { status: "unknown_condition" } };
+    // DB から取得済みの当日・前日 glucose をまとめたフォールバック lookup。
+    const dbLookup = buildGlucoseLookup([
+      ...(todayGlucoseData ?? []),
+      ...(yesterdayGlucoseData ?? []),
+    ]);
+
+    const glucoseLookup = (date: string, slot: MeasurementTimeSlot) => {
+      // 当日同枠 (= いま入力しようとしている glucose) は、フォーム入力値を
+      // 優先的に評価対象にする。 これで DB 保存前のリアルタイム補正提案が可能。
+      if (date === formData.date && slot === formData.timeSlot && formGlucoseValid) {
+        return formGlucoseNum!;
       }
+      return dbLookup(date, slot);
+    };
 
-      const targetDate = format(
-        cond.dateOffset === -1 ? subDays(baseDate, 1) : baseDate,
-        "yyyy-MM-dd"
-      );
-
-      // 1. 当日同枠 (= いま入力しようとしている glucose) のルールは、
-      //    フォーム入力値を優先的に評価対象にする。 これでDB保存前のリアルタイム
-      //    補正提案が可能。
-      if (
-        cond.dateOffset === 0 &&
-        cond.measurementSlot === formData.timeSlot &&
-        formGlucoseValid
-      ) {
-        const matched = compareGlucose(formGlucoseNum!, rule.threshold, rule.comparison);
-        return {
-          rule,
-          evaluation: matched
-            ? { status: "matched", observedValue: formGlucoseNum!, targetDate }
-            : { status: "not_matched", observedValue: formGlucoseNum!, targetDate },
-        };
-      }
-
-      // 2. それ以外は DB から該当日の該当 glucose を取得して評価
-      const glucoseSource = cond.dateOffset === -1 ? yesterdayGlucoseData : todayGlucoseData;
-      const measurement = (glucoseSource ?? []).find(
-        (e) => e.date === targetDate && e.timeSlot === cond.measurementSlot
-      );
-
-      if (!measurement) {
-        return {
-          rule,
-          evaluation: {
-            status: "no_data",
-            targetDate,
-            measurementSlot: cond.measurementSlot,
-          },
-        };
-      }
-
-      const matched = compareGlucose(measurement.glucoseLevel, rule.threshold, rule.comparison);
-      return {
-        rule,
-        evaluation: matched
-          ? { status: "matched", observedValue: measurement.glucoseLevel, targetDate }
-          : { status: "not_matched", observedValue: measurement.glucoseLevel, targetDate },
-      };
-    });
+    return evaluateRules(rules, currentTiming, formData.date, glucoseLookup);
   }, [formData.date, formData.timeSlot, formData.glucoseLevel, rulesData, yesterdayGlucoseData, todayGlucoseData]);
 
-  // B-004: 累積適用の制御
-  // 同一 conditionType で複数 matched があれば、 threshold の「厳しさ」で 1件採用。
-  // ※ 「同じ条件タイプの中で最も発動条件が厳しいルール」 = 患者が意図したであろう
-  // 階層構造 (70以下/60以下/50以下) のうち、 現値で適用される最も厳しいもの 1件。
-  const appliedRules = useMemo<EvaluatedRule[]>(() => {
-    const matched = ruleEvaluations.filter(r => r.evaluation.status === "matched");
-
-    // conditionType 別にグルーピング
-    const groups = new Map<string, EvaluatedRule[]>();
-    for (const ev of matched) {
-      const key = ev.rule.conditionType + "|" + (ev.rule.targetTimeSlot ?? "");
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(ev);
-    }
-
-    const picked: EvaluatedRule[] = [];
-    for (const list of Array.from(groups.values())) {
-      if (list.length === 1) {
-        picked.push(list[0]);
-        continue;
-      }
-      // 比較演算子で「厳しさ」基準が変わる
-      // 「以下」「未満」: threshold が小さいほど厳しい
-      // 「以上」「超える」: threshold が大きいほど厳しい
-      // 異なる比較が混ざる場合は単純に adjustmentAmount の絶対値が大きい方を採用
-      const sorted = [...list].sort((a, b) => {
-        const aCmp = a.rule.comparison;
-        const bCmp = b.rule.comparison;
-        const aLow = aCmp === "以下" || aCmp === "未満";
-        const bLow = bCmp === "以下" || bCmp === "未満";
-        if (aLow && bLow) return a.rule.threshold - b.rule.threshold; // 小さい方が厳しい
-        if (!aLow && !bLow) return b.rule.threshold - a.rule.threshold; // 大きい方が厳しい
-        return Math.abs(b.rule.adjustmentAmount) - Math.abs(a.rule.adjustmentAmount);
-      });
-      picked.push(sorted[0]);
-    }
-    return picked;
-  }, [ruleEvaluations]);
+  // B-004: 累積適用の制御 (shared/adjustmentRuleEngine.ts の pickAppliedRules に集約)
+  const appliedRules = useMemo<EvaluatedRule<AdjustmentRule>[]>(
+    () => pickAppliedRules(ruleEvaluations),
+    [ruleEvaluations]
+  );
 
   // 情報を表示するかどうか
   const shouldShowInfo = formData.date && formData.timeSlot;
@@ -843,18 +758,12 @@ export default function Entry() {
     // 編集モードで既存値 prefill 中も自動計算しない (上書きリスク)
     if (isEditPrefillLoading) return;
 
-    let calculatedInsulin = timingBaseAmount;
-
-    // 条件評価できたルール (matched) のみ加算する。 not_matched / no_data /
-    // unknown_condition は決して加算しない (B-001 / 医療安全の中核)。
-    for (const ev of appliedRules) {
-      calculatedInsulin += ev.rule.adjustmentAmount;
-    }
-
-    // 上限ガード: 0 〜 100 単位にクランプ (schema 上限と一致させる)。
-    // 100 を上限としたのは zod validation (insertInsulinEntrySchema) と
-    // 整合させるため。 上限近辺は B-005 桁ミス警告で別途確認する。
-    const finalInsulin = Math.max(0, Math.min(100, calculatedInsulin));
+    // 条件評価できたルール (matched のうち累積制御を通過したもの) のみ加算する。
+    // not_matched / no_data / unknown_condition は決して加算しない
+    // (B-001 / 医療安全の中核)。上限ガード (0〜100単位、zod validation
+    // insertInsulinEntrySchema と整合) は shared/adjustmentRuleEngine.ts の
+    // calculateAdjustedUnits に集約済み。上限近辺は B-005 桁ミス警告で別途確認する。
+    const finalInsulin = calculateAdjustedUnits(timingBaseAmount, appliedRules);
     setFormData(prev => {
       // 直前と同値なら setState せず、無限ループ気味の再レンダーも防ぐ。
       const next = finalInsulin.toString();

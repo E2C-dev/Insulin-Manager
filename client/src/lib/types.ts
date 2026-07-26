@@ -2,15 +2,10 @@
 export type InsulinTimeSlot = 'Breakfast' | 'Lunch' | 'Dinner' | 'Bedtime';
 
 // 測定タイミング（白背景）
-export type MeasurementTimeSlot =
-  | 'BreakfastBefore'  // 朝食前
-  | 'BreakfastAfter1h' // 朝食後1h
-  | 'LunchBefore'      // 昼食前
-  | 'LunchAfter1h'     // 昼食後1h
-  | 'DinnerBefore'     // 夕食前
-  | 'DinnerAfter1h'    // 夕食後1h
-  | 'BeforeSleep'      // 睡眠時（眠前後）
-  | 'Night';           // 夜間
+// 2026-07 作業2: 正典は shared/adjustmentRuleEngine.ts に移設 (server 側の
+// defense-in-depth 再計算でも同じ型を使うため)。ここは re-export のみ。
+export type { MeasurementTimeSlot } from "@shared/adjustmentRuleEngine";
+import type { MeasurementTimeSlot } from "@shared/adjustmentRuleEngine";
 
 // ===== インスリンプリセット =====
 
@@ -484,57 +479,14 @@ export const getGlucoseBasicColor = (value?: number): string => {
 //   ルール「前日眠前血糖 70以下 → 朝 -1u」が、
 //   当日朝食前60mg/dL を入力した瞬間に誤発動して 4u→3u に。
 //
-// 修正方針:
-//   conditionType ("前日眠前血糖" 等) を「どの日のどの測定値で評価するか」に
-//   正規化する。dateOffset = -1 (前日) or 0 (当日) +
-//   measurementSlot = MeasurementTimeSlot enum で表現。
-//   該当値が DB に存在しない場合は **「データ不足で推奨不可」** とし、
-//   絶対に自動加算しないこと。
+// 2026-07 作業2: このロジック (CONDITION_TYPE_MAP + 評価ロジック) は
+// server 側の defense-in-depth 再計算でも使うため shared/adjustmentRuleEngine.ts
+// に移設した。client からは re-export のみを行う。
 // ============================================================================
 
-export type ConditionDateOffset = -1 | 0; // 前日 | 当日
-
-export interface ConditionTypeDef {
-  dateOffset: ConditionDateOffset;
-  measurementSlot: MeasurementTimeSlot;
-}
-
-export const CONDITION_TYPE_MAP: Record<string, ConditionTypeDef> = {
-  // 前日 (dateOffset: -1)
-  "前日朝食前血糖":   { dateOffset: -1, measurementSlot: "BreakfastBefore" },
-  "前日朝食後血糖":   { dateOffset: -1, measurementSlot: "BreakfastAfter1h" },
-  "前日昼食前血糖":   { dateOffset: -1, measurementSlot: "LunchBefore" },
-  "前日昼食後血糖":   { dateOffset: -1, measurementSlot: "LunchAfter1h" },
-  "前日夕食前血糖":   { dateOffset: -1, measurementSlot: "DinnerBefore" },
-  "前日夕食後血糖":   { dateOffset: -1, measurementSlot: "DinnerAfter1h" },
-  "前日眠前血糖":     { dateOffset: -1, measurementSlot: "BeforeSleep" },
-  // 当日 (dateOffset: 0)
-  "当日朝食前血糖":   { dateOffset: 0,  measurementSlot: "BreakfastBefore" },
-  "当日朝食後血糖":   { dateOffset: 0,  measurementSlot: "BreakfastAfter1h" },
-  "当日昼食前血糖":   { dateOffset: 0,  measurementSlot: "LunchBefore" },
-  "当日昼食後血糖":   { dateOffset: 0,  measurementSlot: "LunchAfter1h" },
-  "当日夕食前血糖":   { dateOffset: 0,  measurementSlot: "DinnerBefore" },
-  "当日夕食後血糖":   { dateOffset: 0,  measurementSlot: "DinnerAfter1h" },
-  "当日眠前血糖":     { dateOffset: 0,  measurementSlot: "BeforeSleep" },
-};
-
-export type RuleEvaluation =
-  | { status: "matched"; observedValue: number; targetDate: string }
-  | { status: "not_matched"; observedValue: number; targetDate: string }
-  | { status: "no_data"; targetDate: string; measurementSlot: MeasurementTimeSlot }
-  | { status: "unknown_condition" };
-
-// rule.comparison (日本語) で実数比較
-export function compareGlucose(
-  value: number,
-  threshold: number,
-  comparison: string,
-): boolean {
-  switch (comparison) {
-    case "以下": return value <= threshold;
-    case "未満": return value <  threshold;
-    case "以上": return value >= threshold;
-    case "超える": return value >  threshold;
-    default: return false;
-  }
-}
+export type {
+  ConditionDateOffset,
+  ConditionTypeDef,
+  RuleEvaluation,
+} from "@shared/adjustmentRuleEngine";
+export { CONDITION_TYPE_MAP, compareGlucose } from "@shared/adjustmentRuleEngine";
