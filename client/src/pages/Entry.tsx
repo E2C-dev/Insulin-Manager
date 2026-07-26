@@ -248,7 +248,7 @@ export default function Entry() {
   });
 
   const createInsulinMutation = useMutation({
-    mutationFn: async (data: { date: string; timeSlot: string; units: string; presetId?: string; note?: string }) => {
+    mutationFn: async (data: { date: string; timeSlot: string; units: string; presetId?: string; autoCalculated?: boolean; note?: string }) => {
       const response = await fetch("/api/insulin-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -282,7 +282,7 @@ export default function Entry() {
   });
 
   const updateInsulinMutation = useMutation({
-    mutationFn: async (data: { id: string; units?: string; presetId?: string; note?: string }) => {
+    mutationFn: async (data: { id: string; units?: string; presetId?: string; autoCalculated?: boolean; note?: string }) => {
       const { id, ...body } = data;
       const response = await fetch(`/api/insulin-entries/${id}`, {
         method: "PUT",
@@ -370,6 +370,13 @@ export default function Entry() {
       const promises: Promise<any>[] = [];
       const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
 
+      // Codex指摘対応 (2026-07-26): サーバーのdefense-in-depthチェックが
+      // 「自動計算されたそのままの値か」を判定できるよう明示的に伝える。
+      // dirty (手入力/プリセット選択で上書き) の場合は「昨日と同じ」等と同様、
+      // ユーザーの明示的な意図によるものなのでルール再計算チェックの対象外とする。
+      const isAutoCalculated = !formData.insulinUnitsDirty && !selectedPresetId;
+      const presetIdForSubmit = selectedPresetId ?? timingResolvedPresetId ?? undefined;
+
       if (isEditMode) {
         // 編集モード: PUT
         if (formData.glucoseLevel && selectedOption?.glucoseSlot) {
@@ -395,7 +402,8 @@ export default function Entry() {
             promises.push(updateInsulinMutation.mutateAsync({
               id: editInsulinId,
               units: formData.insulinUnits,
-              presetId: selectedPresetId ?? undefined,
+              presetId: presetIdForSubmit,
+              autoCalculated: isAutoCalculated,
               note: formData.note || undefined,
             }));
           } else {
@@ -404,7 +412,8 @@ export default function Entry() {
               date: formData.date,
               timeSlot: selectedOption.insulinSlot,
               units: formData.insulinUnits,
-              presetId: selectedPresetId ?? undefined,
+              presetId: presetIdForSubmit,
+              autoCalculated: isAutoCalculated,
               note: formData.note || undefined,
             }));
           }
@@ -425,7 +434,8 @@ export default function Entry() {
             date: formData.date,
             timeSlot: selectedOption.insulinSlot,
             units: formData.insulinUnits,
-            presetId: selectedPresetId ?? undefined,
+            presetId: presetIdForSubmit,
+            autoCalculated: isAutoCalculated,
             note: formData.note || undefined,
           }));
         }
@@ -538,9 +548,9 @@ export default function Entry() {
       Breakfast: "朝食", Lunch: "昼食", Dinner: "夕食", Bedtime: "眠前",
     };
 
-    const baseAmount = getBasalDosesFromPresets(insulinSlot);
+    const { presetId: resolvedPresetId, units: baseAmount } = getBasalDosesFromPresets(insulinSlot);
 
-    return { label: labels[insulinSlot], baseAmount, insulinSlot };
+    return { label: labels[insulinSlot], baseAmount, insulinSlot, resolvedPresetId };
   }, [formData.timeSlot, presets, getBasalDosesFromPresets]);
 
   // ============================================================================
@@ -729,6 +739,9 @@ export default function Entry() {
   //     の memoization に任せる (applicableRules は既に useMemo で正しく安定化済み)。
   //     既存の「直前と同値なら setState skip」ガード (BUG-001 fix) は維持。
   const timingBaseAmount = getInsulinTimingInfo?.baseAmount ?? null;
+  // Codex指摘対応: 自動計算の基礎量がどのプリセット由来かをサーバーへ伝える
+  // (server/insulinDoseSafetyNet.ts の defense-in-depth チェックで使用)。
+  const timingResolvedPresetId = getInsulinTimingInfo?.resolvedPresetId ?? null;
 
   // B-001 fix: 自動計算は **appliedRules (= condition-aware で matched と判定された
   // ルールだけ)** を加算する。 旧実装は applicableRules (時間帯フィルタのみ) で、

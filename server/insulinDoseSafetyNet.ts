@@ -43,6 +43,20 @@ import {
  *     client の localStorage フォールバック (レガシー経路) は再現しない。
  *     presetId 未指定、またはプリセットにそのタイミングの基礎量が未設定の
  *     場合は比較そのものをスキップする。
+ *   - autoCalculated=true (client の自動計算 useEffect がそのまま提示した値を
+ *     未変更で送信した場合) のときのみルール適用済みの期待値と突合する。
+ *     ユーザーが手入力・プリセット明示選択・「昨日と同じ」等で意図的に
+ *     ルール適用をスキップした値を送った場合は、突合対象がそもそも存在しない
+ *     ため常にスキップする (Codexレビュー指摘: 誤ったdose_mismatch記録を防止)。
+ *
+ * Codexレビュー指摘対応 (2026-07-26):
+ *   - presetId 未送信だった自動計算パスも検証できるよう client 側
+ *     (use-insulin-presets.ts / Entry.tsx) を修正し、必ず解決済み presetId を
+ *     送信するようにした。
+ *   - ルールは entry.presetId に紐づくもの (または全プリセット共通の
+ *     presetId=null のルール) のみに絞り込んで評価する。
+ *   - 「当日同枠」レース判定は measurementSlot だけでなく targetDate も
+ *     entry.date と一致する場合のみ inconclusive とする。
  */
 
 interface InsulinEntryForCheck {
@@ -54,11 +68,22 @@ interface InsulinEntryForCheck {
   presetId?: string | null;
 }
 
+interface CheckOptions {
+  // true: client の自動計算 useEffect の結果がそのまま送信された
+  // (Entry.tsx: !insulinUnitsDirty && !selectedPresetId)。
+  // false/未指定: 手入力・プリセット明示選択・「昨日と同じ」等の意図的な
+  // 値のため、ルール適用済み期待値との突合対象がなく常にスキップする。
+  autoCalculated: boolean;
+}
+
 export async function checkInsulinDoseAndLog(
   req: Request,
-  entry: InsulinEntryForCheck
+  entry: InsulinEntryForCheck,
+  options: CheckOptions
 ): Promise<void> {
   try {
+    if (!options.autoCalculated) return;
+
     const slot = entry.timeSlot as InsulinTimingSlot;
     const currentTimingLabel = INSULIN_TIMING_LABELS[slot];
     if (!currentTimingLabel) return; // 未知の timeSlot は評価不能
@@ -69,7 +94,10 @@ export async function checkInsulinDoseAndLog(
     const baseAmount = getPresetBaseUnits(preset, slot);
     if (baseAmount === null) return;
 
-    const rules = await storage.getAdjustmentRules(entry.userId);
+    const allRules = await storage.getAdjustmentRules(entry.userId);
+    // このプリセット専用のルール、またはプリセット指定なし(全プリセット共通)の
+    // ルールのみを対象にする。他プリセット専用ルールを誤って適用しない。
+    const rules = allRules.filter((r) => !r.presetId || r.presetId === entry.presetId);
     if (rules.length === 0) return; // ルールがなければ乖離しようがない
 
     const todayStr = entry.date;
@@ -81,9 +109,14 @@ export async function checkInsulinDoseAndLog(
 
     // 「当日同枠」ルールが no_data の場合、client のリアルタイム入力と
     // レースしている可能性があり比較不能 (inconclusive) → 何も記録しない。
+    // targetDate も entry.date と一致する場合に限定する (無関係な過去日の
+    // 未入力データで判定全体を inconclusive にしないため)。
     const liveOverrideSlot = CURRENT_SLOT_MEASUREMENT[slot];
     const inconclusive = evaluations.some(
-      (ev) => ev.evaluation.status === "no_data" && ev.evaluation.measurementSlot === liveOverrideSlot
+      (ev) =>
+        ev.evaluation.status === "no_data" &&
+        ev.evaluation.measurementSlot === liveOverrideSlot &&
+        ev.evaluation.targetDate === entry.date
     );
     if (inconclusive) return;
 

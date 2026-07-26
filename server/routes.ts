@@ -491,7 +491,9 @@ export async function registerRoutes(
       // 使って投与量を独立に再計算し、乖離があれば audit_logs にログのみ記録する。
       // 保存・レスポンスは絶対にブロックしない (await はするが例外は内部で握り
       // つぶされる設計)。
-      await checkInsulinDoseAndLog(req, entry);
+      // autoCalculated は insertInsulinEntrySchema (DBカラムに対応するスキーマ)
+      // には含まれず parse() で strip されるため、req.body から直接読む。
+      await checkInsulinDoseAndLog(req, entry, { autoCalculated: req.body?.autoCalculated === true });
       return res.status(201).json({ message: "記録を作成しました", entry });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -520,7 +522,7 @@ export async function registerRoutes(
       // 作業2 (defense-in-depth): 更新後の最終状態 (entry) を使って再計算・
       // 突合する。 partial 更新で units が今回のリクエストに含まれなくても、
       // entry には DB 上の最新値が入っているため常に正しく評価できる。
-      await checkInsulinDoseAndLog(req, entry);
+      await checkInsulinDoseAndLog(req, entry, { autoCalculated: req.body?.autoCalculated === true });
       return res.json({ message: "記録を更新しました", entry });
     } catch (error) {
       if (error instanceof z.ZodError) {
