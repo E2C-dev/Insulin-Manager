@@ -75,6 +75,13 @@ interface CheckOptions {
   // false/未指定: 手入力・プリセット明示選択・「昨日と同じ」等の意図的な
   // 値のため、ルール適用済み期待値との突合対象がなく常にスキップする。
   autoCalculated: boolean;
+  // Codexレビュー3巡目指摘対応: client が今回同時に POST した血糖値の
+  // 実際の測定枠 (= formData.timeSlot、8種類の粒度)。
+  // CURRENT_SLOT_MEASUREMENT は投与タイミング(4種)→食前枠固定のため、
+  // 食後1時間枠 (BreakfastAfter1h等) を記録する場合はこの固定マップと
+  // 実際に並行POSTされる枠がズレる。liveMeasurementSlot が渡された場合は
+  // それを優先し、レース判定の対象枠として使う。
+  liveMeasurementSlot?: string;
 }
 
 export async function checkInsulinDoseAndLog(
@@ -116,7 +123,7 @@ export async function checkInsulinDoseAndLog(
     // 別APIとしてPromise.allで並行送信されるため、この安全ネットが読む
     // glucose 値が「これから上書きされる古い値」である可能性があり、
     // no_data 以外でも比較不能になりうる)。
-    const liveOverrideSlot = CURRENT_SLOT_MEASUREMENT[slot];
+    const liveOverrideSlot = options.liveMeasurementSlot ?? CURRENT_SLOT_MEASUREMENT[slot];
     const inconclusive = evaluations.some((ev) => {
       if (ev.evaluation.status === "unknown_condition") return false;
       // measurementSlot は評価対象ルールの conditionType から引く

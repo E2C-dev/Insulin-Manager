@@ -248,7 +248,7 @@ export default function Entry() {
   });
 
   const createInsulinMutation = useMutation({
-    mutationFn: async (data: { date: string; timeSlot: string; units: string; presetId?: string; autoCalculated?: boolean; note?: string }) => {
+    mutationFn: async (data: { date: string; timeSlot: string; units: string; presetId?: string; autoCalculated?: boolean; liveMeasurementSlot?: string; note?: string }) => {
       const response = await fetch("/api/insulin-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -282,7 +282,7 @@ export default function Entry() {
   });
 
   const updateInsulinMutation = useMutation({
-    mutationFn: async (data: { id: string; units?: string; presetId?: string; autoCalculated?: boolean; note?: string }) => {
+    mutationFn: async (data: { id: string; units?: string; presetId?: string; autoCalculated?: boolean; liveMeasurementSlot?: string; note?: string }) => {
       const { id, ...body } = data;
       const response = await fetch(`/api/insulin-entries/${id}`, {
         method: "PUT",
@@ -380,6 +380,12 @@ export default function Entry() {
       // 送ってしまうと、実際には使っていないプリセットを記録に紐付けてしまう。
       // 自動計算パスのときのみ resolvedPresetIdForTiming を使う。
       const presetIdForSubmit = selectedPresetId ?? (isAutoCalculated ? resolvedPresetIdForTiming : null) ?? undefined;
+      // Codexレビュー3巡目指摘対応: CURRENT_SLOT_MEASUREMENT は「食前」枠に
+      // 固定されており、食後1時間枠 (BreakfastAfter1h等) を記録する際は
+      // 実際に並行POSTされる glucose の枠と一致しない。formData.timeSlot
+      // (= TIME_SLOT_OPTIONS の value = MeasurementTimeSlot そのもの) を
+      // 明示的に送り、サーバーのレース判定が正しい枠を見られるようにする。
+      const liveMeasurementSlot = formData.timeSlot || undefined;
 
       if (isEditMode) {
         // 編集モード: PUT
@@ -408,6 +414,7 @@ export default function Entry() {
               units: formData.insulinUnits,
               presetId: presetIdForSubmit,
               autoCalculated: isAutoCalculated,
+              liveMeasurementSlot,
               note: formData.note || undefined,
             }));
           } else {
@@ -418,6 +425,7 @@ export default function Entry() {
               units: formData.insulinUnits,
               presetId: presetIdForSubmit,
               autoCalculated: isAutoCalculated,
+              liveMeasurementSlot,
               note: formData.note || undefined,
             }));
           }
@@ -440,6 +448,7 @@ export default function Entry() {
             units: formData.insulinUnits,
             presetId: presetIdForSubmit,
             autoCalculated: isAutoCalculated,
+            liveMeasurementSlot,
             note: formData.note || undefined,
           }));
         }
