@@ -25,7 +25,6 @@ import {
   UtensilsCrossed,
   Gauge,
   Stethoscope,
-  Twitter,
   ChevronRight,
   Sparkles,
   AlertCircle,
@@ -1837,15 +1836,6 @@ export default function LandingPage() {
                 data-testid="link-lp-terms"
               >
                 利用規約
-              </a>
-              <a
-                href="https://twitter.com/"
-                className="hover:text-foreground transition-colors min-h-[44px] flex items-center gap-1"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Twitter className="w-3.5 h-3.5" />
-                Twitter
               </a>
             </div>
           </div>
