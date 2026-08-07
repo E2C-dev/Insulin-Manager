@@ -13,10 +13,18 @@ import {
   users,
   termsVersions,
   userConsents,
+  // 退会 (DELETE /api/account) の FK 閉包で削除対象になるテーブル群
+  insulinEntries,
+  glucoseEntries,
+  insulinPresets,
+  adjustmentRules,
+  userFeedback,
+  auditLogs,
+  featureFlags,
   type User
 } from "@shared/schema";
 import { z } from "zod";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, or, inArray } from "drizzle-orm";
 import { registerAdminRoutes } from "./admin-routes";
 import { adminStorage } from "./admin-storage";
 import { db } from "./db";
@@ -769,6 +777,103 @@ export async function registerRoutes(
   });
 
   // ============================================================
+  // 退会（アカウント削除）API
+  //
+  // 利用規約 v2.0 第6条2項 / プライバシーポリシー v2.0 第11条:
+  //   「退会の申込みにより、アカウントおよび記録データは直ちに削除され、
+  //     以後、復旧することはできません。」
+  // 条文と実装を一致させるため、論理削除・復旧猶予期間・遅延削除バッチは設けず、
+  // 1トランザクションで物理削除する。
+  // App Store 5.1.1(v)（アプリ内でのアカウント削除の提供）の要件も本APIで満たす。
+  // ============================================================
+  console.log("✅ DELETE /api/account");
+  app.delete("/api/account", isAuthenticated, async (req: Request, res: Response) => {
+    const sessionUser = req.user as User;
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+
+    if (!password) {
+      return res.status(400).json({ message: "パスワードを入力してください" });
+    }
+
+    try {
+      // セッションに載っている古いハッシュではなく、DBの最新値で本人確認する
+      // (パスワード変更直後のセッションでも正しく検証されるようにするため)。
+      const current = await storage.getUser(sessionUser.id);
+      if (!current) {
+        return res.status(401).json({ message: "認証が必要です" });
+      }
+
+      // 誤操作・セッション乗っ取り対策としてパスワードを再確認する。
+      const isValid = await verifyPassword(password, current.password);
+      if (!isValid) {
+        return res.status(400).json({ message: "パスワードが正しくありません" });
+      }
+
+      // 他人のアカウントを消せないよう、削除対象は常に req.user.id のみ。
+      // リクエストボディからユーザーIDは一切受け取らない。
+      const userId = current.id;
+
+      // 実スキーマ (information_schema の FK 一覧) から導出した users への依存:
+      //   insulin_entries.user_id   → users (CASCADE) / preset_id → insulin_presets
+      //   glucose_entries.user_id   → users (CASCADE)
+      //   adjustment_rules.user_id  → users (CASCADE) / preset_id → insulin_presets
+      //   insulin_presets.user_id   → users (CASCADE)  ※上2テーブルから参照される
+      //   user_consents.user_id     → users (CASCADE)
+      //   user_feedback.user_id     → users (SET NULL) ※本人の投稿なので削除する
+      //   audit_logs.admin_id       → users (SET NULL) ※規約上「直ちに削除」なので削除する
+      //   feature_flags.updated_by  → users (SET NULL) ※全体共有マスタなので行は消さずNULL化
+      // 依存の深い順に削除し、最後に users を消す。すべて1トランザクションで atomic に。
+      await db.transaction(async (tx) => {
+        await tx.delete(insulinEntries).where(eq(insulinEntries.userId, userId));
+        await tx.delete(glucoseEntries).where(eq(glucoseEntries.userId, userId));
+        await tx.delete(adjustmentRules).where(eq(adjustmentRules.userId, userId));
+        await tx.delete(insulinPresets).where(eq(insulinPresets.userId, userId));
+        await tx.delete(userConsents).where(eq(userConsents.userId, userId));
+        await tx.delete(userFeedback).where(eq(userFeedback.userId, userId));
+
+        // 規約が「直ちに削除」と定めている以上、退会者の監査ログだけを残すのは条文と矛盾する。
+        // 本人が操作者だったログ (admin_id) と、本人が操作対象だったログ (target_type='user'
+        // かつ target_id=本人) の両方を消す。target_id は FK ではない論理参照のため
+        // カスケードされず、明示的に削除しないと退会者のIDが残る。
+        await tx.delete(auditLogs).where(
+          or(
+            eq(auditLogs.adminId, userId),
+            and(eq(auditLogs.targetType, "user"), eq(auditLogs.targetId, userId))
+          )
+        );
+
+        // feature_flags は全ユーザー共有のマスタなので行自体は消さず、更新者だけを外す
+        // (FK も SET NULL だが、意図を明示するため明示的に実行する)。
+        await tx
+          .update(featureFlags)
+          .set({ updatedBy: null })
+          .where(eq(featureFlags.updatedBy, userId));
+
+        await tx.delete(users).where(eq(users.id, userId));
+      });
+
+      console.log(`[DELETE /api/account] アカウントと関連データを削除しました (id: ${userId})`);
+
+      // 削除済みユーザーのセッションを残さない
+      req.logout((logoutErr) => {
+        if (logoutErr) {
+          console.error("[DELETE /api/account] logout エラー:", logoutErr);
+        }
+        req.session.destroy((destroyErr) => {
+          if (destroyErr) {
+            console.error("[DELETE /api/account] session.destroy エラー:", destroyErr);
+          }
+          res.clearCookie("connect.sid");
+          return res.json({ message: "アカウントと記録データを削除しました" });
+        });
+      });
+    } catch (error) {
+      console.error("[DELETE /api/account] 削除エラー:", error);
+      return res.status(500).json({ message: "アカウントの削除に失敗しました" });
+    }
+  });
+
+  // ============================================================
   // 同意フロー API
   // ============================================================
 
@@ -841,6 +946,7 @@ export async function registerRoutes(
   console.log("===========================================");
   console.log("🎉 すべてのAPIルート登録完了");
   console.log("   - 認証: 4エンドポイント");
+  console.log("   - 退会(アカウント削除): 1エンドポイント");
   console.log("   - 同意フロー: 2エンドポイント");
   console.log("   - 調整ルール: 5エンドポイント");
   console.log("   - インスリン記録: 4エンドポイント");
