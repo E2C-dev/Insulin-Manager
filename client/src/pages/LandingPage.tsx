@@ -1825,14 +1825,16 @@ export default function LandingPage() {
                 新規登録
               </button>
               <a
-                href="#"
+                href="/terms/privacy"
                 className="hover:text-foreground transition-colors min-h-[44px] flex items-center"
+                data-testid="link-lp-privacy"
               >
                 プライバシーポリシー
               </a>
               <a
-                href="#"
+                href="/terms/terms"
                 className="hover:text-foreground transition-colors min-h-[44px] flex items-center"
+                data-testid="link-lp-terms"
               >
                 利用規約
               </a>

@@ -182,6 +182,25 @@ export default function Login() {
                 新規登録
               </button>
             </div>
+
+            {/* 規約への導線 (未ログインでも到達できること: App Store 審査要件) */}
+            <div className="flex items-center justify-center gap-3 text-[11px] text-muted-foreground">
+              <a
+                href="/terms/terms"
+                className="underline underline-offset-2 hover:text-foreground"
+                data-testid="link-login-terms"
+              >
+                利用規約
+              </a>
+              <span aria-hidden="true">・</span>
+              <a
+                href="/terms/privacy"
+                className="underline underline-offset-2 hover:text-foreground"
+                data-testid="link-login-privacy"
+              >
+                プライバシーポリシー
+              </a>
+            </div>
           </CardFooter>
         </form>
       </Card>
