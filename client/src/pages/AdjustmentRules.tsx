@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { AdBanner } from "@/components/AdBanner";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,9 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2, Trash2, Activity, Coffee, Sun, Sunset, Moon, Syringe, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Activity, Coffee, Sun, Sunset, Moon, Syringe, Loader2, AlertTriangle, Stethoscope } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Link } from "wouter";
 import { QUERY_KEYS } from "@/lib/query-keys";
@@ -27,6 +27,10 @@ interface AdjustmentRule {
   adjustmentAmount: number;
   targetTimeSlot: string;
   presetId: string | null;
+  // D-003 (薬機法対策): 主治医指示の転記であることの記録
+  doctorConfirmed?: boolean;
+  instructedAt?: string | null;
+  instructedBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,7 +44,17 @@ interface RuleFormData {
   adjustmentAmount: number;
   targetTimeSlot: string;
   presetId: string | null;
+  // D-003: 主治医指示の転記であることの確認 (必須) と、指示日・指示元 (任意)
+  doctorConfirmed: boolean;
+  instructedAt: string;
+  instructedBy: string;
 }
+
+// API へ送る形。任意項目は未入力なら null にして送る。
+type RuleSubmitPayload = Omit<RuleFormData, "instructedAt" | "instructedBy"> & {
+  instructedAt: string | null;
+  instructedBy: string | null;
+};
 
 const initialFormData: RuleFormData = {
   name: "",
@@ -51,6 +65,9 @@ const initialFormData: RuleFormData = {
   adjustmentAmount: -1,
   targetTimeSlot: "前日の眠前",
   presetId: null,
+  doctorConfirmed: false,
+  instructedAt: "",
+  instructedBy: "",
 };
 
 // 測定タイミングの選択肢（前日・当日の区別を追加）
@@ -182,6 +199,18 @@ function validateAdjustmentAmount(raw: string): { value: number; error: string |
   return { value: n, error: null };
 }
 
+// D-003: 主治医指示の補足情報 (指示日 / 指示元) を「（2026-05-01 / ○○病院）」の
+// 形にまとめる。どちらも未入力なら空文字を返す。
+const formatInstructionMeta = (
+  instructedAt?: string | null,
+  instructedBy?: string | null
+): string => {
+  const parts = [instructedAt, instructedBy].filter(
+    (v): v is string => typeof v === "string" && v.trim() !== ""
+  );
+  return parts.length > 0 ? `（${parts.join(" / ")}）` : "";
+};
+
 // 調整量のフォーマット
 const formatAdjustmentAmount = (amount: number) => {
   return amount > 0 ? `+${amount}` : `${amount}`;
@@ -221,7 +250,7 @@ export default function AdjustmentRules() {
 
   // ルール作成
   const createMutation = useMutation({
-    mutationFn: async (data: RuleFormData) => {
+    mutationFn: async (data: RuleSubmitPayload) => {
       const response = await fetch("/api/adjustment-rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -258,7 +287,7 @@ export default function AdjustmentRules() {
 
   // ルール更新
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: RuleFormData }) => {
+    mutationFn: async ({ id, data }: { id: string; data: RuleSubmitPayload }) => {
       const response = await fetch(`/api/adjustment-rules/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -337,6 +366,16 @@ export default function AdjustmentRules() {
       });
       return;
     }
+    // D-003 (薬機法対策): 主治医から指示された内容の転記であることの確認は必須。
+    // これが無いルールは「アプリが投与量を決めている」ように見えるため保存させない。
+    if (!formData.doctorConfirmed) {
+      toast({
+        title: "主治医の指示であることの確認が必要です",
+        description: "「この内容は主治医から指示されたものです」にチェックを入れてください",
+        variant: "destructive",
+      });
+      return;
+    }
     // BUG-010: 入力検証 — submit直前に再評価し、エラーがあれば送信を止める
     const tCheck = validateThreshold(String(formData.threshold));
     const aCheck = validateAdjustmentAmount(String(formData.adjustmentAmount));
@@ -353,10 +392,14 @@ export default function AdjustmentRules() {
     console.log("フォーム送信:", editingRule ? "更新" : "新規作成", formData);
 
     // ルール名が空の場合、自動生成
-    const finalFormData = {
+    const finalFormData: RuleSubmitPayload = {
       ...formData,
       name: formData.name ||
-        `${formData.threshold}mg/dL${formData.comparison} → ${formData.adjustmentAmount > 0 ? '+' : ''}${formData.adjustmentAmount}単位`
+        `${formData.threshold}mg/dL${formData.comparison} → ${formData.adjustmentAmount > 0 ? '+' : ''}${formData.adjustmentAmount}単位`,
+      // 未入力の任意項目は null で送る (サーバー側 zod は空文字も null 化するが、
+      // 送信段階で正規化しておく)
+      instructedAt: formData.instructedAt || null,
+      instructedBy: formData.instructedBy || null,
     };
     
     if (editingRule) {
@@ -377,6 +420,11 @@ export default function AdjustmentRules() {
       adjustmentAmount: rule.adjustmentAmount,
       targetTimeSlot: rule.targetTimeSlot,
       presetId: rule.presetId,
+      // 既存レコード (D-003 以前) は doctorConfirmed=false。編集時は改めて
+      // チェックを求める (勝手に true にはしない)。
+      doctorConfirmed: rule.doctorConfirmed === true,
+      instructedAt: rule.instructedAt ?? "",
+      instructedBy: rule.instructedBy ?? "",
     });
     setIsDialogOpen(true);
   };
@@ -744,6 +792,65 @@ export default function AdjustmentRules() {
                   </p>
                 </div>
 
+                {/* ステップ4: 主治医指示の転記確認 (D-003 薬機法対策) */}
+                <div className="space-y-3 p-4 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-300 dark:border-slate-700">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-slate-700 text-white flex items-center justify-center text-xs font-bold">4</div>
+                    <h3 className="font-semibold text-sm">主治医の指示であることの確認</h3>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    ここで登録する内容は、本アプリが決めた投与量ではなく、
+                    <strong>あなたが主治医から受けた指示を転記したもの</strong>です。
+                    指示を受けていない内容は登録しないでください。
+                  </p>
+
+                  <label
+                    htmlFor="doctorConfirmed"
+                    className="flex items-start gap-2 cursor-pointer rounded-md bg-white dark:bg-background p-3 border"
+                  >
+                    <Checkbox
+                      id="doctorConfirmed"
+                      checked={formData.doctorConfirmed}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, doctorConfirmed: checked === true })
+                      }
+                      data-testid="checkbox-doctor-confirmed"
+                      className="mt-0.5"
+                    />
+                    <span className="text-sm font-medium leading-snug">
+                      この内容は主治医から指示されたものです
+                      <span className="text-red-600 dark:text-red-400 ml-1">（必須）</span>
+                    </span>
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="instructedAt" className="text-xs">指示を受けた日（任意）</Label>
+                      <Input
+                        id="instructedAt"
+                        type="date"
+                        value={formData.instructedAt}
+                        onChange={(e) => setFormData({ ...formData, instructedAt: e.target.value })}
+                        data-testid="input-instructed-at"
+                        className="bg-white dark:bg-background"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="instructedBy" className="text-xs">指示元（任意）</Label>
+                      <Input
+                        id="instructedBy"
+                        value={formData.instructedBy}
+                        onChange={(e) => setFormData({ ...formData, instructedBy: e.target.value })}
+                        placeholder="例: ○○病院 内分泌内科"
+                        maxLength={100}
+                        data-testid="input-instructed-by"
+                        className="bg-white dark:bg-background"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* ルール名（オプション） */}
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-xs">ルール名（省略可）</Label>
@@ -772,7 +879,7 @@ export default function AdjustmentRules() {
                     type="submit"
                     className="flex-1"
                     data-testid="button-save-rule"
-                    disabled={createMutation.isPending || updateMutation.isPending || !formData.presetId || !!thresholdError || !!adjustmentError}
+                    disabled={createMutation.isPending || updateMutation.isPending || !formData.presetId || !formData.doctorConfirmed || !!thresholdError || !!adjustmentError}
                   >
                     {(createMutation.isPending || updateMutation.isPending) && (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
@@ -889,6 +996,25 @@ export default function AdjustmentRules() {
                               {getTargetTimeSlotLabel(rule.targetTimeSlot)}を {Math.abs(rule.adjustmentAmount)}単位{rule.adjustmentAmount > 0 ? "増量" : "減量"}
                             </span>
                           </div>
+                          {/* D-003: 主治医指示の転記情報 */}
+                          {rule.doctorConfirmed ? (
+                            <div className="flex items-start gap-2 text-sm">
+                              <span className="text-xs font-medium text-muted-foreground w-10 shrink-0 pt-0.5">指示</span>
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Stethoscope className="w-3.5 h-3.5 shrink-0" />
+                                主治医指示として登録済み
+                                {formatInstructionMeta(rule.instructedAt, rule.instructedBy)}
+                              </span>
+                            </div>
+                          ) : (
+                            <div
+                              className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100"
+                              data-testid={`badge-unconfirmed-${rule.id}`}
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                              主治医指示の確認が未入力
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ))}
@@ -899,7 +1025,6 @@ export default function AdjustmentRules() {
           })}
         </Tabs>
 
-        <AdBanner />
       </div>
     </AppLayout>
   );

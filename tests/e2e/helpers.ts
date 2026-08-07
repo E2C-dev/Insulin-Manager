@@ -101,6 +101,12 @@ interface RuleInput {
   adjustmentAmount: number;
   targetTimeSlot: string;
   presetId: string;
+  // D-003 (薬機法対策): 調整ルールは「主治医から受けた指示の転記」であることの
+  // 確認が必須。テストでは既定で true (= 転記済み) を送る。
+  // 未確認ルール (既存レコード相当) を作りたいテストだけ明示的に false を渡す。
+  doctorConfirmed?: boolean;
+  instructedAt?: string | null;
+  instructedBy?: string | null;
 }
 
 export interface CreatedRule {
@@ -112,6 +118,7 @@ export async function createRule(page: Page, input: RuleInput): Promise<CreatedR
   const res = await page.request.post("/api/adjustment-rules", {
     data: {
       name: input.name ?? `[e2e] ${input.conditionType}${input.comparison}${input.threshold}`,
+      doctorConfirmed: true,
       ...input,
     },
   });

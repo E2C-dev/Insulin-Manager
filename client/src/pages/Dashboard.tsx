@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { AdBanner } from "@/components/AdBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, TrendingUp, BookOpen, Flame, AlertTriangle, CheckCircle2, Circle } from "lucide-react";
 import { format, subDays } from "date-fns";
@@ -289,7 +288,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <AdBanner />
       </div>
     </AppLayout>
   );

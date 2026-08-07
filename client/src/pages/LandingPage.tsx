@@ -231,7 +231,7 @@ const faqs = [
 
 // ---- 比較表データ ----
 const comparisonRows = [
-  { feature: "投与量自動計算", us: true, others: false },
+  { feature: "主治医指示ルールの転記・参考表示", us: true, others: false },
   { feature: "複数インスリン管理", us: true, others: null },
   { feature: "調整ルール設定", us: true, others: false },
   { feature: "PDF医師共有", us: true, others: null },
@@ -550,7 +550,7 @@ export default function LandingPage() {
                       }
                 }
               >
-                血糖値と投与量を入力するだけ。自動計算ルールで投与量を提案し、
+                血糖値と投与量を入力するだけ。主治医から受けた指示をルールとして転記しておけば記録時に参考値として確認でき、
                 <strong className="text-white">A4横型PDF</strong>
                 で栄養士・医師へすぐに共有できます。記録ノートの説明に費やしていた時間を、本質的な指導の時間へ。
               </motion.p>
@@ -1035,7 +1035,7 @@ export default function LandingPage() {
               </motion.div>
             </FadeInSection>
 
-            {/* 自動計算ルール */}
+            {/* 主治医指示ルールの転記 */}
             <FadeInSection delay={0.1} type="scale">
               <motion.div
                 whileHover={
@@ -1054,9 +1054,9 @@ export default function LandingPage() {
                     <Zap className="w-6 h-6 text-yellow-500" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg mb-1.5">自動計算ルール</h3>
+                    <h3 className="font-bold text-lg mb-1.5">主治医指示ルールの転記</h3>
                     <p className="text-base text-muted-foreground leading-relaxed">
-                      「血糖値140以上なら+1単位」など条件を事前設定。血糖値を入力するだけで投与量を自動提案します。
+                      「血糖値140以上なら+1単位」など、主治医から受けた指示を事前に転記。記録時に参考値として表示され、入力欄に反映するかどうかはご自身で選べます。
                     </p>
                   </div>
                 </div>
@@ -1173,7 +1173,7 @@ export default function LandingPage() {
                   <div>
                     <h3 className="font-bold text-base mb-1">調整ルール設定</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      血糖値の条件に応じたインスリン調整ルールを事前設定。血糖値を入力するだけで自動提案します。
+                      主治医から受けた調整の指示を、血糖値の条件付きルールとして転記。記録時に参考値として表示します。
                     </p>
                   </div>
                 </div>
@@ -1696,7 +1696,7 @@ export default function LandingPage() {
                     <span className="text-amber-500 shrink-0 mt-0.5">•</span>
                     インスリン投与量は、
                     <strong>必ず担当医師の指示に従ってください</strong>
-                    。自動計算はあくまで記録補助の参考値です。
+                    。表示される値は、あなたが転記した主治医指示ルールの適用結果（参考値）であり、本アプリが投与量を決めるものではありません。
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-500 shrink-0 mt-0.5">•</span>

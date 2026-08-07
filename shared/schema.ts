@@ -26,7 +26,7 @@ export type UserWithRole = typeof users.$inferSelect;
 // フィーチャーフラグテーブル（管理者がON/OFFを制御する機能フラグ）
 export const featureFlags = pgTable("feature_flags", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  key: text("key").notNull().unique(),        // 例: "show_ads", "enable_user_registration"
+  key: text("key").notNull().unique(),        // 例: "enable_user_registration"
   value: boolean("value").notNull().default(false),
   description: text("description"),
   updatedBy: varchar("updated_by").references(() => users.id, { onDelete: "set null" }),
@@ -189,7 +189,15 @@ export const adjustmentRules = pgTable("adjustment_rules", {
   adjustmentAmount: integer("adjustment_amount").notNull(), // 調整量（+2, -1 など）
   targetTimeSlot: text("target_time_slot").notNull(), // 調整対象の時間帯（眠前、翌日同食事など）
   presetId: varchar("preset_id").references(() => insulinPresets.id, { onDelete: "set null" }), // 使用するインスリンプリセット（省略可）
-  
+
+  // D-003 (薬機法対策パッケージ): 主治医指示の転記であることの記録
+  // 本アプリの調整ルールは「アプリが投与量を決める」ものではなく、
+  // 主治医から受けた指示をユーザーが転記したものである、という位置づけを
+  // データとして残す。既存レコードは false のまま残す (破壊しない)。
+  doctorConfirmed: boolean("doctor_confirmed").notNull().default(false), // 主治医から指示された内容であることの確認
+  instructedAt: date("instructed_at"),  // 指示を受けた日 (任意)
+  instructedBy: text("instructed_by"),  // 指示元 (医療機関名など・任意)
+
   // タイムスタンプ
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
@@ -206,6 +214,28 @@ export const insertAdjustmentRuleSchema = createInsertSchema(adjustmentRules, {
   adjustmentAmount: z.number().int().min(-20).max(20, "調整量は-20〜+20の範囲で入力してください"),
   targetTimeSlot: z.string().min(1, "調整対象の時間帯を入力してください"),
   presetId: z.string().nullable().optional(),
+  // D-003: 主治医指示の転記であることの確認は必須 (未チェックでは保存不可)。
+  doctorConfirmed: z
+    .boolean({ required_error: "主治医から指示された内容であることを確認してください" })
+    .refine((v) => v === true, {
+      message: "主治医から指示された内容であることを確認してください",
+    }),
+  // 指示日・指示元は任意入力。空文字は null として扱う。
+  instructedAt: z
+    .preprocess(
+      (v) => (v === "" || v === undefined ? null : v),
+      z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "指示日は YYYY-MM-DD 形式で入力してください")
+        .nullable()
+    )
+    .optional(),
+  instructedBy: z
+    .preprocess(
+      (v) => (v === "" || v === undefined ? null : v),
+      z.string().max(100, "指示元は100文字以内で入力してください").nullable()
+    )
+    .optional(),
 }).omit({
   id: true,
   userId: true,

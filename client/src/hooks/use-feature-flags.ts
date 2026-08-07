@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 
 interface FeatureFlags {
-  show_ads: boolean;
   enable_user_registration: boolean;
   [key: string]: boolean;
 }
 
+// D-003 (薬機法対策パッケージ): 広告機能を全面撤去したため show_ads フラグは廃止。
+// DB 上の旧レコードは残るが、クライアントからは一切参照しない。
 const defaultFlags: FeatureFlags = {
-  show_ads: false,
   enable_user_registration: true,
 };
 
@@ -33,7 +33,6 @@ export function useFeatureFlags() {
 
   return {
     flags: resolvedFlags,
-    showAds: resolvedFlags.show_ads,
     enableRegistration: resolvedFlags.enable_user_registration,
   };
 }

@@ -57,7 +57,7 @@ export function InsulinPresetSelector({
       </div>
       {selectedPresetId && (
         <p className="text-xs text-orange-700 dark:text-orange-300">
-          選択したインスリンのデフォルト量が自動入力されました（手動で変更可）
+          選択したインスリンの登録済みの量を入力欄に入れました（手動で変更可）
         </p>
       )}
     </div>

@@ -68,9 +68,9 @@ test.describe("インスリン記録の二重登録防止 (アプリケーショ
       await expect(page.getByText("保存成功").first()).toBeVisible({ timeout: 10_000 });
 
       // 保存成功後も date/timeSlot は保持されたまま insulinUnits はクリアされる。
-      // ただしプリセットの基礎投与量 (5) がある場合、自動計算 useEffect が
-      // 即座にそれを再表示する (Entry.tsx: 「血糖値入力前でも基礎単位を提示」)。
-      // ここでは値を明示的に上書きして2回目を保存する。
+      // D-003 (薬機法対策) で血糖値ベースの自動セットは廃止したため、
+      // クリア後にアプリ側が勝手に値を入れ直すことはない。
+      // ここでは値を明示的に入力して2回目を保存する。
       await page.getByTestId("input-insulinUnits").fill("7");
       await page.getByTestId("button-save").click();
       await expect(page.getByText("保存成功").first()).toBeVisible({ timeout: 10_000 });
