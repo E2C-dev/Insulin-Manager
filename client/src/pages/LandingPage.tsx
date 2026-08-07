@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { DOSE_COPY } from "@dose-copy";
 import { useLocation } from "wouter";
 import {
   motion,
@@ -549,7 +550,7 @@ export default function LandingPage() {
                       }
                 }
               >
-                血糖値と投与量を入力するだけ。主治医から受けた指示をルールとして転記しておけば記録時に参考値として確認でき、
+                {DOSE_COPY.lpHeroBody}
                 <strong className="text-white">A4横型PDF</strong>
                 で栄養士・医師へすぐに共有できます。記録ノートの説明に費やしていた時間を、本質的な指導の時間へ。
               </motion.p>
@@ -1055,7 +1056,7 @@ export default function LandingPage() {
                   <div>
                     <h3 className="font-bold text-lg mb-1.5">主治医指示ルールの転記</h3>
                     <p className="text-base text-muted-foreground leading-relaxed">
-                      「血糖値140以上なら+1単位」など、主治医から受けた指示を事前に転記。記録時に参考値として表示され、入力欄に反映するかどうかはご自身で選べます。
+                      {DOSE_COPY.lpRuleCardBody}
                     </p>
                   </div>
                 </div>
@@ -1172,7 +1173,7 @@ export default function LandingPage() {
                   <div>
                     <h3 className="font-bold text-base mb-1">調整ルール設定</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      主治医から受けた調整の指示を、血糖値の条件付きルールとして転記。記録時に参考値として表示します。
+                      {DOSE_COPY.lpRuleFeatureBody}
                     </p>
                   </div>
                 </div>
@@ -1695,7 +1696,7 @@ export default function LandingPage() {
                     <span className="text-amber-500 shrink-0 mt-0.5">•</span>
                     インスリン投与量は、
                     <strong>必ず担当医師の指示に従ってください</strong>
-                    。表示される値は、あなたが転記した主治医指示ルールの適用結果（参考値）であり、本アプリが投与量を決めるものではありません。
+                    {DOSE_COPY.lpDoseDisclaimerTail}
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-500 shrink-0 mt-0.5">•</span>

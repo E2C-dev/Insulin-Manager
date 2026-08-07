@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { DOSE_COPY } from "@dose-copy";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,8 +69,7 @@ const STEPS: Step[] = [
     title: "毎日記録する",
     description:
       "インスリンを投与するタイミングで血糖値と投与量を記録します。",
-    detail:
-      "画面下中央の「＋」ボタンから入力できます。朝・昼・夕・眠前の4つのタイミングで記録でき、転記した主治医指示ルールに基づく参考値も表示されます（入力欄に反映するかはご自身で選べます）。",
+    detail: DOSE_COPY.tutorialEntryDetail,
     href: "/entry",
     hrefLabel: "入力画面を開く",
     isBonus: false,
