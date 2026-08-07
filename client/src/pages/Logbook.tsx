@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { AdBanner } from "@/components/AdBanner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Plus, Calendar, Coffee, Sun, Sunset, Moon, Activity, Trash2, Edit2, Download, FileText, Sheet } from "lucide-react";
@@ -702,7 +701,6 @@ export default function Logbook() {
           </CardContent>
         </Card>
 
-        <AdBanner />
       </div>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

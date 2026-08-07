@@ -165,6 +165,16 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden pb-24 no-scrollbar">
         {children}
+
+        {/* D-003 (薬機法対策): 免責の常設表示 (全画面共通フッター・短縮版) */}
+        <footer className="px-6 pb-6 pt-2">
+          <p
+            className="text-[11px] leading-relaxed text-muted-foreground text-center border-t border-border pt-3"
+            data-testid="app-disclaimer"
+          >
+            本アプリは医療機器ではありません。緊急時は医療機関へ。
+          </p>
+        </footer>
       </main>
 
       {/* チュートリアルモーダル */}

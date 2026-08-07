@@ -739,7 +739,7 @@ export async function registerRoutes(
     } catch (error) {
       console.error("フィーチャーフラグ取得エラー:", error);
       // エラー時はデフォルト値を返す
-      res.json({ flags: { show_ads: false, enable_user_registration: true } });
+      res.json({ flags: { enable_user_registration: true } });
     }
   });
 

@@ -32,9 +32,12 @@ interface FeatureFlag {
 }
 
 const FLAG_LABELS: Record<string, string> = {
-  show_ads: "広告表示",
   enable_user_registration: "新規ユーザー登録",
 };
+
+// D-003 (薬機法対策パッケージ) で機能そのものを撤去したフラグ。
+// DB には過去のレコードが残るため、管理画面には表示しない。
+const RETIRED_FLAG_KEYS = new Set(["show_ads"]);
 
 async function updateFlag(key: string, value: boolean) {
   const res = await fetch(`/api/admin/feature-flags/${key}`, {
@@ -86,7 +89,7 @@ export default function AdminFeatureFlags() {
     },
   });
 
-  const flags = data?.flags ?? [];
+  const flags = (data?.flags ?? []).filter((f) => !RETIRED_FLAG_KEYS.has(f.key));
 
   const handleToggle = (flag: FeatureFlag) => {
     if (!isWritable) return;

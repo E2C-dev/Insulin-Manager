@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, Activity, Info, TrendingUp, TrendingDown, Zap , Loader2} from "lucide-react";
+import { Save, Activity, Info, TrendingUp, TrendingDown, Zap, Loader2, Stethoscope, ArrowDownToLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInsulinPresets } from "@/hooks/use-insulin-presets";
 import { InsulinPresetSelector } from "@/components/entry/InsulinPresetSelector";
@@ -49,9 +49,11 @@ interface EntryFormData {
   insulinUnits: string;
   note: string;
   /**
-   * ユーザがインスリン量を手入力したかどうかのフラグ。
-   * true の間は血糖値ベースの自動計算で insulinUnits を上書きしない。
-   * (BUG-004 同時解消) リセット時に false、編集モード読み込み時は true に戻す。
+   * ユーザがインスリン量に触れたか (手入力 / プリセット選択 / 参考値の反映) の
+   * フラグ。D-003 (薬機法対策) で血糖値からの自動セットは廃止したため、
+   * このフラグは「アプリ由来の値ではなくユーザーの明示操作で入った値である」
+   * ことを表す記録用のマーカーとして残す (BUG-004 の dirty ガードの精神を維持)。
+   * リセット時に false、編集モード読み込み時は true に戻す。
    */
   insulinUnitsDirty: boolean;
 }
@@ -75,6 +77,10 @@ export default function Entry() {
   const [editGlucoseId, setEditGlucoseId] = useState<string | null>(null);
   const [editInsulinId, setEditInsulinId] = useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+  // D-003 (薬機法対策): 参考値パネルの「この値を入力欄に反映」をユーザーが
+  // 明示的にタップしたかどうか。血糖値入力による自動セットは廃止したため、
+  // この明示操作だけが参考値を insulinUnits に入れる唯一の経路。
+  const [referenceApplied, setReferenceApplied] = useState(false);
 
   // インスリンプリセット
   const { presets, isLoading: presetsLoading, isError: presetsError, getBasalDosesFromPresets } = useInsulinPresets();
@@ -208,8 +214,8 @@ export default function Entry() {
           ...prev,
           insulinUnits: String(parseFloat(insulinEntry.units)),
           note: prev.note || insulinEntry.note || "",
-          // 編集モードで既存のインスリン値を読み込んだ場合は dirty=true にして
-          // 自動計算による上書きを抑止する (BUG-004)。
+          // 編集モードで既存のインスリン値を読み込んだ場合は dirty=true にする
+          // (アプリ由来ではなく既存記録由来の値であることの記録・BUG-004)。
           insulinUnitsDirty: true,
         }));
         setEditInsulinId(insulinEntry.id);
@@ -299,10 +305,13 @@ export default function Entry() {
   });
 
   const handleInputChange = (field: keyof EntryFormData, value: string) => {
+    if (field === "insulinUnits") {
+      // 手入力に切り替わったので「参考値をそのまま反映した状態」ではなくなる。
+      setReferenceApplied(false);
+    }
     setFormData(prev => {
       const next: EntryFormData = { ...prev, [field]: value } as EntryFormData;
-      // ユーザが直接インスリン量を編集したら dirty=true にして自動計算で
-      // 上書きされないようにする (BUG-004)。
+      // ユーザが直接インスリン量を編集したら dirty=true (BUG-004 の記録を維持)。
       if (field === "insulinUnits") {
         next.insulinUnitsDirty = true;
       }
@@ -312,6 +321,7 @@ export default function Entry() {
 
   const resetForm = () => {
     setSelectedPresetId(null);
+    setReferenceApplied(false);
     setEditGlucoseId(null);
     setEditInsulinId(null);
     setFormData({
@@ -371,14 +381,16 @@ export default function Entry() {
       const selectedOption = TIME_SLOT_OPTIONS.find(opt => opt.value === formData.timeSlot);
 
       // Codex指摘対応 (2026-07-26): サーバーのdefense-in-depthチェックが
-      // 「自動計算されたそのままの値か」を判定できるよう明示的に伝える。
-      // dirty (手入力/プリセット選択で上書き) の場合は「昨日と同じ」等と同様、
-      // ユーザーの明示的な意図によるものなのでルール再計算チェックの対象外とする。
-      const isAutoCalculated = !formData.insulinUnitsDirty && !selectedPresetId;
+      // 「ルール適用結果そのままの値か」を判定できるよう明示的に伝える。
+      // D-003 以降は「参考値パネルの反映ボタンでルール適用結果を入れ、その後
+      // 手を加えていない」場合のみ true (= server 側の再計算と突合可能)。
+      // 手入力・プリセット明示選択・「昨日と同じ」はユーザーの明示的な意図に
+      // よる値なのでルール再計算チェックの対象外とする。
+      const isAutoCalculated = isReferenceValueIntact && !selectedPresetId;
       // Codexレビュー2巡目指摘対応: 手入力(dirty)でプリセット未選択の場合まで
-      // resolvedPresetIdForTiming (自動計算用に解決された先頭プリセット) を
+      // resolvedPresetIdForTiming (参考値の計算に使った先頭プリセット) を
       // 送ってしまうと、実際には使っていないプリセットを記録に紐付けてしまう。
-      // 自動計算パスのときのみ resolvedPresetIdForTiming を使う。
+      // 参考値をそのまま反映したパスのときのみ resolvedPresetIdForTiming を使う。
       const presetIdForSubmit = selectedPresetId ?? (isAutoCalculated ? resolvedPresetIdForTiming : null) ?? undefined;
       // Codexレビュー3巡目指摘対応: CURRENT_SLOT_MEASUREMENT は「食前」枠に
       // 固定されており、食後1時間枠 (BreakfastAfter1h等) を記録する際は
@@ -471,6 +483,7 @@ export default function Entry() {
       if (!isEditMode) {
         setFormData(prev => ({ ...prev, glucoseLevel: "", insulinUnits: "", note: "", insulinUnitsDirty: false }));
         setSelectedPresetId(null);
+        setReferenceApplied(false);
       }
     } catch (error) {
       toast({
@@ -497,7 +510,7 @@ export default function Entry() {
     }
 
     // Codex round 2 fix: 編集モードで prefill 完了前は保存させない (既存値を空で
-    // 上書きする経路を断つ)。 ルール評価未完了の自動計算結果を含む保存も同様に
+    // 上書きする経路を断つ)。 ルール評価未完了の参考値を含む保存も同様に
     // 止める。
     if (isEditPrefillLoading) {
       toast({
@@ -593,7 +606,7 @@ export default function Entry() {
     if (!formData.date || !formData.timeSlot) return [];
     if (!rulesData?.rules) return [];
 
-    // Codexレビュー2巡目指摘対応: 自動計算で使うプリセット (resolvedPresetId) に
+    // Codexレビュー2巡目指摘対応: 参考値の計算で使うプリセット (resolvedPresetId) に
     // 紐づくルール (+ 全プリセット共通の presetId 未設定ルール) のみを対象にする。
     // server/insulinDoseSafetyNet.ts の defense-in-depth チェックも同じ絞り込みを
     // 行うため、ここで揃えないと「client は全ルール適用・server は絞り込み」で
@@ -727,6 +740,7 @@ export default function Entry() {
       if (!isEditMode) {
         setFormData(prev => ({ ...prev, glucoseLevel: "", insulinUnits: "", note: "", insulinUnitsDirty: false }));
         setSelectedPresetId(null);
+        setReferenceApplied(false);
       }
     } catch (error) {
       toast({
@@ -762,20 +776,18 @@ export default function Entry() {
   //     の memoization に任せる (applicableRules は既に useMemo で正しく安定化済み)。
   //     既存の「直前と同値なら setState skip」ガード (BUG-001 fix) は維持。
   const timingBaseAmount = getInsulinTimingInfo?.baseAmount ?? null;
-  // 自動計算の基礎量がどのプリセット由来かは resolvedPresetIdForTiming
+  // 参考値の基礎量がどのプリセット由来かは resolvedPresetIdForTiming
   // (このコンポーネント上部で定義済み) を参照する。
 
-  // B-001 fix: 自動計算は **appliedRules (= condition-aware で matched と判定された
-  // ルールだけ)** を加算する。 旧実装は applicableRules (時間帯フィルタのみ) で、
+  // B-001 fix: 参考値は **appliedRules (= condition-aware で matched と判定された
+  // ルールだけ)** を加算して求める。 旧実装は applicableRules (時間帯フィルタのみ) で、
   // 入力中の glucoseLevel を無条件に当てていた致命的バグ。
-  // また「血糖値入力前でも基礎単位を提示」 する挙動に変更 — 患者が血糖値未入力でも
-  // プリセットの基礎単位は見えるべき (UI/UX 改善)。
   // Codex round 2/3 fix: rules/glucose/preset loading 中、 および query error
-  // 発生中は 自動計算を走らせない + 保存させない。 silent fallback で
-  // 不正確な推奨値が出る経路を完全に断つ。
+  // 発生中は参考値を出さない + 保存させない。 silent fallback で
+  // 不正確な値が出る経路を完全に断つ。
   // - query error 時に isLoading=false で fallthrough して「データ不足」 として
   //   保存できる経路は medical safety critical なので block
-  // - preset cold load 中は基礎量 0/localStorage fallback で誤計算が出る
+  // - preset cold load 中は基礎量 0/localStorage fallback で誤った値が出る
   const hasEvaluationError = rulesError || todayGlucoseError || yesterdayGlucoseError || presetsError;
   const isRuleEvaluationLoading =
     rulesLoading ||
@@ -784,38 +796,66 @@ export default function Entry() {
     presetsLoading ||
     hasEvaluationError;
 
-  useEffect(() => {
-    // ユーザが手入力 or プリセット選択でインスリンに触れたら以後は上書きしない
-    if (formData.insulinUnitsDirty) return;
-    if (selectedPresetId) return;
-    if (!formData.timeSlot) return;
-    if (timingBaseAmount === null) return;
-    // ルール評価未完了の間は自動計算しない (Codex round 2 指摘)
-    if (isRuleEvaluationLoading) return;
-    // 編集モードで既存値 prefill 中も自動計算しない (上書きリスク)
-    if (isEditPrefillLoading) return;
+  // ==========================================================================
+  // D-003 (薬機法対策パッケージ): 自動入力の廃止
+  // ==========================================================================
+  // 旧実装は血糖値を入力した瞬間に useEffect が insulinUnits へ計算結果を
+  // 自動セットしていた。これは「アプリが投与量を決めている」= 医療機器プログラム
+  // 該当性グレー (厚労省 判断事例⑫) の核心だったため廃止する。
+  //
+  // 新実装は「主治医指示ルールを転記したものの適用結果」を **参考値として表示
+  // するだけ** に留め、入力欄へ入るのはユーザーが「この値を入力欄に反映」を
+  // タップしたときだけ。ルール評価ロジック (appliedRules /
+  // resolvedPresetIdForTiming 等) はそのまま温存する。
+  //
+  // not_matched / no_data / unknown_condition は決して加算しない
+  // (B-001 / 医療安全の中核)。上限ガード (0〜100単位、zod validation
+  // insertInsulinEntrySchema と整合) は shared/adjustmentRuleEngine.ts の
+  // calculateAdjustedUnits に集約済み。上限近辺は B-005 桁ミス警告で別途確認する。
+  // ==========================================================================
 
-    // 条件評価できたルール (matched のうち累積制御を通過したもの) のみ加算する。
-    // not_matched / no_data / unknown_condition は決して加算しない
-    // (B-001 / 医療安全の中核)。上限ガード (0〜100単位、zod validation
-    // insertInsulinEntrySchema と整合) は shared/adjustmentRuleEngine.ts の
-    // calculateAdjustedUnits に集約済み。上限近辺は B-005 桁ミス警告で別途確認する。
-    const finalInsulin = calculateAdjustedUnits(timingBaseAmount, appliedRules);
-    setFormData(prev => {
-      // 直前と同値なら setState せず、無限ループ気味の再レンダーも防ぐ。
-      const next = finalInsulin.toString();
-      if (prev.insulinUnits === next) return prev;
-      return { ...prev, insulinUnits: next };
-    });
-  }, [
-    formData.timeSlot,
-    formData.insulinUnitsDirty,
-    timingBaseAmount,
-    appliedRules,
-    selectedPresetId,
-    isRuleEvaluationLoading,
-    isEditPrefillLoading,
-  ]);
+  // 参考値を算出できる状態か (評価中・エラー中・prefill 中は出さない)
+  const isReferenceReady =
+    !!formData.timeSlot &&
+    timingBaseAmount !== null &&
+    !isRuleEvaluationLoading &&
+    !isEditPrefillLoading;
+
+  // ルール適用前の単純合計 (クランプ前)。内訳表示で「丸めた」ことを明示するため。
+  const referenceRawTotal = useMemo<number | null>(() => {
+    if (!isReferenceReady || timingBaseAmount === null) return null;
+    return appliedRules.reduce((sum, ev) => sum + ev.rule.adjustmentAmount, timingBaseAmount);
+  }, [isReferenceReady, timingBaseAmount, appliedRules]);
+
+  // 実際に提示する参考値 (0〜100単位にクランプ済み)
+  const referenceUnits = useMemo<number | null>(() => {
+    if (!isReferenceReady || timingBaseAmount === null) return null;
+    return calculateAdjustedUnits(timingBaseAmount, appliedRules);
+  }, [isReferenceReady, timingBaseAmount, appliedRules]);
+
+  // 参考値の計算に使ったルールのうち、主治医指示の確認 (doctorConfirmed) が
+  // 未入力のものがあるか。既存ユーザーの動作を壊さないため適用対象からは
+  // 除外せず、注記を出すだけに留める (D-003 の方針)。
+  const hasUnconfirmedAppliedRule = useMemo(
+    () => appliedRules.some(({ rule }) => rule.doctorConfirmed !== true),
+    [appliedRules]
+  );
+
+  // 「参考値を反映したまま手を加えていない」状態か。
+  // server/insulinDoseSafetyNet.ts の再計算チェック (autoCalculated) は
+  // この状態のときだけ意味を持つ。
+  const isReferenceValueIntact =
+    referenceApplied &&
+    referenceUnits !== null &&
+    formData.insulinUnits === String(referenceUnits);
+
+  // 参考値を入力欄へ反映する (ユーザーの明示的なタップでのみ呼ばれる)
+  const applyReferenceValue = () => {
+    if (referenceUnits === null) return;
+    const next = String(referenceUnits);
+    setFormData(prev => ({ ...prev, insulinUnits: next, insulinUnitsDirty: true }));
+    setReferenceApplied(true);
+  };
 
   return (
     <AppLayout>
@@ -921,6 +961,9 @@ export default function Entry() {
                   selectedPresetId={selectedPresetId}
                   onPresetSelect={(presetId, units) => {
                     setSelectedPresetId(presetId);
+                    // プリセットを明示選択した時点で「参考値をそのまま反映した
+                    // 状態」ではなくなる (D-003)。
+                    setReferenceApplied(false);
                     // プリセット選択もユーザの明示的な指定なので dirty=true。
                     setFormData(prev => ({
                       ...prev,
@@ -960,7 +1003,7 @@ export default function Entry() {
                   {ruleEvaluations.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">
-                        この時間帯のルール（{ruleEvaluations.length}件）
+                        この時間帯の主治医指示ルール（{ruleEvaluations.length}件）
                       </p>
                       <div className="space-y-2 max-h-[260px] overflow-y-auto">
                         {ruleEvaluations.map(({ rule, evaluation }) => {
@@ -1072,6 +1115,110 @@ export default function Entry() {
                 </button>
               )}
 
+              {/* ======================================================
+                  D-003 (薬機法対策): 主治医指示ルールに基づく参考値パネル。
+                  ここには「表示」しかしない。入力欄へ値が入るのは、ユーザーが
+                  下の「この値を入力欄に反映」をタップしたときだけ。
+                  ====================================================== */}
+              {formData.timeSlot && getInsulinTimingInfo && (
+                <>
+                  <div
+                    className="rounded-xl border-2 border-sky-300 dark:border-sky-700 bg-sky-50/70 dark:bg-sky-950/20 p-3 space-y-3"
+                    data-testid="reference-panel"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Stethoscope className="w-4 h-4 text-sky-700 dark:text-sky-300 shrink-0" />
+                      <h4 className="text-sm font-semibold text-sky-900 dark:text-sky-100">
+                        主治医指示ルールに基づく参考値
+                      </h4>
+                    </div>
+
+                    {hasEvaluationError ? (
+                      <p className="text-xs text-red-600 dark:text-red-400" data-testid="reference-error">
+                        ルールまたは血糖値の取得に失敗したため、参考値を表示できません。ページを再読み込みしてください。
+                      </p>
+                    ) : referenceUnits === null ? (
+                      <p className="text-xs text-muted-foreground" data-testid="reference-loading">
+                        主治医指示ルールを読み込んでいます...
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex items-baseline gap-1.5">
+                          <span
+                            className="text-3xl font-bold text-sky-900 dark:text-sky-100"
+                            data-testid="reference-units"
+                          >
+                            {referenceUnits}
+                          </span>
+                          <span className="text-sm text-sky-900 dark:text-sky-100">単位</span>
+                        </div>
+
+                        {/* 内訳 */}
+                        <div
+                          className="rounded-lg bg-white dark:bg-gray-900 border border-sky-200 dark:border-sky-800 p-2.5 space-y-1"
+                          data-testid="reference-breakdown"
+                        >
+                          <p className="text-xs font-semibold text-muted-foreground">内訳</p>
+                          <p className="text-xs">
+                            {getInsulinTimingInfo.label}の基準量 {timingBaseAmount}単位
+                          </p>
+                          {appliedRules.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              条件に一致した主治医指示ルールはありません
+                            </p>
+                          ) : (
+                            appliedRules.map(({ rule }) => (
+                              <p key={rule.id} className="text-xs">
+                                {rule.adjustmentAmount > 0 ? "＋" : "−"}「{rule.conditionType} {rule.threshold}mg/dL
+                                {rule.comparison}」{rule.adjustmentAmount > 0 ? "+" : ""}
+                                {rule.adjustmentAmount}単位 を適用
+                              </p>
+                            ))
+                          )}
+                          <p className="text-xs font-semibold border-t border-sky-200 dark:border-sky-800 pt-1">
+                            ＝ {referenceUnits}単位
+                          </p>
+                          {referenceRawTotal !== null && referenceRawTotal !== referenceUnits && (
+                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                              ※ 合計 {referenceRawTotal}単位 は入力できる範囲（0〜100単位）を外れるため {referenceUnits}単位 として表示しています。
+                            </p>
+                          )}
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full border-sky-400 dark:border-sky-600 text-sky-900 dark:text-sky-100 bg-white dark:bg-background hover:bg-sky-100 dark:hover:bg-sky-950/40"
+                          onClick={applyReferenceValue}
+                          disabled={isSaving || isEditPrefillLoading}
+                          data-testid="button-apply-reference"
+                        >
+                          <ArrowDownToLine className="w-4 h-4 mr-2" />
+                          この値を入力欄に反映
+                        </Button>
+
+                        {hasUnconfirmedAppliedRule && (
+                          <p
+                            className="text-xs text-amber-700 dark:text-amber-300"
+                            data-testid="reference-unconfirmed-note"
+                          >
+                            ※ 未確認ルールを含みます（主治医の指示であることの確認が未入力のルールが含まれています）。調整ルール画面で確認してください。
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* D-003: 免責の常設表示 (参考値パネルの直下) */}
+                  <p
+                    className="text-xs text-muted-foreground leading-relaxed"
+                    data-testid="entry-disclaimer"
+                  >
+                    本アプリは医療機器ではありません。表示される値は、あなたが転記した主治医指示ルールの適用結果（参考値）です。治療の判断は必ず主治医の指示に従ってください。
+                  </p>
+                </>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="glucoseLevel" className="text-xs text-muted-foreground">
@@ -1116,10 +1263,13 @@ export default function Entry() {
                     />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">単位</span>
                   </div>
-                  {formData.insulinUnits && !formData.insulinUnitsDirty && !selectedPresetId && (
-                    <p className="text-xs text-green-700 dark:text-green-300 mt-1 flex items-center gap-1">
+                  {isReferenceValueIntact && !selectedPresetId && (
+                    <p
+                      className="text-xs text-green-700 dark:text-green-300 mt-1 flex items-center gap-1"
+                      data-testid="hint-reference-applied"
+                    >
                       <Activity className="w-3 h-3" />
-                      基礎単位とルール評価から自動計算されました（手動変更可）
+                      主治医指示ルールの参考値を反映しました（手動変更可）
                     </p>
                   )}
                   {formData.insulinUnits && selectedPresetId && (

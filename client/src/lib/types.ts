@@ -28,7 +28,7 @@ export interface InsulinBrandOption {
   icon: string;         // 絵文字アイコン
   onset: string;        // 効き始め
   duration: string;     // 持続時間
-  timing: string;       // 推奨使用タイミング
+  timing: string;       // 使用タイミング
   description: string;  // 素人向け説明
 }
 
@@ -266,8 +266,13 @@ export interface AdjustmentRule {
   adjustmentAmount: number;
   targetTimeSlot: string;
   // このルールが対象とするインスリンプリセット (省略可 = 全プリセット共通)。
-  // Entry.tsx の自動計算がプリセットごとにルールを絞り込むために参照する。
+  // Entry.tsx の参考値計算がプリセットごとにルールを絞り込むために参照する。
   presetId?: string | null;
+  // D-003 (薬機法対策): 主治医から指示された内容の転記であることの確認。
+  // 既存レコードは false のまま残るため optional 扱いにする。
+  doctorConfirmed?: boolean;
+  instructedAt?: string | null;
+  instructedBy?: string | null;
 }
 
 // 1日分の集計表示用（LogbookとSettings/PDF共通）
