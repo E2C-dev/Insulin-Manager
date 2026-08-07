@@ -12,11 +12,14 @@ const FALLBACK_TERMS: Record<string, string> = {
     "# 利用規約\n\n現在、本文を取得できませんでした。\n本サービスの利用にあたっては、サービス画面に表示される最新の利用規約に従ってください。\n問題が解消しない場合は管理者にお問い合わせください。",
   privacy:
     "# プライバシーポリシー\n\n現在、本文を取得できませんでした。\n本サービスではユーザーアカウント情報・利用データを必要最小限の範囲で取り扱います。\n詳細を確認したい場合は管理者にお問い合わせください。",
+  sensitive_data:
+    "# 要配慮個人情報（健康情報）の取得への同意\n\n現在、本文を取得できませんでした。\n本サービスは、血糖値・インスリンの種類/投与量/投与日時・主治医の指示票の転記内容その他の健康に関する記録データを、プライバシーポリシー第4条の利用目的のために取得します。\nこれらは個人情報保護法上の要配慮個人情報に該当し得る情報です。\n詳細を確認したい場合は管理者にお問い合わせください。",
 };
 
 const DOC_TYPE_LABEL: Record<string, string> = {
   terms: "利用規約",
   privacy: "プライバシーポリシー",
+  sensitive_data: "要配慮個人情報（健康情報）の取得への同意",
 };
 
 function renderMarkdown(md: string): string {
@@ -26,6 +29,9 @@ function renderMarkdown(md: string): string {
     .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-6 mb-3">$1</h1>')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/^(\d+)\. (.+)$/gm, '<li class="ml-6 list-decimal">$2</li>')
+    // 規約 v2.0 の本文で使う "- " 箇条書き。数字リストと同じ要領で <li> に変換する
+    // (sanitizeHtml の ALLOWED_TAGS に li / class は含まれているため表示は壊れない)。
+    .replace(/^- (.+)$/gm, '<li class="ml-6 list-disc">$1</li>')
     .replace(/\n/g, "<br />");
 }
 

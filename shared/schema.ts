@@ -274,7 +274,7 @@ export type InsertUserFeedback = z.infer<typeof insertUserFeedbackSchema>;
 // 規約バージョン管理テーブル
 export const termsVersions = pgTable("terms_versions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  docType: text("doc_type").notNull(),          // "terms" | "privacy"
+  docType: text("doc_type").notNull(),          // "terms" | "privacy" | "sensitive_data"
   version: text("version").notNull(),            // "v1.0", "v1.1" など
   summary: text("summary"),                      // 変更概要（ユーザー向け表示用）
   content: text("content"),                       // 規約本文（Markdown）

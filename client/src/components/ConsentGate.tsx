@@ -24,6 +24,9 @@ interface TermsVersion {
 const DOC_TYPE_LABEL: Record<string, string> = {
   terms: "利用規約",
   privacy: "プライバシーポリシー",
+  // 要配慮個人情報の取得同意は、プライバシーポリシー全体への同意とは
+  // 独立したチェック項目として提示する (個人情報保護法20条2項 / プラポリ第3条2項)。
+  sensitive_data: "要配慮個人情報（健康情報）の取得への同意",
 };
 
 interface ConsentGateProps {

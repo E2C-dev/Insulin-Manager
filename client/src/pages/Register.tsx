@@ -23,6 +23,9 @@ interface TermsVersion {
 const DOC_TYPE_LABEL: Record<string, string> = {
   terms: "利用規約",
   privacy: "プライバシーポリシー",
+  // 要配慮個人情報の取得同意は、プライバシーポリシー全体への同意とは
+  // 独立したチェック項目として提示する (個人情報保護法20条2項 / プラポリ第3条2項)。
+  sensitive_data: "要配慮個人情報（健康情報）の取得への同意",
 };
 
 export default function Register() {
@@ -219,10 +222,13 @@ export default function Register() {
                     以下の内容を確認し、すべてに同意してください
                   </p>
 
+                  {/* 規約 v2.0 の要約。第13条は「一切責任を負わない」を明示的に否定しているため、
+                      v1.0 当時の「一切の責任を負いません」という記載はここに置かない (本文と矛盾するため)。 */}
                   <div className="rounded bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-700 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
-                    <p>• 本サービスは<strong>個人開発のツール</strong>であり、医療行為・診断・治療を一切提供しません。</p>
-                    <p>• 開発者は本サービスの利用によって生じる損害について<strong>一切の責任を負いません</strong>。</p>
-                    <p>• サービスは予告なく変更・停止・廃止される場合があります。</p>
+                    <p>• 本サービスは<strong>記録と表示のための道具</strong>であり、医療行為・診断・治療を一切提供しません。表示される数値は<strong>参考値</strong>です（規約第3条）。</p>
+                    <p>• 血糖値・インスリンの投与量などの<strong>健康に関する情報</strong>をお預かりします。要配慮個人情報として取り扱います（プライバシーポリシー第3条）。</p>
+                    <p>• <strong>退会すると記録データは直ちに削除され、元に戻せません</strong>（規約第6条）。退会の前にPDF・Excelで出力してください。</p>
+                    <p>• サービスは変更・中断・終了することがあります。終了する場合は30日前までにお知らせします（規約第12条）。</p>
                   </div>
 
                   {activeVersions.map((v) => (
