@@ -1,13 +1,24 @@
 import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   LogOut,
   Save, Activity, Plus, Syringe,
+  AlertTriangle, Download, UserX,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +29,8 @@ import {
   DISEASE_SUGGESTED_CATEGORIES,
 } from "@/components/settings/InsulinPresetForm";
 import { InsulinPresetCard } from "@/components/settings/InsulinPresetCard";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { QUERY_KEYS } from "@/lib/query-keys";
 import { safeGetLocalStorage, safeSetLocalStorageString } from "@/lib/storage-utils";
 import {
   INSULIN_CATALOG,
@@ -61,7 +73,13 @@ const DISEASE_INSULIN_SUGGESTIONS: Record<string, { note: string }> = {
 export default function Settings() {
   const { user, logout, isLoggingOut } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const [isSavingCondition, setIsSavingCondition] = useState(false);
+
+  // 退会 (アカウント削除) — 利用規約 v2.0 第6条2項により即時・復旧不可
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
 
   // 症状設定のstate
   const [diseaseType, setDiseaseType] = useState("type1");
@@ -178,6 +196,43 @@ export default function Settings() {
       });
     }
   };
+
+  // 退会 (アカウント削除)
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (password: string) => {
+      const res = await fetch("/api/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "退会に失敗しました");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setDeleteOpen(false);
+      setDeletePassword("");
+      // サーバー側でセッションを破棄済み。クライアントのキャッシュも全消しして
+      // 削除済みユーザーのデータが画面に残らないようにする。
+      queryClient.setQueryData(QUERY_KEYS.USER_PROFILE, null);
+      queryClient.clear();
+      toast({
+        title: "退会が完了しました",
+        description: "アカウントと記録データを削除しました",
+      });
+      setLocation("/");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "退会に失敗しました",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <AppLayout>
@@ -420,6 +475,132 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        {/* ===== Section 3: 退会（アカウントの削除） =====
+            利用規約 v2.0 第6条2項により、退会＝即時削除・復旧不可。
+            誤タップを避けるため、独立したカードに分け、上のログアウト（塗りつぶしの赤）
+            とは見た目を変えた枠線ボタンにし、実行前に必ずパスワードを求める。 */}
+        <Card className="mt-6 border-destructive/40">
+          <CardHeader className="p-4 pb-3">
+            <div className="flex items-center gap-2">
+              <UserX className="w-5 h-5 text-destructive" />
+              <div>
+                <CardTitle className="text-base text-destructive">退会（アカウントの削除）</CardTitle>
+                <CardDescription className="text-xs">
+                  アカウントと記録データを完全に削除します
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 space-y-3">
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs space-y-1.5">
+              <p className="font-semibold text-destructive">
+                記録はすべて削除され、元に戻すことはできません。
+              </p>
+              <p className="text-muted-foreground">
+                利用規約 第6条2項のとおり、退会の申込みによりアカウントおよび記録データは直ちに削除され、以後、復旧することはできません。
+              </p>
+              <p className="text-muted-foreground">
+                先に PDF / Excel で記録を出力しておくことをおすすめします。
+              </p>
+            </div>
+
+            <Link href="/logbook" data-testid="link-export-before-delete">
+              <Button variant="outline" size="sm" className="w-full">
+                <Download className="w-4 h-4 mr-2" />
+                記録の出力画面へ（PDF / Excel）
+              </Button>
+            </Link>
+
+            <Button
+              variant="outline"
+              className="w-full border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => {
+                setDeletePassword("");
+                setDeleteOpen(true);
+              }}
+              data-testid="button-open-delete-account"
+            >
+              <UserX className="w-4 h-4 mr-2" />
+              退会する
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* 退会の確認ダイアログ */}
+        <Dialog
+          open={deleteOpen}
+          onOpenChange={(open) => {
+            if (!deleteAccountMutation.isPending) setDeleteOpen(open);
+          }}
+        >
+          <DialogContent
+            className="max-w-md max-h-mobile-dialog overflow-y-auto"
+            data-testid="dialog-delete-account"
+          >
+            <DialogHeader>
+              <DialogTitle className="text-destructive">退会（アカウントの削除）</DialogTitle>
+              <DialogDescription>
+                本当に退会しますか。この操作は取り消せません。
+              </DialogDescription>
+            </DialogHeader>
+
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-sm space-y-2">
+                <p className="font-semibold" data-testid="text-delete-warning">
+                  記録はすべて削除され、元に戻すことはできません。
+                </p>
+                <p>
+                  血糖値・インスリンの投与記録・調整ルール・インスリン設定・同意履歴を含め、すべて削除されます。
+                </p>
+                <p>
+                  先に PDF / Excel で記録を出力しておくことをおすすめします。
+                </p>
+              </AlertDescription>
+            </Alert>
+
+            <Link href="/logbook" data-testid="link-export-in-delete-dialog">
+              <Button variant="outline" size="sm" className="w-full">
+                <Download className="w-4 h-4 mr-2" />
+                記録の出力画面を開く（PDF / Excel）
+              </Button>
+            </Link>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="delete-password">確認のため、パスワードを入力してください</Label>
+              <Input
+                id="delete-password"
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="パスワードを入力"
+                autoComplete="current-password"
+                disabled={deleteAccountMutation.isPending}
+                data-testid="input-delete-password"
+              />
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleteAccountMutation.isPending}
+                data-testid="button-cancel-delete-account"
+              >
+                キャンセル
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteAccountMutation.mutate(deletePassword)}
+                disabled={deleteAccountMutation.isPending || !deletePassword}
+                data-testid="button-confirm-delete-account"
+              >
+                <UserX className="w-4 h-4 mr-2" />
+                {deleteAccountMutation.isPending ? "削除中..." : "完全に削除する"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
       </div>
     </AppLayout>
