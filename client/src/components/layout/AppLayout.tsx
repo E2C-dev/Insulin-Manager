@@ -168,12 +168,32 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         {/* D-003 (薬機法対策): 免責の常設表示 (全画面共通フッター・短縮版) */}
         <footer className="px-6 pb-6 pt-2">
-          <p
-            className="text-[11px] leading-relaxed text-muted-foreground text-center border-t border-border pt-3"
-            data-testid="app-disclaimer"
-          >
-            本アプリは医療機器ではありません。緊急時は医療機関へ。
-          </p>
+          <div className="border-t border-border pt-3">
+            <p
+              className="text-[11px] leading-relaxed text-muted-foreground text-center"
+              data-testid="app-disclaimer"
+            >
+              本アプリは医療機器ではありません。緊急時は医療機関へ。
+            </p>
+            {/* 規約への常設導線。App Store 審査ではプライバシーポリシーへ到達できることが要件 (5.1.1) */}
+            <div className="flex items-center justify-center gap-3 text-[11px] text-muted-foreground">
+              <Link
+                href="/terms/terms"
+                className="underline underline-offset-2 hover:text-foreground min-h-[44px] flex items-center"
+                data-testid="link-footer-terms"
+              >
+                利用規約
+              </Link>
+              <span aria-hidden="true">・</span>
+              <Link
+                href="/terms/privacy"
+                className="underline underline-offset-2 hover:text-foreground min-h-[44px] flex items-center"
+                data-testid="link-footer-privacy"
+              >
+                プライバシーポリシー
+              </Link>
+            </div>
+          </div>
         </footer>
       </main>
 
