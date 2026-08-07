@@ -486,4 +486,8 @@ export type {
   ConditionTypeDef,
   RuleEvaluation,
 } from "@shared/adjustmentRuleEngine";
-export { CONDITION_TYPE_MAP, compareGlucose } from "@shared/adjustmentRuleEngine";
+// NOTE (App Store 1.4.2 / ビルド分離): CONDITION_TYPE_MAP と compareGlucose の
+// re-export は client 側で誰も使っていない dead re-export だった。残しておくと
+// iOS ビルドのモジュールグラフに算出モジュール (shared/adjustmentRuleEngine.ts)
+// への参照が残りうるため削除した。server 側は @shared/adjustmentRuleEngine を
+// 直接 import しているため影響しない。

@@ -5,6 +5,50 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { metaImagesPlugin } from "./vite-plugin-meta-images";
 
+// ============================================================================
+// ビルドターゲット (App Store Review Guideline 1.4.2 / 2.3.1)
+// ============================================================================
+// 1.4.2 は「薬剤の投与量計算機」を承認主体・規制当局承認済みのものに限定して
+// いる。個人開発者は該当しないため、iOS 版には「血糖値から投与量を算出して
+// 提示する」コードを **1バイトも含めない**。
+//
+// 2.3.1 (審査時と異なる挙動の禁止) があるので、実行時フラグでの出し分けは
+// 行わない。ここで @dose-panel の解決先そのものを切り替えることで、iOS ビルド
+// のモジュールグラフに算出実装 (features/dose-panel/web.tsx と、そこからしか
+// 参照されない shared/adjustmentRuleEngine.ts) が入らないことを、バンドル
+// 成果物の grep で実測できるようにしている。
+//
+//   npm run build      → VITE_BUILD_TARGET 未設定 = web (従来どおり dist/public)
+//   npm run build:ios  → VITE_BUILD_TARGET=ios     (dist/ios/public)
+// ============================================================================
+const BUILD_TARGET = process.env.VITE_BUILD_TARGET === "ios" ? "ios" : "web";
+
+const dosePanelImpl = path.resolve(
+  import.meta.dirname,
+  "client",
+  "src",
+  "features",
+  "dose-panel",
+  BUILD_TARGET === "ios" ? "ios.tsx" : "web.tsx",
+);
+
+// 実装だけでなく「説明コピー」も同じ経路で分離する。審査官はチュートリアル
+// や LP の文章も機能説明として読むため、算出機能を外したビルドに算出前提の
+// 文言が残っていると 1.4.2 の疑いを自ら招く。
+const doseCopyImpl = path.resolve(
+  import.meta.dirname,
+  "client",
+  "src",
+  "features",
+  "dose-panel",
+  BUILD_TARGET === "ios" ? "copy.ios.ts" : "copy.web.ts",
+);
+
+const clientOutDir = path.resolve(
+  import.meta.dirname,
+  BUILD_TARGET === "ios" ? "dist/ios/public" : "dist/public",
+);
+
 export default defineConfig({
   plugins: [
     react(),
@@ -25,6 +69,10 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      // 具体度の高いエイリアスを先に置く。@dose-panel は VITE_BUILD_TARGET で
+      // 解決先が web.tsx / ios.tsx に切り替わる (実行時分岐ではない)。
+      "@dose-panel": dosePanelImpl,
+      "@dose-copy": doseCopyImpl,
       "@": path.resolve(import.meta.dirname, "client", "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
@@ -37,7 +85,7 @@ export default defineConfig({
   },
   root: path.resolve(import.meta.dirname, "client"),
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: clientOutDir,
     emptyOutDir: true,
     rollupOptions: {
       output: {
