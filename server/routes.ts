@@ -85,6 +85,38 @@ export async function registerRoutes(
       const validatedData = insertUserSchema.parse(req.body);
       console.log("✅ バリデーション成功:", { username: validatedData.username });
       
+      // 同意の検証 (fail-closed)。
+      // クライアント側のチェックだけでは API を直接叩くと素通りするため、サーバ側で必ず検証する。
+      // 有効な規約が1件も無い場合は「同意を取得できない」状態なので、登録を通さない。
+      console.log("[STEP 1.5] 同意の検証");
+      const activeTerms = await db
+        .select()
+        .from(termsVersions)
+        .where(eq(termsVersions.isActive, true));
+      if (activeTerms.length === 0) {
+        console.error("❌ 登録失敗: 有効な規約バージョンが存在しません (fail-closed)");
+        console.log("===========================================\n");
+        return res.status(503).json({
+          message:
+            "現在、利用規約を表示できないため新規登録を受け付けられません。お手数ですが時間をおいて再度お試しください。",
+        });
+      }
+      const submittedVersionIds: string[] = Array.isArray(req.body.version_ids)
+        ? req.body.version_ids.filter((v: unknown): v is string => typeof v === "string")
+        : [];
+      const notConsented = activeTerms.filter((v) => !submittedVersionIds.includes(v.id));
+      if (notConsented.length > 0) {
+        console.error(
+          "❌ 登録失敗: 未同意の規約があります:",
+          notConsented.map((v) => `${v.docType} ${v.version}`).join(", ")
+        );
+        console.log("===========================================\n");
+        return res.status(400).json({
+          message: "利用規約・プライバシーポリシー等のすべてに同意していただく必要があります",
+        });
+      }
+      console.log(`✅ 同意検証OK (${activeTerms.length}件すべてに同意済み)`);
+
       // 既存ユーザーのチェック
       console.log("[STEP 2] 既存ユーザーチェック");
       const existingUser = await storage.getUserByUsername(validatedData.username);

@@ -57,11 +57,12 @@ export default function Register() {
   });
 
   const activeVersions = termsData?.active ?? [];
+  // 規約が1件も取得できないときに「同意済み」とみなすと、同意なしで登録できてしまう。
+  // サーバ側も fail-closed で弾くが、UI 側でも成立させない。
   const allConsented =
-    termsLoading
+    termsLoading || activeVersions.length === 0
       ? false
-      : activeVersions.length === 0 ||
-        activeVersions.every((v) => consentChecked[v.id] === true);
+      : activeVersions.every((v) => consentChecked[v.id] === true);
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string; version_ids: string[] }) => {
@@ -214,6 +215,16 @@ export default function Register() {
                   disabled={registerMutation.isPending}
                 />
               </div>
+
+              {/* 規約が取得できないときは、同意を取得できないため登録を受け付けない */}
+              {!termsLoading && activeVersions.length === 0 && (
+                <div
+                  className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+                  data-testid="notice-terms-unavailable"
+                >
+                  現在、利用規約を表示できないため新規登録を受け付けられません。お手数ですが時間をおいて再度お試しください。
+                </div>
+              )}
 
               {/* 利用規約・PP 同意セクション */}
               {activeVersions.length > 0 && (
