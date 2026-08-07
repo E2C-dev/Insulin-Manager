@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
 
 interface TermsVersion {
   id: string;
@@ -38,6 +39,9 @@ export function ConsentGate({ children }: ConsentGateProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  // 規約第17条4項（同意しないことを理由にいつでも退会できる）を本モーダル内で行使できるようにする
+  const [showDelete, setShowDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
 
   // 認証済みのときだけ未同意バージョンを取得
   const { data, isLoading: pendingLoading } = useQuery<{ pending: TermsVersion[] }>({
@@ -69,6 +73,29 @@ export function ConsentGate({ children }: ConsentGateProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["consent", "pending"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "エラー", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "退会処理に失敗しました");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      window.location.href = "/";
     },
     onError: (err: Error) => {
       toast({ title: "エラー", description: err.message, variant: "destructive" });
@@ -152,9 +179,60 @@ export function ConsentGate({ children }: ConsentGateProps) {
             {agreeMutation.isPending ? "送信中..." : "すべてに同意してサービスを続ける"}
           </Button>
 
-          <p className="text-xs text-muted-foreground text-center">
-            同意できない場合は、設定画面よりアカウント削除をお申し付けください。
-          </p>
+          {/*
+            規約第17条4項は「同意しないことを理由としていつでも退会できる」と定めている。
+            本モーダルは背後の画面を完全にブロックするため、ここに退会導線が無いと
+            同意を拒否した利用者がその権利を行使できない（条文と実装の不一致になる）。
+          */}
+          {!showDelete ? (
+            <p className="text-xs text-muted-foreground text-center">
+              同意されない場合は、
+              <button
+                type="button"
+                className="underline hover:text-foreground"
+                onClick={() => setShowDelete(true)}
+                data-testid="button-consent-open-delete"
+              >
+                こちらから退会（アカウントの削除）
+              </button>
+              できます。
+            </p>
+          ) : (
+            <div className="rounded-md border border-destructive/40 p-3 space-y-2" data-testid="consent-delete-panel">
+              <p className="text-xs text-destructive font-medium">
+                退会すると、記録はすべて削除され、元に戻すことはできません。
+              </p>
+              <Input
+                type="password"
+                autoComplete="current-password"
+                placeholder="確認のためパスワードを入力"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                disabled={deleteMutation.isPending}
+                data-testid="input-consent-delete-password"
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => { setShowDelete(false); setDeletePassword(""); }}
+                  disabled={deleteMutation.isPending}
+                  data-testid="button-consent-cancel-delete"
+                >
+                  やめる
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => deleteMutation.mutate()}
+                  disabled={!deletePassword || deleteMutation.isPending}
+                  data-testid="button-consent-confirm-delete"
+                >
+                  {deleteMutation.isPending ? "削除中..." : "退会して削除する"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
