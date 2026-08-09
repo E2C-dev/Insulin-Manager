@@ -44,6 +44,19 @@ const doseCopyImpl = path.resolve(
   BUILD_TARGET === "ios" ? "copy.ios.ts" : "copy.web.ts",
 );
 
+// ネイティブ機能 (記録リマインダー / 生体認証ロック) も同じ経路で分離する。
+// Capacitor プラグインはブラウザ単体では動かないため、Web ビルドには
+// スタブ (web.ts) を解決させて Capacitor をモジュールグラフに入れない。
+// 詳細は client/src/features/native/contract.ts のヘッダを参照。
+const nativeImpl = path.resolve(
+  import.meta.dirname,
+  "client",
+  "src",
+  "features",
+  "native",
+  BUILD_TARGET === "ios" ? "ios.ts" : "web.ts",
+);
+
 const clientOutDir = path.resolve(
   import.meta.dirname,
   BUILD_TARGET === "ios" ? "dist/ios/public" : "dist/public",
@@ -73,6 +86,7 @@ export default defineConfig({
       // 解決先が web.tsx / ios.tsx に切り替わる (実行時分岐ではない)。
       "@dose-panel": dosePanelImpl,
       "@dose-copy": doseCopyImpl,
+      "@native": nativeImpl,
       "@": path.resolve(import.meta.dirname, "client", "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),

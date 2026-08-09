@@ -10,10 +10,18 @@
     "build:ios": "NODE_ENV=production VITE_BUILD_TARGET=ios vite build",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
+    "check:ios": "tsc -p tsconfig.ios.json",
+    "cap:sync": "npm run build:ios && npx cap sync ios",
+    "verify:separation": "node scripts/verify-build-separation.mjs",
     "db:push": "drizzle-kit push",
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^10.0.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/local-notifications": "^8.2.1",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -88,6 +96,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@playwright/test": "^1.62.0",
     "@replit/vite-plugin-cartographer": "^0.4.4",
     "@replit/vite-plugin-dev-banner": "^0.1.1",
