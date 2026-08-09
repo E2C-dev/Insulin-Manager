@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Shield, Eye, EyeOff, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
+import { AppLockSettings } from "@/components/settings/AppLockSettings";
 
 export default function SecuritySettings() {
   const { toast } = useToast();
@@ -60,6 +61,9 @@ export default function SecuritySettings() {
     <AppLayout>
       <div className="p-4 space-y-4">
         <PageHeader title="セキュリティ設定" icon={Shield} size="compact" />
+
+        {/* アプリロック (iOS ビルドのみ描画。Web では null を返す) */}
+        <AppLockSettings />
 
         <Card>
           <CardHeader className="pb-3">

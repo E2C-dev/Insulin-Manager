@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { ConsentGate } from "@/components/ConsentGate";
+import { AppLockGate } from "@/components/AppLockGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/hooks/use-auth";
@@ -204,9 +205,17 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
-          <ConsentGate>
-            <Router />
-          </ConsentGate>
+          {/*
+            AppLockGate は ConsentGate より外側に置く。
+            端末を他人が持っている状態で同意モーダル (規約本文・退会導線を含む)
+            を触らせないため、ロック解除が常に先に来る必要がある。
+            Web ビルドでは素通しになる。
+          */}
+          <AppLockGate>
+            <ConsentGate>
+              <Router />
+            </ConsentGate>
+          </AppLockGate>
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>

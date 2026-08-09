@@ -19,7 +19,8 @@
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"],
       "@dose-panel": ["./client/src/features/dose-panel/web"],
-      "@dose-copy": ["./client/src/features/dose-panel/copy.web"]
+      "@dose-copy": ["./client/src/features/dose-panel/copy.web"],
+      "@native": ["./client/src/features/native/web"]
     }
   }
 }

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
@@ -29,6 +28,7 @@ import {
   DISEASE_SUGGESTED_CATEGORIES,
 } from "@/components/settings/InsulinPresetForm";
 import { InsulinPresetCard } from "@/components/settings/InsulinPresetCard";
+import { ReminderSettings } from "@/components/settings/ReminderSettings";
 import { Link, useLocation } from "wouter";
 import { QUERY_KEYS } from "@/lib/query-keys";
 import { safeGetLocalStorage, safeSetLocalStorageString } from "@/lib/storage-utils";
@@ -447,18 +447,18 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* ===== Section 2: アプリ設定 ===== */}
+        {/* ===== Section 2: 記録リマインダー =====
+            iOS ビルドでのみ描画される (Web では isSupported=false で null)。
+            ここには以前 `<Switch defaultChecked />` だけの「通知設定」があったが、
+            ハンドラが無く、押しても何も起きないダミーだった。実機能に置き換えている。 */}
+        <ReminderSettings />
+
+        {/* ===== Section 3: アプリ設定 ===== */}
         <Card>
           <CardHeader className="p-4 pb-3">
             <CardTitle className="text-base">アプリ設定</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0 space-y-3">
-            {/* 通知設定 */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-card border hover:bg-muted/50 transition-colors">
-              <span className="text-sm font-medium">通知設定</span>
-              <Switch defaultChecked />
-            </div>
-
             {/* ログアウト */}
             <div className="pt-2">
               <Button
@@ -475,7 +475,7 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* ===== Section 3: 退会（アカウントの削除） =====
+        {/* ===== Section 4: 退会（アカウントの削除） =====
             利用規約 v2.0 第6条2項により、退会＝即時削除・復旧不可。
             誤タップを避けるため、独立したカードに分け、上のログアウト（塗りつぶしの赤）
             とは見た目を変えた枠線ボタンにし、実行前に必ずパスワードを求める。 */}

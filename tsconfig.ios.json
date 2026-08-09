@@ -1,0 +1,27 @@
+{
+  "//": [
+    "iOS ビルド (VITE_BUILD_TARGET=ios) と同じエイリアス解決で型検査するための設定。",
+    "",
+    "tsc は環境変数を読まないため、`VITE_BUILD_TARGET=ios npx tsc --noEmit` と書いても",
+    "tsconfig.json の paths (= web 実装) が使われるだけで iOS 側の検証にはならない。",
+    "paths を上書きした本ファイルを明示的に指定することで、@dose-panel / @native を",
+    "参照している呼び出し側が iOS 実装に対しても型整合しているかを確かめる。",
+    "",
+    "  npm run check      … web 解決で型検査",
+    "  npm run check:ios  … ios 解決で型検査",
+    "",
+    "両方を通してから push すること。片方だけだと、契約 (contract.ts) を変えたときに",
+    "もう一方の実装が置き去りになったことに気づけない。"
+  ],
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo.ios",
+    "paths": {
+      "@/*": ["./client/src/*"],
+      "@shared/*": ["./shared/*"],
+      "@dose-panel": ["./client/src/features/dose-panel/ios"],
+      "@dose-copy": ["./client/src/features/dose-panel/copy.ios"],
+      "@native": ["./client/src/features/native/ios"]
+    }
+  }
+}
